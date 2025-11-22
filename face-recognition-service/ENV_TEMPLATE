@@ -1,0 +1,31 @@
+# Face Recognition Service Configuration
+SERVICE_PORT=8000
+SERVICE_HOST=0.0.0.0
+
+# Database Configuration
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=civildesk
+DB_USER=postgres
+DB_PASSWORD=your_password_here
+
+# Face Recognition Settings
+FACE_DETECTION_THRESHOLD=0.5
+FACE_MATCHING_THRESHOLD=0.4
+VIDEO_CAPTURE_DURATION=10
+MAX_FACES_PER_FRAME=5
+
+# Live Video Stream Settings
+STREAM_CACHE_DURATION=2.0          # Cache duration for face tracking (seconds)
+FAST_MODE_DETECTION_SIZE=480       # Detection size in fast mode (smaller = faster)
+ENABLE_FACE_TRACKING=True          # Enable temporal face tracking cache
+
+# Storage Paths
+EMBEDDINGS_PATH=./data/embeddings.pkl
+TEMP_VIDEO_PATH=./data/temp_videos
+LOGS_PATH=./logs
+
+# CUDA/GPU Settings
+USE_GPU=True
+GPU_DEVICE_ID=0
+

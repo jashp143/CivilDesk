@@ -36,6 +36,8 @@ class AppRoutes {
   // Attendance routes
   static const String faceRegistration = '/attendance/face-registration';
   static const String attendanceMarking = '/attendance/marking';
+  static const String faceAttendance = '/attendance/face-attendance';
+  static const String faceAttendanceAnnotated = '/attendance/face-attendance-annotated';
 
   // Helper methods to build routes with parameters
   static String employeeDetail(String id) => '/admin/employees/$id';

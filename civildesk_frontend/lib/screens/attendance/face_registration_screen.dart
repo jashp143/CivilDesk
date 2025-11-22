@@ -86,7 +86,7 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
           _recordingDuration++;
         });
         
-        if (_recordingDuration >= 10) {
+        if (_recordingDuration >= 15) {
           _stopRecording();
         } else {
           _startTimer();
@@ -268,7 +268,7 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                     style: TextStyle(color: Colors.white),
                   ),
                   const Text(
-                    '4. Recording will last 10 seconds',
+                    '4. Recording will last 15 seconds',
                     style: TextStyle(color: Colors.white),
                   ),
                 ],
@@ -302,7 +302,7 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        'Recording: ${_recordingDuration}/10s',
+                        'Recording: ${_recordingDuration}/15s',
                         style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,

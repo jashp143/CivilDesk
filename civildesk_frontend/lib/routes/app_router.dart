@@ -13,6 +13,8 @@ import '../screens/attendance/face_registration_screen.dart';
 import '../screens/attendance/attendance_marking_screen.dart';
 import '../screens/attendance/admin_attendance_marking_screen.dart';
 import '../screens/attendance/daily_overview_screen.dart';
+import '../screens/attendance/face_attendance_screen.dart';
+import '../screens/attendance/face_attendance_annotated_screen.dart';
 import '../widgets/route_guard.dart';
 
 class AppRouter {
@@ -104,6 +106,16 @@ class AppRouter {
           builder: (_) => ManagerRouteGuard(
             child: const DailyOverviewScreen(),
           ),
+        );
+
+      case AppRoutes.faceAttendance:
+        return MaterialPageRoute(
+          builder: (_) => const FaceAttendanceScreen(),
+        );
+
+      case AppRoutes.faceAttendanceAnnotated:
+        return MaterialPageRoute(
+          builder: (_) => const FaceAttendanceAnnotatedScreen(),
         );
 
       default:

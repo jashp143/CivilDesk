@@ -1,182 +1,365 @@
 # Face Recognition Setup Guide
 
-This guide will help you set up the face recognition system for the Civildesk attendance marking application.
+This guide will help you set up the face recognition system for CivilDesk attendance management.
+
+## Architecture
+
+The system consists of three components:
+1. **Python FastAPI Service** - Face recognition backend using InsightFace
+2. **Java Spring Boot Backend** - Main application backend
+3. **Flutter Frontend** - Mobile/web application
 
 ## Prerequisites
 
+### System Requirements
 - Python 3.8 or higher
-- Java 17 or higher (for Spring Boot)
-- Flutter SDK
-- PostgreSQL database
-- Camera access on your device
+- PostgreSQL 12 or higher
+- Java 17 or higher
+- Flutter 3.0 or higher
+- (Optional) NVIDIA GPU with CUDA for better performance
 
-## Setup Steps
+### Python Dependencies
+- InsightFace
+- OpenCV
+- FastAPI
+- ONNX Runtime (with GPU support if available)
 
-### 1. Python Flask Service Setup
+## Installation Steps
 
-1. Navigate to the `face_recognition_service` directory:
+### 1. Setup Python Face Recognition Service
+
+#### Navigate to service directory
 ```bash
-cd face_recognition_service
+cd face-recognition-service
 ```
 
-2. Create a virtual environment:
+#### Create virtual environment
 ```bash
 python -m venv venv
+
+# Activate virtual environment
+# On Windows:
+venv\Scripts\activate
+# On Linux/Mac:
+source venv/bin/activate
 ```
 
-3. Activate the virtual environment:
-- Windows: `venv\Scripts\activate`
-- Linux/Mac: `source venv/bin/activate`
-
-4. Install dependencies:
+#### Install dependencies
 ```bash
+# Install CPU version (works on all systems)
 pip install -r requirements.txt
+
+# For GPU support (NVIDIA GPUs only)
+pip uninstall onnxruntime
+pip install onnxruntime-gpu==1.16.3
 ```
 
-5. The InsightFace models will be automatically downloaded on first run. Alternatively, you can download them manually:
-- RetinaFace model for face detection
-- ArcFace model for face recognition
-
-6. Start the Flask service:
+#### Configure environment
 ```bash
-python app.py
+# Create .env file
+python setup_env.py
+
+# Edit .env file and update:
+# - DB_PASSWORD with your PostgreSQL password
+# - DB_HOST, DB_PORT, DB_NAME if different
+# - USE_GPU=True if you have CUDA-enabled GPU
 ```
 
-The service will run on `http://localhost:8000`
+#### Test the service
+```bash
+# Start the service
+python main.py
 
-### 2. Spring Boot Backend Setup
+# In another terminal, run tests
+python test_service.py
+```
 
-1. Ensure PostgreSQL is running and the database is created.
+### 2. Verify Database Connection
 
-2. The backend will automatically create the `attendance` table on startup.
+The face recognition service needs access to your PostgreSQL database.
 
-3. Update `application.properties` or `.env` file with face recognition service URL:
+```sql
+-- Connect to PostgreSQL
+psql -U postgres
+
+-- Verify civildesk database exists
+\l
+
+-- If not, create it
+CREATE DATABASE civildesk;
+
+-- Connect to database
+\c civildesk
+
+-- Verify employee table exists
+\dt
+```
+
+### 3. Configure Java Backend
+
+The Java backend is already configured to communicate with the face recognition service.
+
+Verify in `application.properties`:
 ```properties
 face.recognition.service.url=http://localhost:8000
 ```
 
-4. Start the Spring Boot application:
+### 4. Configure Flutter Frontend
+
+The Flutter frontend is already configured to use the face recognition service.
+
+Verify in `lib/core/constants/app_constants.dart`:
+```dart
+static String get faceServiceUrl {
+  if (Platform.isAndroid) {
+    return 'http://10.0.2.2:8000';  // Android emulator
+  } else if (Platform.isIOS) {
+    return 'http://localhost:8000';  // iOS simulator
+  } else {
+    return 'http://localhost:8000';  // Desktop
+  }
+}
+```
+
+**For physical devices:** Update with your computer's IP address:
+```dart
+return 'http://192.168.1.100:8000';  // Replace with your IP
+```
+
+## Running the System
+
+### Start all services in order:
+
+#### 1. Start PostgreSQL
+```bash
+# On Windows
+# PostgreSQL should be running as a service
+
+# On Linux/Mac
+sudo systemctl start postgresql
+```
+
+#### 2. Start Face Recognition Service
+```bash
+cd face-recognition-service
+venv\Scripts\activate  # or source venv/bin/activate
+python main.py
+```
+
+The service will start on `http://localhost:8000`
+
+#### 3. Start Java Backend
 ```bash
 cd civildesk-backend/civildesk-backend
 ./mvnw spring-boot:run
 ```
 
-### 3. Flutter Frontend Setup
+The backend will start on `http://localhost:8080`
 
-1. Navigate to the Flutter project:
+#### 4. Start Flutter Frontend
 ```bash
 cd civildesk_frontend
-```
-
-2. Install dependencies:
-```bash
-flutter pub get
-```
-
-3. Update `lib/core/constants/app_constants.dart` if needed to point to your backend and face recognition service URLs.
-
-4. Run the Flutter app:
-```bash
 flutter run
 ```
 
 ## Usage
 
-### Registering a Face
+### Face Registration (Employee Management)
 
-1. Navigate to the employee management screen (Admin/HR Manager only).
-2. Select an employee.
-3. Click "Register Face" button.
-4. The app will open the camera.
-5. Click "Start Recording" and record a 10-second video of the employee's face.
-6. The video will be processed and face embeddings will be stored.
+1. Login as Admin or HR Manager
+2. Navigate to Employee Management
+3. Select an employee
+4. Click the "Face" icon in the toolbar
+5. The camera will open
+6. Click "Start Recording"
+7. Keep your face in frame for 10 seconds
+8. The system will process and register your face
 
-### Marking Attendance
+### Face Recognition Attendance
 
-1. Navigate to the attendance marking screen.
-2. The camera will automatically start detecting faces.
-3. When a recognized face appears (green bounding box), tap on it to mark attendance.
-4. Unknown faces will show a red bounding box.
+1. Login as any user
+2. Navigate to Attendance → Mark Attendance
+3. The camera will open automatically
+4. Position your face in front of the camera
+5. When recognized, a green bounding box appears with your name
+6. Tap on the green box
+7. Select punch type (Check In, Lunch Out, Lunch In, Check Out)
+8. Attendance will be marked
 
-## API Endpoints
+## GPU Support
 
-### Face Recognition Service (Flask - Port 8000)
+### Check GPU Availability
 
-- `GET /health` - Health check
-- `POST /face/register` - Register face from video
-  - Form data: `video` (file), `employee_id` (string)
-- `POST /face/detect` - Detect and recognize faces in image
-  - Form data: `image` (file)
-- `GET /face/embeddings/list` - List all registered employees
-- `DELETE /face/embeddings/<employee_id>` - Delete employee embeddings
+```python
+import onnxruntime as ort
+print(ort.get_available_providers())
+```
 
-### Spring Boot Backend (Port 8080)
+If `CUDAExecutionProvider` is listed, GPU will be used automatically.
 
-- `POST /api/face/register` - Register face (requires authentication)
-- `POST /api/face/detect` - Detect faces (requires authentication)
-- `GET /api/face/health` - Check face recognition service health
-- `POST /api/attendance/mark` - Mark attendance with face recognition
-- `POST /api/attendance/checkout` - Check out
-- `GET /api/attendance/today/{employeeId}` - Get today's attendance
-- `GET /api/attendance/employee/{employeeId}` - Get attendance history
+### Enable GPU Support
+
+1. Install CUDA Toolkit from NVIDIA
+2. Install cuDNN
+3. Install onnxruntime-gpu:
+```bash
+pip uninstall onnxruntime
+pip install onnxruntime-gpu
+```
+
+4. Set in `.env`:
+```
+USE_GPU=True
+GPU_DEVICE_ID=0
+```
+
+## Performance
+
+### CPU Performance
+- Detection: 10-15 FPS
+- Recognition: 8-12 FPS
+- Registration: 10 seconds
+
+### GPU Performance (RTX 3060)
+- Detection: 30-45 FPS
+- Recognition: 25-35 FPS
+- Registration: 10 seconds
 
 ## Troubleshooting
 
-### Face Recognition Service Not Starting
+### Service won't start
 
-- Check if port 8000 is available
-- Ensure all Python dependencies are installed
-- Check if InsightFace models are downloaded
+**Error:** `ModuleNotFoundError: No module named 'insightface'`
+- Solution: Activate virtual environment and run `pip install -r requirements.txt`
 
-### Face Not Detected
+**Error:** `Connection to database failed`
+- Solution: Verify PostgreSQL is running and credentials in `.env` are correct
 
-- Ensure good lighting conditions
-- Face should be clearly visible and centered
-- Check camera permissions
+### Face detection not working
 
-### Face Not Recognized
+**Issue:** No faces detected
+- Ensure good lighting
+- Face should be clearly visible
+- Try adjusting `FACE_DETECTION_THRESHOLD` in `.env` (lower = more sensitive)
 
-- Ensure face is registered first
-- Check if embeddings.pickle file exists and has data
-- Verify employee_id matches
+### Face recognition low accuracy
 
-### Spring Boot Cannot Connect to Flask Service
+**Issue:** Faces not recognized or low confidence
+- Register face again with better lighting
+- Ensure face is centered during registration
+- Adjust `FACE_MATCHING_THRESHOLD` in `.env` (higher = more strict)
 
-- Verify Flask service is running on port 8000
-- Check `face.recognition.service.url` in application.properties
-- Check firewall settings
+### GPU not being used
+
+**Issue:** Service running on CPU despite GPU available
+- Install CUDA Toolkit
+- Install onnxruntime-gpu
+- Set `USE_GPU=True` in `.env`
+- Restart the service
+
+### Camera not working in Flutter
+
+**Android:** Add permissions in `AndroidManifest.xml`:
+```xml
+<uses-permission android:name="android.permission.CAMERA" />
+```
+
+**iOS:** Add to `Info.plist`:
+```xml
+<key>NSCameraUsageDescription</key>
+<string>Camera access required for face recognition</string>
+```
+
+### Cannot connect from mobile device
+
+**Issue:** Connection refused or timeout
+- Use computer's IP address instead of localhost
+- Ensure firewall allows connections on ports 8000 and 8080
+- Both devices should be on the same network
+
+## API Endpoints
+
+### Face Recognition Service (Port 8000)
+
+- `GET /health` - Health check
+- `POST /face/register` - Register face from video
+- `POST /face/detect` - Detect faces in image
+- `POST /face/recognize-stream` - Recognize faces (real-time)
+- `POST /face/attendance/mark` - Mark attendance
+- `DELETE /face/embeddings/{employee_id}` - Delete face data
+- `GET /face/embeddings/list` - List registered faces
+
+### Java Backend (Port 8080)
+
+- `POST /api/face/register` - Proxy to face service
+- `POST /api/face/detect` - Proxy to face service
+- `GET /api/face/health` - Check face service health
 
 ## File Structure
 
 ```
-face_recognition_service/
-├── app.py                    # Flask application
-├── requirements.txt          # Python dependencies
-├── embeddings.pickle        # Stored face embeddings (auto-generated)
-├── uploads/                  # Temporary upload directory
-└── services/
-    ├── face_detector.py     # Face detection service
-    ├── face_recognizer.py  # Face recognition service
-    ├── embedding_manager.py # Embedding storage manager
-    └── video_processor.py   # Video processing service
+face-recognition-service/
+├── main.py                      # FastAPI application
+├── config.py                    # Configuration
+├── database.py                  # Database operations
+├── face_recognition_engine.py   # Face recognition logic
+├── requirements.txt             # Python dependencies
+├── setup_env.py                 # Environment setup script
+├── test_service.py             # Test script
+├── .env                        # Configuration (create this)
+├── data/
+│   ├── embeddings.pkl          # Stored face embeddings
+│   └── temp_videos/            # Temporary video storage
+└── logs/
+    └── face_service.log        # Service logs
 ```
 
-## Configuration
+## Security Considerations
 
-### Face Recognition Threshold
+1. **Face Data Storage**: Face embeddings are stored locally in PKL file
+2. **Database Access**: Service needs read access to employee table
+3. **API Access**: No authentication on face service (runs locally)
+4. **Data Privacy**: Face embeddings cannot be reverse-engineered to images
 
-Default threshold is 0.6 (60% similarity). You can adjust this in:
-- `face_recognition_service/services/face_recognizer.py` - `threshold` parameter
+## Maintenance
 
-### Video Duration
+### Backup Face Embeddings
 
-Default video duration for registration is 10 seconds. You can adjust this in:
-- `face_recognition_service/services/video_processor.py` - `target_duration` parameter
+```bash
+cp data/embeddings.pkl data/embeddings_backup_$(date +%Y%m%d).pkl
+```
 
-## Security Notes
+### Clear All Face Data
 
-- Face recognition service should be run on a secure network
-- Consider adding authentication to Flask endpoints
-- Store embeddings.pickle file securely
-- Implement rate limiting for production use
+```bash
+# Stop the service first
+rm data/embeddings.pkl
+# Restart the service
+```
+
+### View Logs
+
+```bash
+tail -f logs/face_service.log
+```
+
+### Update Models
+
+InsightFace models are downloaded automatically on first run to:
+- Windows: `C:\Users\<username>\.insightface\models\`
+- Linux/Mac: `~/.insightface/models/`
+
+To update models, delete the folder and restart the service.
+
+## Support
+
+For issues or questions:
+1. Check logs: `logs/face_service.log`
+2. Run test script: `python test_service.py`
+3. Verify all services are running
+4. Check network connectivity
+
+## License
+
+Copyright © 2024 CivilTech. All rights reserved.
 

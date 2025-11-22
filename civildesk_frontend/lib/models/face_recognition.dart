@@ -23,6 +23,8 @@ class DetectedFace {
   final double confidence;
   final bool recognized;
   final String? employeeId;
+  final String? firstName;
+  final String? lastName;
   final double matchConfidence;
 
   DetectedFace({
@@ -30,8 +32,18 @@ class DetectedFace {
     required this.confidence,
     required this.recognized,
     this.employeeId,
+    this.firstName,
+    this.lastName,
     required this.matchConfidence,
   });
+
+  String get displayName => firstName != null && lastName != null 
+      ? '$firstName $lastName'
+      : employeeId ?? 'Unknown';
+
+  String get storageKey => firstName != null && lastName != null
+      ? '${firstName}_$lastName'
+      : employeeId ?? 'Unknown';
 
   factory DetectedFace.fromJson(Map<String, dynamic> json) {
     return DetectedFace(
@@ -39,6 +51,8 @@ class DetectedFace {
       confidence: (json['confidence'] as num?)?.toDouble() ?? 0.0,
       recognized: json['recognized'] as bool? ?? false,
       employeeId: json['employee_id'] as String?,
+      firstName: json['first_name'] as String?,
+      lastName: json['last_name'] as String?,
       matchConfidence: (json['match_confidence'] as num?)?.toDouble() ?? 0.0,
     );
   }

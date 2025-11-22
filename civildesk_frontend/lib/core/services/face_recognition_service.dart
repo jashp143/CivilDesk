@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import '../constants/app_constants.dart';
 import 'api_service.dart';
@@ -17,7 +18,7 @@ class FaceRecognitionService {
     );
   }
 
-  /// Register face from 10-second video
+  /// Register face from 15-second video
   Future<Map<String, dynamic>> registerFace(String employeeId, File videoFile) async {
     try {
       FormData formData = FormData.fromMap({
@@ -60,6 +61,54 @@ class FaceRecognitionService {
     }
   }
 
+  /// Recognize faces in real-time stream
+  Future<Map<String, dynamic>> recognizeStream(File imageFile) async {
+    try {
+      FormData formData = FormData.fromMap({
+        'image': await MultipartFile.fromFile(imageFile.path),
+      });
+
+      final response = await _faceServiceDio.post(
+        '/face/recognize-stream',
+        data: formData,
+        options: Options(
+          headers: {'Content-Type': 'multipart/form-data'},
+        ),
+      );
+
+      return response.data;
+    } catch (e) {
+      throw Exception('Error recognizing faces: $e');
+    }
+  }
+
+  /// Mark attendance using face recognition
+  Future<Map<String, dynamic>> markAttendance({
+    required String employeeId,
+    required String punchType,
+    required double confidence,
+  }) async {
+    try {
+      FormData formData = FormData.fromMap({
+        'employee_id': employeeId,
+        'punch_type': punchType,
+        'confidence': confidence,
+      });
+
+      final response = await _faceServiceDio.post(
+        '/face/attendance/mark',
+        data: formData,
+        options: Options(
+          headers: {'Content-Type': 'multipart/form-data'},
+        ),
+      );
+
+      return response.data;
+    } catch (e) {
+      throw Exception('Error marking attendance: $e');
+    }
+  }
+
   /// Check face recognition service health
   Future<bool> checkHealth() async {
     try {
@@ -82,6 +131,39 @@ class FaceRecognitionService {
     } catch (e) {
       // If employee doesn't have face embeddings, that's okay
       return false;
+    }
+  }
+
+  /// Get annotated image with bounding boxes and names drawn
+  Future<Uint8List?> getAnnotatedImage(File imageFile) async {
+    try {
+      FormData formData = FormData.fromMap({
+        'image': await MultipartFile.fromFile(imageFile.path),
+      });
+
+      final response = await _faceServiceDio.post(
+        '/face/recognize-annotated',
+        data: formData,
+        options: Options(
+          headers: {'Content-Type': 'multipart/form-data'},
+          responseType: ResponseType.bytes, // Important: get bytes response
+        ),
+      );
+
+      return response.data as Uint8List;
+    } catch (e) {
+      print('Error getting annotated image: $e');
+      return null;
+    }
+  }
+
+  /// List all registered face embeddings
+  Future<Map<String, dynamic>> listEmbeddings() async {
+    try {
+      final response = await _faceServiceDio.get('/face/embeddings/list');
+      return response.data;
+    } catch (e) {
+      throw Exception('Error listing embeddings: $e');
     }
   }
 }

@@ -143,6 +143,40 @@ public class FaceRecognitionService {
         }
     }
 
+    public byte[] detectFacesAnnotated(MultipartFile imageFile) throws IOException {
+        String url = faceServiceUrl + "/face/recognize-annotated";
+        
+        // Create temporary file
+        Path tempFile = Files.createTempFile("face_annotate_", ".jpg");
+        try {
+            File file = Objects.requireNonNull(tempFile.toFile(), "Temporary file cannot be null");
+            imageFile.transferTo(file);
+            
+            // Prepare request
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+            
+            MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+            body.add("image", new FileSystemResource(file));
+            
+            HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
+            
+            // Make request - returns image bytes
+            HttpMethod httpMethod = Objects.requireNonNull(HttpMethod.POST, "HTTP method cannot be null");
+            ResponseEntity<byte[]> response = restTemplate.exchange(
+                url, 
+                httpMethod, 
+                requestEntity, 
+                byte[].class
+            );
+            
+            return response.getBody();
+        } finally {
+            // Clean up temp file
+            Files.deleteIfExists(tempFile);
+        }
+    }
+
     public boolean checkServiceHealth() {
         try {
             String url = faceServiceUrl + "/health";

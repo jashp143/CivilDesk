@@ -5,6 +5,7 @@ import com.civiltech.civildesk_backend.dto.FaceRecognitionResponse;
 import com.civiltech.civildesk_backend.service.FaceRecognitionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -61,6 +62,29 @@ public class FaceRecognitionController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Error detecting faces: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR.value()));
+        }
+    }
+
+    @PostMapping("/detect-annotated")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<byte[]> detectFacesAnnotated(
+            @RequestParam("image") MultipartFile imageFile) {
+        try {
+            if (imageFile.isEmpty()) {
+                return ResponseEntity.badRequest().build();
+            }
+
+            byte[] annotatedImage = faceRecognitionService.detectFacesAnnotated(imageFile);
+            
+            if (annotatedImage != null) {
+                return ResponseEntity.ok()
+                        .contentType(MediaType.IMAGE_JPEG)
+                        .body(annotatedImage);
+            } else {
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 

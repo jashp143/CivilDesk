@@ -1,4 +1,0 @@
-"""
-Face Recognition Services Package
-"""
-
