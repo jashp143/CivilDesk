@@ -5,6 +5,8 @@ import 'core/providers/auth_provider.dart';
 import 'core/providers/dashboard_provider.dart';
 import 'core/providers/employee_provider.dart';
 import 'core/providers/theme_provider.dart';
+import 'core/providers/attendance_analytics_provider.dart';
+import 'core/providers/holiday_provider.dart';
 import 'core/constants/app_routes.dart';
 import 'routes/app_router.dart';
 
@@ -23,11 +25,13 @@ class CivildeskApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => DashboardProvider()),
         ChangeNotifierProvider(create: (_) => EmployeeProvider()),
+        ChangeNotifierProvider(create: (_) => AttendanceAnalyticsProvider()),
+        ChangeNotifierProvider(create: (_) => HolidayProvider()),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, _) {
           return MaterialApp(
-            title: 'Civildesk',
+            title: 'Civildesk Admin',
             debugShowCheckedModeBanner: false,
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,

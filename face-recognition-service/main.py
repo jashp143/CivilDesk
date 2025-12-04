@@ -329,6 +329,57 @@ async def delete_embeddings(employee_id: str):
         logger.error(f"Error deleting embeddings: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.put("/face/attendance/update-punch-time")
+async def update_punch_time(
+    attendance_id: int = Form(...),
+    punch_type: str = Form(...),  # check_in, lunch_out, lunch_in, check_out
+    new_time: str = Form(...)  # ISO format: YYYY-MM-DD HH:MM:SS
+):
+    """
+    Update punch time for an attendance record (admin function)
+    
+    Args:
+        attendance_id: Attendance record ID
+        punch_type: Type of punch (check_in, lunch_out, lunch_in, check_out)
+        new_time: New timestamp in ISO format (YYYY-MM-DD HH:MM:SS)
+    """
+    try:
+        # Validate punch type
+        valid_punch_types = ['check_in', 'lunch_out', 'lunch_in', 'check_out']
+        if punch_type not in valid_punch_types:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid punch type. Must be one of: {', '.join(valid_punch_types)}"
+            )
+        
+        # Get attendance record to verify it exists
+        attendance = Database.get_attendance_by_id(attendance_id)
+        if not attendance:
+            raise HTTPException(status_code=404, detail="Attendance record not found")
+        
+        # Update punch time
+        Database.update_punch_time(attendance_id, punch_type, new_time)
+        
+        # Get updated attendance record
+        updated_attendance = Database.get_attendance_by_id(attendance_id)
+        
+        logger.info(f"✅ PUNCH TIME UPDATED: Attendance ID {attendance_id}, {punch_type} set to {new_time}")
+        
+        return {
+            "success": True,
+            "message": f"Punch time updated successfully",
+            "attendance_id": attendance_id,
+            "punch_type": punch_type,
+            "new_time": new_time,
+            "employee_name": f"{updated_attendance['first_name']} {updated_attendance['last_name']}"
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating punch time: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/face/embeddings/list")
 async def list_embeddings():
     """

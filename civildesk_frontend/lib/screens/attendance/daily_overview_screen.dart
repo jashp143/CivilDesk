@@ -4,6 +4,7 @@ import '../../core/services/attendance_service.dart';
 import '../../models/attendance.dart';
 import '../../widgets/admin_layout.dart';
 import '../../core/constants/app_routes.dart';
+import 'edit_punch_times_screen.dart';
 
 class DailyOverviewScreen extends StatefulWidget {
   const DailyOverviewScreen({super.key});
@@ -385,7 +386,7 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
                     Icons.logout,
                   ),
                 ),
-                if (attendance.workingHours != null) ...[
+                if (attendance.formattedWorkingHours != null) ...[
                   Container(
                     width: 1,
                     height: 40,
@@ -394,8 +395,23 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
                   Expanded(
                     child: _buildTimeInfo(
                       'Working Hours',
-                      attendance.workingHours!,
+                      attendance.formattedWorkingHours!,
                       Icons.access_time,
+                    ),
+                  ),
+                ],
+                if (attendance.formattedOvertimeHours != null) ...[
+                  Container(
+                    width: 1,
+                    height: 40,
+                    color: Colors.grey[300],
+                  ),
+                  Expanded(
+                    child: _buildTimeInfo(
+                      'Overtime',
+                      attendance.formattedOvertimeHours!,
+                      Icons.timer,
+                      color: Colors.orange[700],
                     ),
                   ),
                 ],
@@ -435,22 +451,35 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
                 ],
               ),
             ],
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: () => _navigateToEditScreen(attendance),
+                icon: const Icon(Icons.edit, size: 18),
+                label: const Text('Edit Punch Times'),
+                style: TextButton.styleFrom(
+                  foregroundColor: Theme.of(context).primaryColor,
+                ),
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildTimeInfo(String label, String value, IconData icon) {
+  Widget _buildTimeInfo(String label, String value, IconData icon, {Color? color}) {
     return Column(
       children: [
-        Icon(icon, size: 20, color: Colors.grey[600]),
+        Icon(icon, size: 20, color: color ?? Colors.grey[600]),
         const SizedBox(height: 4),
         Text(
           value,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
+            color: color,
           ),
         ),
         Text(
@@ -467,6 +496,16 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
   String _formatTime(DateTime? time) {
     if (time == null) return 'N/A';
     return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+  }
+
+  void _navigateToEditScreen(Attendance attendance) {
+    showDialog(
+      context: context,
+      builder: (context) => EditPunchTimesDialog(attendance: attendance),
+    ).then((_) {
+      // Refresh the list after closing dialog
+      _loadDailyAttendance();
+    });
   }
 }
 

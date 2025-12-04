@@ -148,4 +148,104 @@ class Database:
         except Exception as e:
             logger.error(f"Error marking attendance for {employee_id}: {str(e)}")
             raise
+    
+    @staticmethod
+    def update_punch_time(attendance_id: int, punch_type: str, new_time: str):
+        """
+        Update punch time for an attendance record (admin function)
+        
+        Args:
+            attendance_id: Attendance record ID
+            punch_type: Type of punch (check_in, lunch_out, lunch_in, check_out)
+            new_time: New timestamp in ISO format (YYYY-MM-DD HH:MM:SS)
+        """
+        try:
+            with Database.get_connection() as conn:
+                with conn.cursor() as cursor:
+                    # Validate punch type
+                    valid_punch_types = ['check_in', 'lunch_out', 'lunch_in', 'check_out']
+                    if punch_type not in valid_punch_types:
+                        raise ValueError(f"Invalid punch type. Must be one of: {', '.join(valid_punch_types)}")
+                    
+                    # Check if attendance record exists
+                    cursor.execute(
+                        """
+                        SELECT id FROM attendance WHERE id = %s
+                        """,
+                        (attendance_id,)
+                    )
+                    existing = cursor.fetchone()
+                    
+                    if not existing:
+                        raise ValueError(f"Attendance record with ID {attendance_id} not found")
+                    
+                    # Update the appropriate punch time
+                    if punch_type == 'check_in':
+                        cursor.execute(
+                            """
+                            UPDATE attendance 
+                            SET check_in_time = %s
+                            WHERE id = %s
+                            """,
+                            (new_time, attendance_id)
+                        )
+                    elif punch_type == 'lunch_out':
+                        cursor.execute(
+                            """
+                            UPDATE attendance 
+                            SET lunch_out_time = %s
+                            WHERE id = %s
+                            """,
+                            (new_time, attendance_id)
+                        )
+                    elif punch_type == 'lunch_in':
+                        cursor.execute(
+                            """
+                            UPDATE attendance 
+                            SET lunch_in_time = %s
+                            WHERE id = %s
+                            """,
+                            (new_time, attendance_id)
+                        )
+                    elif punch_type == 'check_out':
+                        cursor.execute(
+                            """
+                            UPDATE attendance 
+                            SET check_out_time = %s
+                            WHERE id = %s
+                            """,
+                            (new_time, attendance_id)
+                        )
+                    
+                    logger.info(f"Updated {punch_type} time for attendance ID {attendance_id} to {new_time}")
+                    return True
+                    
+        except Exception as e:
+            logger.error(f"Error updating punch time: {str(e)}")
+            raise
+    
+    @staticmethod
+    def get_attendance_by_id(attendance_id: int):
+        """Get attendance record by ID"""
+        try:
+            with Database.get_connection() as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(
+                        """
+                        SELECT a.id, a.employee_id, a.date, 
+                               a.check_in_time, a.lunch_out_time, 
+                               a.lunch_in_time, a.check_out_time,
+                               a.status, a.recognition_method,
+                               a.face_recognition_confidence,
+                               e.first_name, e.last_name
+                        FROM attendance a
+                        JOIN employees e ON a.employee_id = e.employee_id
+                        WHERE a.id = %s
+                        """,
+                        (attendance_id,)
+                    )
+                    return cursor.fetchone()
+        except Exception as e:
+            logger.error(f"Error fetching attendance {attendance_id}: {str(e)}")
+            return None
 

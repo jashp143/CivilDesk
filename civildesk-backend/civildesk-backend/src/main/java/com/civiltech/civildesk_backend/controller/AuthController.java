@@ -74,6 +74,73 @@ public class AuthController {
         }
     }
 
+    @PostMapping("/login/admin")
+    public ResponseEntity<ApiResponse<AuthResponse>> adminLogin(@Valid @RequestBody LoginRequest loginRequest) {
+        try {
+            User user = userRepository.findByEmail(loginRequest.getEmail())
+                    .orElseThrow(() -> new BadRequestException("Invalid email or password"));
+
+            // Only allow ADMIN and HR_MANAGER roles
+            if (user.getRole() != User.Role.ADMIN && user.getRole() != User.Role.HR_MANAGER) {
+                throw new BadRequestException("Access denied. This login is for administrators and HR managers only. Please use the Employee app.");
+            }
+
+            // Check if email is verified
+            if (!user.getEmailVerified()) {
+                throw new BadRequestException("Please verify your email before logging in");
+            }
+
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(
+                            loginRequest.getEmail(),
+                            loginRequest.getPassword()
+                    )
+            );
+
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+
+            String token = generateToken(user);
+            AuthResponse authResponse = createAuthResponse(token, user);
+
+            return ResponseEntity.ok(ApiResponse.success("Login successful", authResponse));
+        } catch (BadRequestException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new BadRequestException("Invalid email or password");
+        }
+    }
+
+    @PostMapping("/login/employee")
+    public ResponseEntity<ApiResponse<AuthResponse>> employeeLogin(@Valid @RequestBody LoginRequest loginRequest) {
+        try {
+            User user = userRepository.findByEmail(loginRequest.getEmail())
+                    .orElseThrow(() -> new BadRequestException("Invalid email or password"));
+
+            // Only allow EMPLOYEE role
+            if (user.getRole() != User.Role.EMPLOYEE) {
+                throw new BadRequestException("Access denied. This login is for employees only. Please use the Admin app.");
+            }
+
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(
+                            loginRequest.getEmail(),
+                            loginRequest.getPassword()
+                    )
+            );
+
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+
+            String token = generateToken(user);
+            AuthResponse authResponse = createAuthResponse(token, user);
+
+            return ResponseEntity.ok(ApiResponse.success("Login successful", authResponse));
+        } catch (BadRequestException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new BadRequestException("Invalid email or password");
+        }
+    }
+
     @PostMapping("/signup")
     public ResponseEntity<ApiResponse<String>> signup(@Valid @RequestBody SignupRequest signupRequest) {
         // Validate password match

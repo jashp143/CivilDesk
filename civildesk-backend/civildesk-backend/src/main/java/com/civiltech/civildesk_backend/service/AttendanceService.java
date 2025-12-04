@@ -2,6 +2,7 @@ package com.civiltech.civildesk_backend.service;
 
 import com.civiltech.civildesk_backend.dto.AttendanceRequest;
 import com.civiltech.civildesk_backend.dto.AttendanceResponse;
+import com.civiltech.civildesk_backend.dto.AttendanceAnalyticsResponse;
 import com.civiltech.civildesk_backend.exception.ResourceNotFoundException;
 import com.civiltech.civildesk_backend.model.Attendance;
 import com.civiltech.civildesk_backend.model.Employee;
@@ -11,9 +12,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.TextStyle;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
 
 @Service
@@ -24,6 +30,13 @@ public class AttendanceService {
 
     @Autowired
     private EmployeeRepository employeeRepository;
+
+    @Autowired
+    private AttendanceCalculationService calculationService;
+
+    public Employee getEmployeeByUserId(Long userId) {
+        return employeeRepository.findByUserIdAndDeletedFalse(userId).orElse(null);
+    }
 
     @Transactional
     public AttendanceResponse markAttendance(AttendanceRequest request) {
@@ -87,6 +100,14 @@ public class AttendanceService {
             attendance.setRecognitionMethod(request.getRecognitionMethod());
             attendance.setFaceRecognitionConfidence(request.getFaceRecognitionConfidence());
             
+            // Calculate working hours and overtime if check-in and check-out are available
+            if (attendance.getCheckInTime() != null && attendance.getCheckOutTime() != null) {
+                AttendanceCalculationService.CalculationResult result = 
+                    calculationService.calculateAttendance(attendance);
+                attendance.setWorkingHours(result.getWorkingHours());
+                attendance.setOvertimeHours(result.getOvertimeHours());
+            }
+            
             System.out.println("Saving attendance record...");
             System.out.println("Before save - Employee ID: " + attendance.getEmployee().getId());
             System.out.println("Before save - Date: " + attendance.getDate());
@@ -117,6 +138,15 @@ public class AttendanceService {
                 .orElseThrow(() -> new ResourceNotFoundException("No attendance record found for today"));
 
         attendance.setCheckOutTime(LocalDateTime.now());
+        
+        // Calculate working hours and overtime after check-out
+        if (attendance.getCheckInTime() != null && attendance.getCheckOutTime() != null) {
+            AttendanceCalculationService.CalculationResult result = 
+                calculationService.calculateAttendance(attendance);
+            attendance.setWorkingHours(result.getWorkingHours());
+            attendance.setOvertimeHours(result.getOvertimeHours());
+        }
+        
         attendance = attendanceRepository.save(attendance);
         
         return mapToResponse(attendance);
@@ -156,6 +186,135 @@ public class AttendanceService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional
+    public AttendanceResponse updatePunchTime(Long attendanceId, String punchType, LocalDateTime newTime) {
+        Attendance attendance = attendanceRepository.findById(attendanceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Attendance record not found with ID: " + attendanceId));
+
+        // Update the appropriate punch time based on punch type
+        switch (punchType.toUpperCase()) {
+            case "CHECK_IN":
+                attendance.setCheckInTime(newTime);
+                if (attendance.getStatus() == Attendance.AttendanceStatus.ABSENT) {
+                    attendance.setStatus(Attendance.AttendanceStatus.PRESENT);
+                }
+                break;
+            case "LUNCH_OUT":
+                attendance.setLunchOutTime(newTime);
+                break;
+            case "LUNCH_IN":
+                attendance.setLunchInTime(newTime);
+                break;
+            case "CHECK_OUT":
+                attendance.setCheckOutTime(newTime);
+                break;
+            default:
+                throw new IllegalArgumentException("Invalid punch type: " + punchType);
+        }
+
+        // Recalculate working hours and overtime after updating punch time
+        if (attendance.getCheckInTime() != null && attendance.getCheckOutTime() != null) {
+            AttendanceCalculationService.CalculationResult result = 
+                calculationService.calculateAttendance(attendance);
+            attendance.setWorkingHours(result.getWorkingHours());
+            attendance.setOvertimeHours(result.getOvertimeHours());
+        }
+
+        attendance = attendanceRepository.save(attendance);
+        return mapToResponse(attendance);
+    }
+
+    public AttendanceAnalyticsResponse getAttendanceAnalytics(String employeeId, LocalDate startDate, LocalDate endDate) {
+        // Validate employee exists
+        Employee employee = employeeRepository.findByEmployeeIdAndDeletedFalse(employeeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with ID: " + employeeId));
+        
+        // Get all attendance records for the date range
+        List<Attendance> attendances = attendanceRepository.findEmployeeAttendanceForAnalytics(employeeId, startDate, endDate);
+        
+        // Calculate summary statistics
+        Double totalWorkingHours = attendanceRepository.sumWorkingHours(employeeId, startDate, endDate);
+        Double totalOvertimeHours = attendanceRepository.sumOvertimeHours(employeeId, startDate, endDate);
+        Long presentDays = attendanceRepository.countPresentDaysByEmployeeId(employeeId, startDate, endDate);
+        Long absentDays = attendanceRepository.countAbsentDays(employeeId, startDate, endDate);
+        Long lateDays = attendanceRepository.countLateDays(employeeId, startDate, endDate);
+        
+        // Calculate total working days (Monday to Saturday, excluding Sunday)
+        int totalWorkingDays = calculateWorkingDays(startDate, endDate);
+        
+        // Calculate attendance percentage
+        double attendancePercentage = totalWorkingDays > 0 
+            ? (presentDays.doubleValue() / totalWorkingDays) * 100.0 
+            : 0.0;
+        
+        // Calculate total days present from working hours (working_hours / 8)
+        int calculatedDaysPresent = totalWorkingHours != null && totalWorkingHours > 0 
+            ? (int) Math.round(totalWorkingHours.doubleValue() / 8.0) 
+            : 0;
+        
+        // Create daily logs
+        List<AttendanceAnalyticsResponse.DailyAttendanceLog> dailyLogs = new ArrayList<>();
+        for (Attendance attendance : attendances) {
+            AttendanceAnalyticsResponse.DailyAttendanceLog log = new AttendanceAnalyticsResponse.DailyAttendanceLog();
+            log.setAttendanceId(attendance.getId());
+            log.setDate(attendance.getDate());
+            log.setDayOfWeek(attendance.getDate().getDayOfWeek().getDisplayName(TextStyle.FULL, Locale.ENGLISH));
+            log.setCheckInTime(attendance.getCheckInTime());
+            log.setLunchOutTime(attendance.getLunchOutTime());
+            log.setLunchInTime(attendance.getLunchInTime());
+            log.setCheckOutTime(attendance.getCheckOutTime());
+            log.setStatus(attendance.getStatus().name());
+            log.setWorkingHours(attendance.getWorkingHours());
+            log.setOvertimeHours(attendance.getOvertimeHours());
+            log.setNotes(attendance.getNotes());
+            
+            // Check if late (check-in after 9:30 AM)
+            if (attendance.getCheckInTime() != null) {
+                LocalTime checkInTime = attendance.getCheckInTime().toLocalTime();
+                LocalTime lateThreshold = LocalTime.of(9, 30);
+                log.setIsLate(checkInTime.isAfter(lateThreshold));
+            } else {
+                log.setIsLate(false);
+            }
+            
+            dailyLogs.add(log);
+        }
+        
+        // Build response
+        AttendanceAnalyticsResponse response = new AttendanceAnalyticsResponse();
+        response.setEmployeeId(employeeId);
+        response.setEmployeeName(employee.getFirstName() + " " + employee.getLastName());
+        response.setDepartment(employee.getDepartment());
+        response.setStartDate(startDate);
+        response.setEndDate(endDate);
+        response.setTotalWorkingHours(totalWorkingHours != null ? totalWorkingHours : 0.0);
+        response.setTotalOvertimeHours(totalOvertimeHours != null ? totalOvertimeHours : 0.0);
+        response.setAttendancePercentage(Math.round(attendancePercentage * 100.0) / 100.0);
+        response.setTotalDaysPresent(calculatedDaysPresent);
+        response.setTotalWorkingDays(totalWorkingDays);
+        response.setTotalAbsentDays(absentDays.intValue());
+        response.setTotalLateDays(lateDays.intValue());
+        response.setDailyLogs(dailyLogs);
+        
+        return response;
+    }
+    
+    private int calculateWorkingDays(LocalDate startDate, LocalDate endDate) {
+        int workingDays = 0;
+        LocalDate currentDate = startDate;
+        
+        while (!currentDate.isAfter(endDate)) {
+            DayOfWeek dayOfWeek = currentDate.getDayOfWeek();
+            // Monday to Saturday are working days, Sunday is non-working day
+            if (dayOfWeek != DayOfWeek.SUNDAY) {
+                workingDays++;
+            }
+            currentDate = currentDate.plusDays(1);
+        }
+        
+        return workingDays;
+    }
+
     private AttendanceResponse mapToResponse(Attendance attendance) {
         AttendanceResponse response = new AttendanceResponse();
         response.setId(attendance.getId());
@@ -170,6 +329,8 @@ public class AttendanceService {
         response.setRecognitionMethod(attendance.getRecognitionMethod());
         response.setFaceRecognitionConfidence(attendance.getFaceRecognitionConfidence());
         response.setNotes(attendance.getNotes());
+        response.setWorkingHours(attendance.getWorkingHours());
+        response.setOvertimeHours(attendance.getOvertimeHours());
         return response;
     }
 }

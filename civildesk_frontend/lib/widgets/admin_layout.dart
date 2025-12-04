@@ -79,14 +79,58 @@ class _AdminLayoutState extends State<AdminLayout> {
         },
       ),
       SidebarItem(
-        title: 'Salary',
-        icon: Icons.payments,
-        route: AppRoutes.adminSalary,
+        title: 'Attendance Analytics',
+        icon: Icons.analytics,
+        route: AppRoutes.attendanceAnalytics,
         onTap: () {
-          // Placeholder for future implementation
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Salary feature coming soon')),
-          );
+          if (widget.currentRoute != AppRoutes.attendanceAnalytics) {
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              AppRoutes.attendanceAnalytics,
+              (route) => false,
+            );
+          }
+        },
+      ),
+      SidebarItem(
+        title: 'Holidays',
+        icon: Icons.event,
+        route: AppRoutes.holidayManagement,
+        onTap: () {
+          if (widget.currentRoute != AppRoutes.holidayManagement) {
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              AppRoutes.holidayManagement,
+              (route) => false,
+            );
+          }
+        },
+      ),
+      SidebarItem(
+        title: 'Salary Slips',
+        icon: Icons.receipt_long,
+        route: AppRoutes.adminSalarySlips,
+        onTap: () {
+          if (widget.currentRoute != AppRoutes.adminSalarySlips) {
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              AppRoutes.adminSalarySlips,
+              (route) => false,
+            );
+          }
+        },
+      ),
+      SidebarItem(
+        title: 'Calculate Salary',
+        icon: Icons.calculate,
+        route: AppRoutes.adminSalaryCalculation,
+        onTap: () {
+          if (widget.currentRoute != AppRoutes.adminSalaryCalculation) {
+            Navigator.pushNamed(
+              context,
+              AppRoutes.adminSalaryCalculation,
+            );
+          }
         },
       ),
       SidebarItem(
@@ -97,17 +141,6 @@ class _AdminLayoutState extends State<AdminLayout> {
           // Placeholder for future implementation
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Leave feature coming soon')),
-          );
-        },
-      ),
-      SidebarItem(
-        title: 'Reports',
-        icon: Icons.assessment,
-        route: AppRoutes.adminReports,
-        onTap: () {
-          // Placeholder for future implementation
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Reports feature coming soon')),
           );
         },
       ),

@@ -115,5 +115,30 @@ class AttendanceService {
       throw Exception('Error retrieving daily attendance: $e');
     }
   }
+
+  /// Update punch time (admin function)
+  Future<Map<String, dynamic>> updatePunchTime({
+    required int attendanceId,
+    required String punchType, // CHECK_IN, LUNCH_OUT, LUNCH_IN, CHECK_OUT
+    required DateTime newTime,
+  }) async {
+    try {
+      // Format datetime as ISO 8601 string
+      final timeString = newTime.toIso8601String();
+      
+      final response = await _apiService.put(
+        '${AppConstants.attendanceEndpoint}/update-punch-time',
+        queryParameters: {
+          'attendance_id': attendanceId.toString(),
+          'punch_type': punchType,
+          'new_time': timeString,
+        },
+      );
+
+      return response.data;
+    } catch (e) {
+      throw Exception('Error updating punch time: $e');
+    }
+  }
 }
 

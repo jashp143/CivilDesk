@@ -42,7 +42,7 @@ class AppConstants {
   static const String languageKey = 'language';
 
   // API Endpoints
-  static const String loginEndpoint = '/auth/login';
+  static const String loginEndpoint = '/auth/login/admin';
   static const String signupEndpoint = '/auth/signup';
   static const String sendOtpEndpoint = '/auth/send-otp';
   static const String verifyOtpEndpoint = '/auth/verify-otp';

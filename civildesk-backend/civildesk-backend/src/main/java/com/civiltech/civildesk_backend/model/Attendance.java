@@ -50,6 +50,12 @@ public class Attendance extends BaseEntity {
     @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
 
+    @Column(name = "working_hours")
+    private Double workingHours; // Office working hours (always <= 8 hours)
+
+    @Column(name = "overtime_hours")
+    private Double overtimeHours; // Overtime hours
+
     public enum AttendanceStatus {
         PRESENT, ABSENT, ON_LEAVE, HALF_DAY, LATE
     }

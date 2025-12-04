@@ -11,6 +11,8 @@ class Attendance {
   final String? recognitionMethod;
   final double? faceRecognitionConfidence;
   final String? notes;
+  final double? workingHours; // Office working hours from backend (always <= 8 hours)
+  final double? overtimeHours; // Overtime hours from backend
 
   Attendance({
     this.id,
@@ -25,6 +27,8 @@ class Attendance {
     this.recognitionMethod,
     this.faceRecognitionConfidence,
     this.notes,
+    this.workingHours,
+    this.overtimeHours,
   });
 
   factory Attendance.fromJson(Map<String, dynamic> json) {
@@ -61,6 +65,16 @@ class Attendance {
               ? (json['face_recognition_confidence'] as num).toDouble()
               : null,
       notes: json['notes'] as String?,
+      workingHours: json['workingHours'] != null
+          ? (json['workingHours'] as num).toDouble()
+          : json['working_hours'] != null
+              ? (json['working_hours'] as num).toDouble()
+              : null,
+      overtimeHours: json['overtimeHours'] != null
+          ? (json['overtimeHours'] as num).toDouble()
+          : json['overtime_hours'] != null
+              ? (json['overtime_hours'] as num).toDouble()
+              : null,
     );
   }
 
@@ -78,6 +92,8 @@ class Attendance {
       'recognitionMethod': recognitionMethod,
       'faceRecognitionConfidence': faceRecognitionConfidence,
       'notes': notes,
+      'workingHours': workingHours,
+      'overtimeHours': overtimeHours,
     };
   }
 
@@ -91,7 +107,34 @@ class Attendance {
     return '${checkOutTime!.hour.toString().padLeft(2, '0')}:${checkOutTime!.minute.toString().padLeft(2, '0')}';
   }
 
-  String? get workingHours {
+  /// Get formatted working hours string from backend calculated value
+  String? get formattedWorkingHours {
+    if (workingHours == null) return null;
+    final hours = workingHours!.floor();
+    final minutes = ((workingHours! - hours) * 60).round();
+    if (minutes == 0) {
+      return '${hours}h';
+    }
+    return '${hours}h ${minutes}m';
+  }
+
+  /// Get formatted overtime hours string from backend calculated value
+  String? get formattedOvertimeHours {
+    if (overtimeHours == null || overtimeHours == 0) return null;
+    final hours = overtimeHours!.floor();
+    final minutes = ((overtimeHours! - hours) * 60).round();
+    if (minutes == 0) {
+      return '${hours}h';
+    }
+    return '${hours}h ${minutes}m';
+  }
+
+  /// Legacy getter for backward compatibility (uses backend value if available)
+  String? get workingHoursDisplay {
+    if (workingHours != null) {
+      return formattedWorkingHours;
+    }
+    // Fallback to client-side calculation if backend value not available
     if (checkInTime == null || checkOutTime == null) return null;
     final duration = checkOutTime!.difference(checkInTime!);
     final hours = duration.inHours;

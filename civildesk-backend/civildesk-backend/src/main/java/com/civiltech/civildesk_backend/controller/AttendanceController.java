@@ -3,6 +3,7 @@ package com.civiltech.civildesk_backend.controller;
 import com.civiltech.civildesk_backend.dto.ApiResponse;
 import com.civiltech.civildesk_backend.dto.AttendanceRequest;
 import com.civiltech.civildesk_backend.dto.AttendanceResponse;
+import com.civiltech.civildesk_backend.dto.AttendanceAnalyticsResponse;
 import com.civiltech.civildesk_backend.dto.FaceRecognitionResponse;
 import com.civiltech.civildesk_backend.service.AttendanceService;
 import com.civiltech.civildesk_backend.service.FaceRecognitionService;
@@ -167,6 +168,143 @@ public class AttendanceController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Error retrieving daily attendance: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR.value()));
+        }
+    }
+
+    // Employee-specific endpoints (using authenticated user's ID)
+    @PostMapping("/my-attendance/mark")
+    @PreAuthorize("hasRole('EMPLOYEE')")
+    public ResponseEntity<ApiResponse<AttendanceResponse>> markMyAttendance(
+            @RequestBody AttendanceRequest request) {
+        try {
+            // Get employee ID from authenticated user
+            Long userId = com.civiltech.civildesk_backend.security.SecurityUtils.getCurrentUserId();
+            
+            // Find employee by user ID
+            com.civiltech.civildesk_backend.model.Employee employee = 
+                attendanceService.getEmployeeByUserId(userId);
+            
+            if (employee == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error("Employee record not found for current user"));
+            }
+            
+            request.setEmployeeId(employee.getEmployeeId());
+            request.setRecognitionMethod("SELF_SERVICE");
+            
+            AttendanceResponse response = attendanceService.markAttendance(request);
+            return ResponseEntity.ok(
+                    ApiResponse.success("Attendance marked successfully", response));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Error marking attendance: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR.value()));
+        }
+    }
+
+    @GetMapping("/my-attendance")
+    @PreAuthorize("hasRole('EMPLOYEE')")
+    public ResponseEntity<ApiResponse<List<AttendanceResponse>>> getMyAttendance(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        try {
+            // Get employee ID from authenticated user
+            Long userId = com.civiltech.civildesk_backend.security.SecurityUtils.getCurrentUserId();
+            
+            // Find employee by user ID
+            com.civiltech.civildesk_backend.model.Employee employee = 
+                attendanceService.getEmployeeByUserId(userId);
+            
+            if (employee == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error("Employee record not found for current user"));
+            }
+            
+            // If specific date is requested, get attendance for that date
+            if (date != null) {
+                List<AttendanceResponse> responses = attendanceService.getEmployeeAttendance(
+                        employee.getEmployeeId(), date, date);
+                return ResponseEntity.ok(
+                        ApiResponse.success("Attendance record retrieved successfully", responses));
+            }
+            
+            // Otherwise, get attendance for date range
+            if (startDate == null) {
+                startDate = LocalDate.now().minusMonths(1);
+            }
+            if (endDate == null) {
+                endDate = LocalDate.now();
+            }
+            
+            List<AttendanceResponse> responses = attendanceService.getEmployeeAttendance(
+                    employee.getEmployeeId(), startDate, endDate);
+            return ResponseEntity.ok(
+                    ApiResponse.success("Attendance records retrieved successfully", responses));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Error retrieving attendance: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR.value()));
+        }
+    }
+
+    @GetMapping("/my-attendance/today")
+    @PreAuthorize("hasRole('EMPLOYEE')")
+    public ResponseEntity<ApiResponse<AttendanceResponse>> getMyTodayAttendance() {
+        try {
+            // Get employee ID from authenticated user
+            Long userId = com.civiltech.civildesk_backend.security.SecurityUtils.getCurrentUserId();
+            
+            // Find employee by user ID
+            com.civiltech.civildesk_backend.model.Employee employee = 
+                attendanceService.getEmployeeByUserId(userId);
+            
+            if (employee == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error("Employee record not found for current user"));
+            }
+            
+            AttendanceResponse response = attendanceService.getTodayAttendance(employee.getEmployeeId());
+            if (response != null) {
+                return ResponseEntity.ok(
+                        ApiResponse.success("Today's attendance retrieved successfully", response));
+            } else {
+                return ResponseEntity.ok(
+                        ApiResponse.success("No attendance record for today", null));
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Error retrieving attendance: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR.value()));
+        }
+    }
+
+    @PutMapping("/update-punch-time")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('HR_MANAGER')")
+    public ResponseEntity<ApiResponse<AttendanceResponse>> updatePunchTime(
+            @RequestParam("attendance_id") Long attendanceId,
+            @RequestParam("punch_type") String punchType,
+            @RequestParam("new_time") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime newTime) {
+        try {
+            AttendanceResponse response = attendanceService.updatePunchTime(attendanceId, punchType, newTime);
+            return ResponseEntity.ok(
+                    ApiResponse.success("Punch time updated successfully", response));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Error updating punch time: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR.value()));
+        }
+    }
+
+    @GetMapping("/analytics/{employeeId}")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('HR_MANAGER')")
+    public ResponseEntity<ApiResponse<AttendanceAnalyticsResponse>> getAttendanceAnalytics(
+            @PathVariable String employeeId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+        try {
+            AttendanceAnalyticsResponse response = attendanceService.getAttendanceAnalytics(employeeId, startDate, endDate);
+            return ResponseEntity.ok(
+                    ApiResponse.success("Attendance analytics retrieved successfully", response));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Error retrieving attendance analytics: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR.value()));
         }
     }
 }

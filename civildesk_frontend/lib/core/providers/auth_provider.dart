@@ -70,8 +70,18 @@ class AuthProvider extends ChangeNotifier {
         final responseData = response.data;
         if (responseData['success'] == true && responseData['data'] != null) {
           final authData = responseData['data'] as Map<String, dynamic>;
+          final user = authData['user'] as Map<String, dynamic>;
+          
+          // Only allow ADMIN and HR_MANAGER roles to login
+          final role = user['role'] as String?;
+          if (role != AppConstants.roleAdmin && role != AppConstants.roleHrManager) {
+            _lastError = 'Access denied. This app is for administrators and HR managers only. Please use the Employee app.';
+            notifyListeners();
+            return false;
+          }
+          
           _token = authData['token'] as String;
-          _user = authData['user'] as Map<String, dynamic>;
+          _user = user;
           _isAuthenticated = true;
 
           // Save to local storage

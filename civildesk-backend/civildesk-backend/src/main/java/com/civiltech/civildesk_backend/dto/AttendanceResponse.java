@@ -23,5 +23,7 @@ public class AttendanceResponse {
     private String recognitionMethod;
     private Double faceRecognitionConfidence;
     private String notes;
+    private Double workingHours; // Office working hours (always <= 8 hours)
+    private Double overtimeHours; // Overtime hours
 }
 

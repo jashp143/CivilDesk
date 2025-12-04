@@ -15,6 +15,10 @@ import '../screens/attendance/admin_attendance_marking_screen.dart';
 import '../screens/attendance/daily_overview_screen.dart';
 import '../screens/attendance/face_attendance_screen.dart';
 import '../screens/attendance/face_attendance_annotated_screen.dart';
+import '../screens/admin/attendance_analytics_screen.dart';
+import '../screens/admin/holiday_management_screen.dart';
+import '../screens/admin/salary_calculation_screen.dart';
+import '../screens/admin/salary_slips_list_screen.dart';
 import '../widgets/route_guard.dart';
 
 class AppRouter {
@@ -116,6 +120,34 @@ class AppRouter {
       case AppRoutes.faceAttendanceAnnotated:
         return MaterialPageRoute(
           builder: (_) => const FaceAttendanceAnnotatedScreen(),
+        );
+
+      case AppRoutes.attendanceAnalytics:
+        return MaterialPageRoute(
+          builder: (_) => AdminRouteGuard(
+            child: const AttendanceAnalyticsScreen(),
+          ),
+        );
+
+      case AppRoutes.holidayManagement:
+        return MaterialPageRoute(
+          builder: (_) => AdminRouteGuard(
+            child: const HolidayManagementScreen(),
+          ),
+        );
+
+      case AppRoutes.adminSalaryCalculation:
+        return MaterialPageRoute(
+          builder: (_) => AdminRouteGuard(
+            child: const SalaryCalculationScreen(),
+          ),
+        );
+
+      case AppRoutes.adminSalarySlips:
+        return MaterialPageRoute(
+          builder: (_) => AdminRouteGuard(
+            child: const SalarySlipsListScreen(),
+          ),
         );
 
       default:

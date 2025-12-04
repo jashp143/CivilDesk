@@ -39,6 +39,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final role = authProvider.userRole;
       String route;
       
+      // Only ADMIN and HR_MANAGER should reach here (role check in auth provider)
       switch (role) {
         case 'ADMIN':
           route = AppRoutes.adminDashboard;
@@ -46,11 +47,18 @@ class _LoginScreenState extends State<LoginScreen> {
         case 'HR_MANAGER':
           route = AppRoutes.hrDashboard;
           break;
-        case 'EMPLOYEE':
-          route = AppRoutes.employeeDashboard;
-          break;
         default:
+          // If somehow an employee got through, show error
           route = AppRoutes.login;
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text('Access denied. This app is for administrators only.'),
+                backgroundColor: Theme.of(context).colorScheme.error,
+              ),
+            );
+          }
+          return;
       }
 
       Navigator.of(context).pushReplacementNamed(route);
@@ -116,11 +124,29 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Employee Management System',
+                      'Admin Portal',
                       style: theme.textTheme.bodyLarge?.copyWith(
                         color: colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w500,
                       ),
                       textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.orange.shade200),
+                      ),
+                      child: Text(
+                        'For Administrators & HR Managers Only',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: Colors.orange.shade800,
+                          fontSize: 11,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
                     ),
                     const SizedBox(height: 48),
                 TextFormField(
