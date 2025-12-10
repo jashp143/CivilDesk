@@ -11,3 +11,11 @@ psycopg2-binary==2.9.9
 python-dotenv==1.0.0
 aiofiles==23.2.1
 
+# Phase 2 Optimization - Fast face matching
+faiss-cpu==1.7.4
+# For GPU support, use faiss-gpu instead:
+# faiss-gpu==1.7.4
+
+# Phase 4 Optimization - Enhanced Redis caching
+redis==5.0.1
+

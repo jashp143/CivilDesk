@@ -3,8 +3,10 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../core/constants/app_routes.dart';
 import '../../core/providers/employee_provider.dart';
+import '../../core/theme/app_theme.dart';
 import '../../models/employee.dart';
 import '../../widgets/admin_layout.dart';
+import '../../widgets/cached_profile_image.dart';
 import '../attendance/face_registration_screen.dart';
 
 class EmployeeDetailScreen extends StatefulWidget {
@@ -68,9 +70,9 @@ class _EmployeeDetailScreenState extends State<EmployeeDetailScreen>
                 ).then((success) {
                   if (success == true && mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Face registered successfully!'),
-                        backgroundColor: Colors.green,
+                      SnackBar(
+                        content: const Text('Face registered successfully!'),
+                        backgroundColor: AppTheme.statusApproved,
                       ),
                     );
                   }
@@ -107,7 +109,7 @@ class _EmployeeDetailScreenState extends State<EmployeeDetailScreen>
                 children: [
                   Text(
                     'Error: ${provider.error}',
-                    style: const TextStyle(color: Colors.red),
+                    style: TextStyle(color: Theme.of(context).colorScheme.error),
                   ),
                   const SizedBox(height: 16),
                   ElevatedButton(
@@ -149,13 +151,11 @@ class _EmployeeDetailScreenState extends State<EmployeeDetailScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Center(
-            child: CircleAvatar(
+            child: CachedProfileImageLarge(
+              imageUrl: employee.profilePhotoUrl,
+              fallbackInitials: employee.firstName,
               radius: 50,
               backgroundColor: Theme.of(context).primaryColor,
-              child: Text(
-                employee.firstName[0].toUpperCase(),
-                style: const TextStyle(fontSize: 40, color: Colors.white),
-              ),
             ),
           ),
           const SizedBox(height: 24),
@@ -173,9 +173,9 @@ class _EmployeeDetailScreenState extends State<EmployeeDetailScreen>
                 ).then((success) {
                   if (success == true && mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Face registered successfully!'),
-                        backgroundColor: Colors.green,
+                      SnackBar(
+                        content: const Text('Face registered successfully!'),
+                        backgroundColor: AppTheme.statusApproved,
                       ),
                     );
                   }
@@ -418,6 +418,8 @@ class _EmployeeDetailScreenState extends State<EmployeeDetailScreen>
   }
 
   Widget _buildDetailRow(String label, String value, {bool isTotal = false}) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
@@ -430,16 +432,21 @@ class _EmployeeDetailScreenState extends State<EmployeeDetailScreen>
               style: TextStyle(
                 fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
                 fontSize: isTotal ? 16 : 14,
+                color: colorScheme.onSurfaceVariant,
               ),
             ),
           ),
-          const Text(': '),
+          Text(
+            ': ',
+            style: TextStyle(color: colorScheme.onSurface),
+          ),
           Expanded(
             child: Text(
               value,
               style: TextStyle(
                 fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
                 fontSize: isTotal ? 16 : 14,
+                color: colorScheme.onSurface,
               ),
             ),
           ),
@@ -454,8 +461,8 @@ class _EmployeeDetailScreenState extends State<EmployeeDetailScreen>
       child: ListTile(
         title: Text(label),
         trailing: url != null
-            ? const Icon(Icons.check_circle, color: Colors.green)
-            : const Icon(Icons.cancel, color: Colors.grey),
+            ? Icon(Icons.check_circle, color: AppTheme.statusApproved)
+            : Icon(Icons.cancel, color: Theme.of(context).colorScheme.onSurfaceVariant),
         onTap: url != null
             ? () {
                 // TODO: Open document viewer

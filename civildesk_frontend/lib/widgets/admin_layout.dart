@@ -9,6 +9,7 @@ class AdminLayout extends StatefulWidget {
   final Widget title;
   final List<Widget>? actions;
   final String currentRoute;
+  final bool showBackButton;
 
   const AdminLayout({
     super.key,
@@ -16,6 +17,7 @@ class AdminLayout extends StatefulWidget {
     required this.title,
     this.actions,
     required this.currentRoute,
+    this.showBackButton = false,
   });
 
   @override
@@ -79,6 +81,34 @@ class _AdminLayoutState extends State<AdminLayout> {
         },
       ),
       SidebarItem(
+        title: 'Site Management',
+        icon: Icons.location_on,
+        route: AppRoutes.siteManagement,
+        onTap: () {
+          if (widget.currentRoute != AppRoutes.siteManagement) {
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              AppRoutes.siteManagement,
+              (route) => false,
+            );
+          }
+        },
+      ),
+      SidebarItem(
+        title: 'GPS Attendance Map',
+        icon: Icons.map,
+        route: AppRoutes.gpsAttendanceMap,
+        onTap: () {
+          if (widget.currentRoute != AppRoutes.gpsAttendanceMap) {
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              AppRoutes.gpsAttendanceMap,
+              (route) => false,
+            );
+          }
+        },
+      ),
+      SidebarItem(
         title: 'Attendance Analytics',
         icon: Icons.analytics,
         route: AppRoutes.attendanceAnalytics,
@@ -138,10 +168,55 @@ class _AdminLayoutState extends State<AdminLayout> {
         icon: Icons.event_busy,
         route: AppRoutes.adminLeave,
         onTap: () {
-          // Placeholder for future implementation
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Leave feature coming soon')),
-          );
+          if (widget.currentRoute != AppRoutes.adminLeave) {
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              AppRoutes.adminLeave,
+              (route) => false,
+            );
+          }
+        },
+      ),
+      SidebarItem(
+        title: 'Overtime',
+        icon: Icons.schedule,
+        route: AppRoutes.adminOvertime,
+        onTap: () {
+          if (widget.currentRoute != AppRoutes.adminOvertime) {
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              AppRoutes.adminOvertime,
+              (route) => false,
+            );
+          }
+        },
+      ),
+      SidebarItem(
+        title: 'Expenses',
+        icon: Icons.receipt_long,
+        route: AppRoutes.adminExpenses,
+        onTap: () {
+          if (widget.currentRoute != AppRoutes.adminExpenses) {
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              AppRoutes.adminExpenses,
+              (route) => false,
+            );
+          }
+        },
+      ),
+      SidebarItem(
+        title: 'Tasks',
+        icon: Icons.task_alt,
+        route: AppRoutes.adminTasks,
+        onTap: () {
+          if (widget.currentRoute != AppRoutes.adminTasks) {
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              AppRoutes.adminTasks,
+              (route) => false,
+            );
+          }
         },
       ),
       SidebarItem(
@@ -155,7 +230,11 @@ class _AdminLayoutState extends State<AdminLayout> {
           );
         },
       ),
-      SidebarItem(
+    ];
+  }
+
+  SidebarItem _getLogoutItem() {
+    return SidebarItem(
         title: 'Logout',
         icon: Icons.logout,
         route: '/logout',
@@ -166,8 +245,7 @@ class _AdminLayoutState extends State<AdminLayout> {
             (route) => false,
           );
         },
-      ),
-    ];
+    );
   }
 
   @override
@@ -176,8 +254,10 @@ class _AdminLayoutState extends State<AdminLayout> {
       body: CollapsibleSidebar(
         currentRoute: widget.currentRoute,
         items: _buildSidebarItems(),
+        logoutItem: _getLogoutItem(),
         title: widget.title,
         actions: widget.actions,
+        showBackButton: widget.showBackButton,
         child: widget.child,
       ),
     );

@@ -6,8 +6,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+import java.util.concurrent.CompletableFuture;
+
+/**
+ * Email Service with async processing support
+ * Phase 3 Optimization - Async Processing
+ */
 @Service
 public class EmailService {
 
@@ -23,7 +30,7 @@ public class EmailService {
     private boolean emailEnabled;
 
     /**
-     * Send OTP email to user
+     * Send OTP email to user (synchronous - needed for verification flow)
      */
     public void sendOtpEmail(String toEmail, String firstName, String otp) {
         if (!emailEnabled || mailSender == null) {
@@ -47,12 +54,14 @@ public class EmailService {
     }
 
     /**
-     * Send employee registration email with generated password
+     * Send employee registration email with generated password (async)
+     * Phase 3 Optimization: Run in background to not block employee creation
      */
-    public void sendEmployeeRegistrationEmail(String toEmail, String firstName, String password) {
+    @Async("emailExecutor")
+    public CompletableFuture<Void> sendEmployeeRegistrationEmail(String toEmail, String firstName, String password) {
         if (!emailEnabled || mailSender == null) {
             logger.warn("Email sending is disabled or not configured. Password for {}: {}", toEmail, password);
-            return;
+            return CompletableFuture.completedFuture(null);
         }
 
         try {
@@ -68,6 +77,32 @@ public class EmailService {
             logger.error("Failed to send employee registration email to: {}", toEmail, e);
             // Don't throw exception - allow registration to complete even if email fails
         }
+        return CompletableFuture.completedFuture(null);
+    }
+    
+    /**
+     * Send general notification email (async)
+     */
+    @Async("emailExecutor")
+    public CompletableFuture<Void> sendNotificationEmailAsync(String toEmail, String subject, String body) {
+        if (!emailEnabled || mailSender == null) {
+            logger.warn("Email sending is disabled. Notification to {}: {}", toEmail, subject);
+            return CompletableFuture.completedFuture(null);
+        }
+
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(fromEmail);
+            message.setTo(toEmail);
+            message.setSubject(subject);
+            message.setText(body);
+
+            mailSender.send(message);
+            logger.info("Notification email sent successfully to: {}", toEmail);
+        } catch (Exception e) {
+            logger.error("Failed to send notification email to: {}", toEmail, e);
+        }
+        return CompletableFuture.completedFuture(null);
     }
 
     private String buildOtpEmailBody(String firstName, String otp) {

@@ -8,7 +8,11 @@ import com.civiltech.civildesk_backend.model.Employee;
 import com.civiltech.civildesk_backend.model.User;
 import com.civiltech.civildesk_backend.repository.EmployeeRepository;
 import com.civiltech.civildesk_backend.repository.UserRepository;
+import org.hibernate.Hibernate;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -16,8 +20,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
+import java.util.List;
 import java.util.Objects;
-import java.util.UUID;
+import java.util.regex.Pattern;
+import java.util.regex.Matcher;
+import org.springframework.data.domain.PageRequest;
 
 @Service
 @Transactional
@@ -45,6 +52,7 @@ public class EmployeeService {
     private static final String SPECIAL = "!@#$%&*";
     private static final String ALL_CHARS = UPPER + LOWER + DIGITS + SPECIAL;
 
+    @CacheEvict(value = "employees", allEntries = true)
     public EmployeeResponse createEmployee(EmployeeRequest request) {
         // Validate uniqueness
         validateUniqueness(request, null);
@@ -102,6 +110,10 @@ public class EmployeeService {
         return mapToResponse(savedEmployee);
     }
 
+    @Caching(evict = {
+        @CacheEvict(value = "employee", key = "#id"),
+        @CacheEvict(value = "employees", allEntries = true)
+    })
     public EmployeeResponse updateEmployee(Long id, EmployeeRequest request) {
         Long employeeId = Objects.requireNonNull(id, "Employee ID cannot be null");
         Employee employee = employeeRepository.findById(employeeId)
@@ -126,6 +138,7 @@ public class EmployeeService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "employee", key = "#id")
     public EmployeeResponse getEmployeeById(Long id) {
         Long employeeId = Objects.requireNonNull(id, "Employee ID cannot be null");
         Employee employee = employeeRepository.findById(employeeId)
@@ -135,13 +148,22 @@ public class EmployeeService {
             throw new ResourceNotFoundException("Employee not found with id: " + employeeId);
         }
 
+        // Ensure entity is fully initialized (not a proxy) before caching
+        // This prevents LazyInitializationException when entity is retrieved from cache
+        Hibernate.initialize(employee);
+
         return mapToResponse(employee);
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "employee", key = "'empId:' + #employeeId")
     public EmployeeResponse getEmployeeByEmployeeId(String employeeId) {
         Employee employee = employeeRepository.findByEmployeeIdAndDeletedFalse(employeeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found with employee ID: " + employeeId));
+
+        // Ensure entity is fully initialized (not a proxy) before caching
+        // This prevents LazyInitializationException when entity is retrieved from cache
+        Hibernate.initialize(employee);
 
         return mapToResponse(employee);
     }
@@ -180,6 +202,10 @@ public class EmployeeService {
                 .map(this::mapToResponse);
     }
 
+    @Caching(evict = {
+        @CacheEvict(value = "employee", key = "#id"),
+        @CacheEvict(value = "employees", allEntries = true)
+    })
     public void deleteEmployee(Long id) {
         Long employeeId = Objects.requireNonNull(id, "Employee ID cannot be null");
         Employee employee = employeeRepository.findById(employeeId)
@@ -309,10 +335,36 @@ public class EmployeeService {
     }
 
     private String generateEmployeeId() {
-        String prefix = "EMP";
-        String timestamp = String.valueOf(System.currentTimeMillis()).substring(5);
-        String random = UUID.randomUUID().toString().substring(0, 4).toUpperCase();
-        return prefix + timestamp + random;
+        String prefix = "CTS-EMP-";
+        
+        // Get all employee IDs matching the pattern (limit to recent ones for performance)
+        List<String> existingIds = employeeRepository.findEmployeeIdsWithPattern(PageRequest.of(0, 1000));
+        
+        int maxNumber = 0;
+        Pattern pattern = Pattern.compile("^CTS-EMP-(\\d+)$");
+        
+        // Find the maximum number from existing IDs
+        for (String employeeId : existingIds) {
+            Matcher matcher = pattern.matcher(employeeId);
+            if (matcher.matches()) {
+                try {
+                    int number = Integer.parseInt(matcher.group(1));
+                    if (number > maxNumber) {
+                        maxNumber = number;
+                    }
+                } catch (NumberFormatException e) {
+                    // Skip invalid format
+                }
+            }
+        }
+        
+        // Increment by 1 for the next employee ID
+        int nextNumber = maxNumber + 1;
+        
+        // Format with 4 digits (0001, 0002, etc.)
+        String formattedNumber = String.format("%04d", nextNumber);
+        
+        return prefix + formattedNumber;
     }
 
     /**
@@ -400,6 +452,10 @@ public class EmployeeService {
         employee.setAppointmentLetterUrl(request.getAppointmentLetterUrl());
         employee.setOtherDocumentsUrl(request.getOtherDocumentsUrl());
         employee.setNotes(request.getNotes());
+        // Set attendance method (default to FACE_RECOGNITION if not specified)
+        employee.setAttendanceMethod(request.getAttendanceMethod() != null 
+                ? request.getAttendanceMethod() 
+                : Employee.AttendanceMethod.FACE_RECOGNITION);
         return employee;
     }
 
@@ -459,6 +515,7 @@ public class EmployeeService {
         if (request.getOtherDocumentsUrl() != null) employee.setOtherDocumentsUrl(request.getOtherDocumentsUrl());
         if (request.getNotes() != null) employee.setNotes(request.getNotes());
         if (request.getIsActive() != null) employee.setIsActive(request.getIsActive());
+        if (request.getAttendanceMethod() != null) employee.setAttendanceMethod(request.getAttendanceMethod());
     }
 
     private void calculateTotalSalary(Employee employee) {
@@ -543,6 +600,7 @@ public class EmployeeService {
         response.setOtherDocumentsUrl(employee.getOtherDocumentsUrl());
         response.setNotes(employee.getNotes());
         response.setIsActive(employee.getIsActive());
+        response.setAttendanceMethod(employee.getAttendanceMethod());
         response.setCreatedAt(employee.getCreatedAt());
         response.setUpdatedAt(employee.getUpdatedAt());
         return response;

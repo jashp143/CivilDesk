@@ -79,6 +79,10 @@ class Employee {
   // Additional Information
   final String? notes;
   final bool? isActive;
+  
+  // Attendance Method
+  final AttendanceMethod? attendanceMethod;
+  
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -143,6 +147,7 @@ class Employee {
     this.otherDocumentsUrl,
     this.notes,
     this.isActive,
+    this.attendanceMethod,
     this.createdAt,
     this.updatedAt,
   });
@@ -233,6 +238,12 @@ class Employee {
       otherDocumentsUrl: json['otherDocumentsUrl'] as String?,
       notes: json['notes'] as String?,
       isActive: json['isActive'] as bool?,
+      attendanceMethod: json['attendanceMethod'] != null
+          ? AttendanceMethod.values.firstWhere(
+              (e) => _camelToSnake(e.name).toUpperCase() == (json['attendanceMethod'] as String).toUpperCase(),
+              orElse: () => AttendanceMethod.faceRecognition,
+            )
+          : null,
       createdAt: json['createdAt'] != null 
           ? DateTime.parse(json['createdAt'] as String) 
           : null,
@@ -302,6 +313,7 @@ class Employee {
       if (otherDocumentsUrl != null) 'otherDocumentsUrl': otherDocumentsUrl,
       if (notes != null) 'notes': notes,
       if (isActive != null) 'isActive': isActive,
+      if (attendanceMethod != null) 'attendanceMethod': _camelToSnake(attendanceMethod!.name).toUpperCase(),
     };
   }
 
@@ -341,5 +353,10 @@ enum EmploymentStatus {
   inactive,
   terminated,
   onLeave,
+}
+
+enum AttendanceMethod {
+  faceRecognition,
+  gpsBased,
 }
 

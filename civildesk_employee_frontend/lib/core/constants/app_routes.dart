@@ -7,6 +7,7 @@ class AppRoutes {
   static const String home = '/home';
   static const String dashboard = '/dashboard'; // Keep for backward compatibility
   static const String myAttendance = '/my-attendance';
+  static const String gpsAttendance = '/gps-attendance';
   static const String mySalarySlips = '/my-salary-slips';
   static const String leaves = '/leaves';
   static const String overtime = '/overtime';

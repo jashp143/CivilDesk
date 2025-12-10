@@ -47,6 +47,17 @@ public class SecurityUtils {
     }
 
     /**
+     * Get the currently authenticated user entity
+     */
+    public static User getCurrentUser() {
+        String email = getCurrentUsername();
+        if (email != null && userRepository != null) {
+            return userRepository.findByEmail(email).orElse(null);
+        }
+        return null;
+    }
+
+    /**
      * Get the currently authenticated user's authorities
      */
     public static boolean hasRole(String role) {

@@ -4,10 +4,12 @@ import '../../models/dashboard_stats.dart';
 
 class DepartmentChart extends StatelessWidget {
   final List<DepartmentCount> departmentData;
+  final bool isMobile;
 
   const DepartmentChart({
     super.key,
     required this.departmentData,
+    this.isMobile = false,
   });
 
   @override
@@ -40,16 +42,16 @@ class DepartmentChart extends StatelessWidget {
             value: dept.count.toDouble(),
             title: '${dept.count}',
             color: color,
-            radius: 60,
-            titleStyle: const TextStyle(
-              fontSize: 12,
+            radius: isMobile ? 50 : 60,
+            titleStyle: TextStyle(
+              fontSize: isMobile ? 10 : 12,
               fontWeight: FontWeight.bold,
               color: Colors.white,
             ),
           );
         }).toList(),
         sectionsSpace: 2,
-        centerSpaceRadius: 40,
+        centerSpaceRadius: isMobile ? 30 : 40,
       ),
     );
   }

@@ -4,21 +4,21 @@ class AppConstants {
   // API Configuration
   static String get baseUrl {
     if (Platform.isAndroid) {
-      return 'http://10.0.2.2:8080/api';
+      return 'http://192.168.0.193:8080/api';
     } else if (Platform.isIOS) {
-      return 'http://localhost:8080/api';
+      return 'http://192.168.0.193:8080/api';
     } else {
-      return 'http://localhost:8080/api';
+      return 'http://192.168.0.193:8080/api';
     }
   }
 
   static String get faceServiceUrl {
     if (Platform.isAndroid) {
-      return 'http://10.0.2.2:8000';
+      return 'http://192.168.0.193:8000';
     } else if (Platform.isIOS) {
-      return 'http://localhost:8000';
+      return 'http://192.168.0.193:8000';
     } else {
-      return 'http://localhost:8000';
+      return 'http://192.168.0.193:8000';
     }
   }
 

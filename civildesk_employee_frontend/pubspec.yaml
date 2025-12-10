@@ -34,9 +34,22 @@ dependencies:
   
   # File Handling
   path_provider: ^2.1.2
+  file_picker: ^8.0.0+1
   
   # Charts
   fl_chart: ^0.66.0
+
+  # Location & GPS
+  geolocator: ^11.0.0
+  permission_handler: ^11.3.0
+  
+  # For offline storage
+  sqflite: ^2.3.2
+  connectivity_plus: ^5.0.2
+  
+  # Image Caching - Phase 1 Optimization
+  cached_network_image: ^3.3.1
+  flutter_cache_manager: ^3.3.2
 
 dev_dependencies:
   flutter_test:

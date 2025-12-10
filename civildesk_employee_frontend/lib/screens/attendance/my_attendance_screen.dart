@@ -18,6 +18,7 @@ class _MyAttendanceScreenState extends State<MyAttendanceScreen> {
   DateTime? _endDate;
   String? _selectedStatus;
   final List<String> _statusOptions = ['All', 'Present', 'Absent', 'Half Day', 'On Leave', 'Late'];
+  bool _isStatsExpanded = false; // Statistics collapsed by default
 
   @override
   void initState() {
@@ -175,17 +176,11 @@ class _MyAttendanceScreenState extends State<MyAttendanceScreen> {
           onPressed: () => _showFilterDialog(),
           tooltip: 'Filter',
         ),
-        IconButton(
-          icon: const Icon(Icons.refresh),
-          onPressed: _loadAttendance,
-          tooltip: 'Refresh',
-        ),
       ],
       child: Column(
         children: [
-          // Stats Section
+          // Stats Section (Collapsible)
           Container(
-            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.surface,
               boxShadow: [
@@ -197,75 +192,110 @@ class _MyAttendanceScreenState extends State<MyAttendanceScreen> {
               ],
             ),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Statistics',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                // Header with toggle
+                InkWell(
+                  onTap: () {
+                    setState(() {
+                      _isStatsExpanded = !_isStatsExpanded;
+                    });
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Statistics',
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                        ),
+                        Icon(
+                          _isStatsExpanded
+                              ? Icons.keyboard_arrow_up
+                              : Icons.keyboard_arrow_down,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildStatCard(
-                        'Present',
-                        stats['totalPresent'].toString(),
-                        Icons.check_circle,
-                        Colors.green,
-                      ),
+                // Collapsible content
+                AnimatedCrossFade(
+                  firstChild: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildStatCard(
+                                'Present',
+                                stats['totalPresent'].toString(),
+                                Icons.check_circle,
+                                Colors.green,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _buildStatCard(
+                                'Absent',
+                                stats['totalAbsent'].toString(),
+                                Icons.cancel,
+                                Colors.red,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _buildStatCard(
+                                'Attendance',
+                                '${stats['attendancePercentage'].toStringAsFixed(1)}%',
+                                Icons.pie_chart,
+                                Theme.of(context).colorScheme.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildStatCard(
+                                'Working Hours',
+                                _formatHours(stats['totalWorkingHours']),
+                                Icons.access_time,
+                                Colors.blue,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _buildStatCard(
+                                'Overtime',
+                                _formatHours(stats['totalOvertimeHours']),
+                                Icons.schedule,
+                                Colors.orange,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _buildStatCard(
+                                'Total Days',
+                                stats['totalDays'].toString(),
+                                Icons.calendar_today,
+                                Colors.purple,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _buildStatCard(
-                        'Absent',
-                        stats['totalAbsent'].toString(),
-                        Icons.cancel,
-                        Colors.red,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _buildStatCard(
-                        'Attendance',
-                        '${stats['attendancePercentage'].toStringAsFixed(1)}%',
-                        Icons.pie_chart,
-                        Theme.of(context).colorScheme.primary,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildStatCard(
-                        'Working Hours',
-                        _formatHours(stats['totalWorkingHours']),
-                        Icons.access_time,
-                        Colors.blue,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _buildStatCard(
-                        'Overtime',
-                        _formatHours(stats['totalOvertimeHours']),
-                        Icons.schedule,
-                        Colors.orange,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _buildStatCard(
-                        'Total Days',
-                        stats['totalDays'].toString(),
-                        Icons.calendar_today,
-                        Colors.purple,
-                      ),
-                    ),
-                  ],
+                  ),
+                  secondChild: const SizedBox.shrink(),
+                  crossFadeState: _isStatsExpanded
+                      ? CrossFadeState.showFirst
+                      : CrossFadeState.showSecond,
+                  duration: const Duration(milliseconds: 300),
                 ),
               ],
             ),
@@ -312,46 +342,54 @@ class _MyAttendanceScreenState extends State<MyAttendanceScreen> {
           Expanded(
             child: provider.isLoading
                 ? const Center(child: CircularProgressIndicator())
-                : filteredAttendance.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.inbox,
-                              size: 64,
-                              color: Colors.grey[400],
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'No attendance records found',
-                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    color: Colors.grey[600],
+                : RefreshIndicator(
+                    onRefresh: _loadAttendance,
+                    child: filteredAttendance.isEmpty
+                        ? ListView(
+                            padding: const EdgeInsets.all(16),
+                            children: [
+                              SizedBox(
+                                height: MediaQuery.of(context).size.height * 0.3,
+                                child: Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.inbox,
+                                        size: 64,
+                                        color: Colors.grey[400],
+                                      ),
+                                      const SizedBox(height: 16),
+                                      Text(
+                                        'No attendance records found',
+                                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                              color: Colors.grey[600],
+                                            ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'Try adjusting your filters',
+                                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                              color: Colors.grey[500],
+                                            ),
+                                      ),
+                                    ],
                                   ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Try adjusting your filters',
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: Colors.grey[500],
-                                  ),
-                            ),
-                          ],
-                        ),
-                      )
-                    : RefreshIndicator(
-                        onRefresh: _loadAttendance,
-                        child: ListView.builder(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: filteredAttendance.length,
-                          itemBuilder: (context, index) {
-                            final attendance = filteredAttendance[index];
-                            final isLast = index == filteredAttendance.length - 1;
-                            
-                            return _buildTimelineItem(attendance, isLast);
-                          },
-                        ),
-                      ),
+                                ),
+                              ),
+                            ],
+                          )
+                        : ListView.builder(
+                            padding: const EdgeInsets.all(16),
+                            itemCount: filteredAttendance.length,
+                            itemBuilder: (context, index) {
+                              final attendance = filteredAttendance[index];
+                              final isLast = index == filteredAttendance.length - 1;
+                              
+                              return _buildTimelineItem(attendance, isLast);
+                            },
+                          ),
+                  ),
           ),
         ],
       ),

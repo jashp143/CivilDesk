@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../core/constants/app_routes.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/providers/dashboard_provider.dart';
+import '../../core/theme/app_theme.dart';
 import '../../widgets/stats_card.dart';
 
 class EmployeeDashboardScreen extends StatefulWidget {
@@ -54,7 +55,7 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
                 children: [
                   Text(
                     'Error: ${provider.error}',
-                    style: const TextStyle(color: Colors.red),
+                    style: TextStyle(color: Theme.of(context).colorScheme.error),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 16),
@@ -132,25 +133,25 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
                         title: 'Present This Month',
                         value: stats.attendanceSummary.daysPresentThisMonth.toString(),
                         icon: Icons.check_circle,
-                        color: Colors.green,
+                        color: AppTheme.statusApproved,
                       ),
                       StatsCard(
                         title: 'Absent This Month',
                         value: stats.attendanceSummary.daysAbsentThisMonth.toString(),
                         icon: Icons.cancel,
-                        color: Colors.red,
+                        color: AppTheme.statusRejected,
                       ),
                       StatsCard(
                         title: 'Attendance %',
                         value: '${stats.attendanceSummary.attendancePercentageThisMonth.toStringAsFixed(1)}%',
                         icon: Icons.percent,
-                        color: Colors.blue,
+                        color: AppTheme.statBlue,
                       ),
                       StatsCard(
                         title: 'On Leave',
                         value: stats.attendanceSummary.daysOnLeaveThisMonth.toString(),
                         icon: Icons.airplane_ticket,
-                        color: Colors.orange,
+                        color: AppTheme.statusPending,
                       ),
                     ],
                   ),
@@ -158,7 +159,7 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
                   if (stats.attendanceSummary.checkedInToday)
                     Card(
                       elevation: 2,
-                      color: Colors.green.shade50,
+                      color: AppTheme.statusApproved.withOpacity(0.1),
                       child: Padding(
                         padding: const EdgeInsets.all(16.0),
                         child: Column(
@@ -166,13 +167,13 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
                           children: [
                             Row(
                               children: [
-                                Icon(Icons.check_circle, color: Colors.green),
+                                Icon(Icons.check_circle, color: AppTheme.statusApproved),
                                 const SizedBox(width: 8),
                                 Text(
                                   'Checked In Today',
                                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                         fontWeight: FontWeight.bold,
-                                        color: Colors.green,
+                                        color: AppTheme.statusApproved,
                                       ),
                                 ),
                               ],
@@ -192,17 +193,17 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
                   else
                     Card(
                       elevation: 2,
-                      color: Colors.grey.shade100,
+                      color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
                       child: Padding(
                         padding: const EdgeInsets.all(16.0),
                         child: Row(
                           children: [
-                            Icon(Icons.access_time, color: Colors.grey),
+                            Icon(Icons.access_time, color: Theme.of(context).colorScheme.onSurfaceVariant),
                             const SizedBox(width: 8),
                             Text(
                               'Not checked in today',
                               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    color: Colors.grey,
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                                   ),
                             ),
                           ],
@@ -231,25 +232,25 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
                         title: 'Total Leaves',
                         value: stats.leaveSummary.totalLeaves.toString(),
                         icon: Icons.calendar_today,
-                        color: Colors.blue,
+                        color: AppTheme.statBlue,
                       ),
                       StatsCard(
                         title: 'Used Leaves',
                         value: stats.leaveSummary.usedLeaves.toString(),
                         icon: Icons.event_busy,
-                        color: Colors.orange,
+                        color: AppTheme.statusPending,
                       ),
                       StatsCard(
                         title: 'Remaining',
                         value: stats.leaveSummary.remainingLeaves.toString(),
                         icon: Icons.event_available,
-                        color: Colors.green,
+                        color: AppTheme.statusApproved,
                       ),
                       StatsCard(
                         title: 'Pending Requests',
                         value: stats.leaveSummary.pendingLeaveRequests.toString(),
                         icon: Icons.pending,
-                        color: Colors.purple,
+                        color: AppTheme.statPurple,
                       ),
                     ],
                   ),
@@ -263,6 +264,7 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
   }
 
   Widget _buildInfoRow(String label, String value) {
+    final theme = Theme.of(context);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -270,17 +272,18 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
           width: 120,
           child: Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontWeight: FontWeight.w500,
-              color: Colors.grey,
+              color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
         ),
         Expanded(
           child: Text(
             value.isEmpty ? 'N/A' : value,
-            style: const TextStyle(
+            style: TextStyle(
               fontWeight: FontWeight.w500,
+              color: theme.colorScheme.onSurface,
             ),
           ),
         ),
@@ -302,8 +305,8 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
             ),
             child: const Text('Logout'),
           ),

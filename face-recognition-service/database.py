@@ -1,4 +1,5 @@
 import psycopg2
+from psycopg2 import pool
 from psycopg2.extras import RealDictCursor
 from contextlib import contextmanager
 from config import Config
@@ -7,22 +8,48 @@ import logging
 logger = logging.getLogger(__name__)
 
 class Database:
-    """Database connection handler for PostgreSQL"""
+    """Database connection handler with connection pooling for PostgreSQL"""
+    
+    _connection_pool = None
+    
+    @classmethod
+    def initialize_pool(cls):
+        """Initialize connection pool - call this on application startup"""
+        if cls._connection_pool is None:
+            try:
+                cls._connection_pool = pool.ThreadedConnectionPool(
+                    minconn=5,
+                    maxconn=20,
+                    host=Config.DB_HOST,
+                    port=Config.DB_PORT,
+                    database=Config.DB_NAME,
+                    user=Config.DB_USER,
+                    password=Config.DB_PASSWORD,
+                    cursor_factory=RealDictCursor
+                )
+                logger.info("Database connection pool initialized successfully")
+            except Exception as e:
+                logger.error(f"Failed to initialize connection pool: {e}")
+                raise
+    
+    @classmethod
+    def close_pool(cls):
+        """Close connection pool - call this on application shutdown"""
+        if cls._connection_pool is not None:
+            cls._connection_pool.closeall()
+            cls._connection_pool = None
+            logger.info("Database connection pool closed")
     
     @staticmethod
     @contextmanager
     def get_connection():
-        """Get a database connection context manager"""
+        """Get a database connection from the pool"""
+        if Database._connection_pool is None:
+            Database.initialize_pool()
+        
         conn = None
         try:
-            conn = psycopg2.connect(
-                host=Config.DB_HOST,
-                port=Config.DB_PORT,
-                database=Config.DB_NAME,
-                user=Config.DB_USER,
-                password=Config.DB_PASSWORD,
-                cursor_factory=RealDictCursor
-            )
+            conn = Database._connection_pool.getconn()
             yield conn
             conn.commit()
         except Exception as e:
@@ -32,7 +59,7 @@ class Database:
             raise
         finally:
             if conn:
-                conn.close()
+                Database._connection_pool.putconn(conn)
     
     @staticmethod
     def get_employee_by_id(employee_id: str):

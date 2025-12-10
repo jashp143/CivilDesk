@@ -2,6 +2,7 @@ package com.civiltech.civildesk_backend.repository;
 
 import com.civiltech.civildesk_backend.model.Attendance;
 import com.civiltech.civildesk_backend.model.Employee;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -14,6 +15,7 @@ import java.util.Optional;
 @Repository
 public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
     
+    @EntityGraph(attributePaths = {"employee"})
     Optional<Attendance> findByEmployeeAndDate(Employee employee, LocalDate date);
     
     List<Attendance> findByEmployeeId(Long employeeId);
@@ -23,8 +25,13 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
     @Query("SELECT a FROM Attendance a WHERE a.employee.id = :employeeId AND a.date = :date")
     Optional<Attendance> findTodayAttendance(@Param("employeeId") Long employeeId, @Param("date") LocalDate date);
     
-    @Query("SELECT a FROM Attendance a WHERE a.date = :date")
+    // Eager fetch employee for dashboard/reports that show attendance with employee info
+    @Query("SELECT a FROM Attendance a LEFT JOIN FETCH a.employee WHERE a.date = :date")
     List<Attendance> findAllByDate(@Param("date") LocalDate date);
+    
+    // New optimized query for admin attendance list view
+    @Query("SELECT a FROM Attendance a LEFT JOIN FETCH a.employee e WHERE a.date BETWEEN :startDate AND :endDate ORDER BY a.date DESC, e.firstName ASC")
+    List<Attendance> findAllByDateRangeWithEmployee(@Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
     
     @Query("SELECT COUNT(a) FROM Attendance a WHERE a.employee.id = :employeeId AND a.status = 'PRESENT' AND a.date BETWEEN :startDate AND :endDate")
     Long countPresentDays(@Param("employeeId") Long employeeId, @Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);

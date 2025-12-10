@@ -226,6 +226,11 @@ public class Employee extends BaseEntity {
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
 
+    // Attendance Method - determines how employee marks attendance
+    @Enumerated(EnumType.STRING)
+    @Column(name = "attendance_method", length = 30)
+    private AttendanceMethod attendanceMethod = AttendanceMethod.FACE_RECOGNITION;
+
     // Enums
     public enum Gender {
         MALE, FEMALE, OTHER
@@ -241,6 +246,11 @@ public class Employee extends BaseEntity {
 
     public enum EmploymentStatus {
         ACTIVE, INACTIVE, TERMINATED, ON_LEAVE
+    }
+
+    public enum AttendanceMethod {
+        FACE_RECOGNITION,  // Attendance via face recognition system
+        GPS_BASED          // Attendance via GPS from mobile app
     }
 }
 

@@ -1,10 +1,18 @@
+import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/app_constants.dart';
 
+/// API Service with retry logic and improved error handling
+/// Phase 2 Optimization - Request retry mechanism
 class ApiService {
   late Dio _dio;
   static final ApiService _instance = ApiService._internal();
+  
+  // Retry configuration
+  static const int _maxRetries = 3;
+  static const Duration _retryDelay = Duration(seconds: 2);
+  static const List<int> _retryableStatusCodes = [500, 502, 503, 504];
 
   factory ApiService() {
     return _instance;
@@ -45,6 +53,9 @@ class ApiService {
         },
       ),
     );
+    
+    // Add retry interceptor
+    _dio.interceptors.add(_RetryInterceptor(_dio));
   }
 
   Future<void> _clearAuthData() async {
@@ -149,6 +160,67 @@ class ApiService {
     } catch (e) {
       rethrow;
     }
+  }
+}
+
+/// Retry interceptor for handling transient failures
+/// Automatically retries failed requests for server errors (5xx)
+class _RetryInterceptor extends Interceptor {
+  final Dio dio;
+  static const int _maxRetries = 3;
+  static const Duration _retryDelay = Duration(seconds: 2);
+  static const List<int> _retryableStatusCodes = [500, 502, 503, 504];
+
+  _RetryInterceptor(this.dio);
+
+  @override
+  Future<void> onError(DioException err, ErrorInterceptorHandler handler) async {
+    // Check if we should retry
+    final retryCount = err.requestOptions.extra['retryCount'] ?? 0;
+    
+    if (_shouldRetry(err) && retryCount < _maxRetries) {
+      // Increment retry count
+      err.requestOptions.extra['retryCount'] = retryCount + 1;
+      
+      // Wait before retrying
+      await Future.delayed(_retryDelay * (retryCount + 1));
+      
+      try {
+        // Retry the request
+        final response = await dio.fetch(err.requestOptions);
+        return handler.resolve(response);
+      } catch (e) {
+        // If retry fails, pass to next handler
+        if (e is DioException) {
+          return handler.next(e);
+        }
+        return handler.next(err);
+      }
+    }
+    
+    return handler.next(err);
+  }
+
+  bool _shouldRetry(DioException err) {
+    // Retry on connection timeout
+    if (err.type == DioExceptionType.connectionTimeout ||
+        err.type == DioExceptionType.sendTimeout ||
+        err.type == DioExceptionType.receiveTimeout) {
+      return true;
+    }
+    
+    // Retry on connection errors
+    if (err.type == DioExceptionType.connectionError) {
+      return true;
+    }
+    
+    // Retry on specific status codes
+    if (err.response?.statusCode != null &&
+        _retryableStatusCodes.contains(err.response!.statusCode)) {
+      return true;
+    }
+    
+    return false;
   }
 }
 

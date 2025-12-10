@@ -59,6 +59,20 @@ dependencies:
   
   # Charts
   fl_chart: ^0.66.0
+  
+  # Maps
+  google_maps_flutter: ^2.5.0
+  geocoding: ^3.0.0
+  
+  # Environment Variables
+  flutter_dotenv: ^5.1.0
+  
+  # URL Launcher
+  url_launcher: ^6.2.0
+  
+  # Image Caching - Phase 1 Optimization
+  cached_network_image: ^3.3.1
+  flutter_cache_manager: ^3.3.2
 
 dev_dependencies:
   flutter_test:
@@ -87,9 +101,8 @@ flutter:
   uses-material-design: true
 
   # To add assets to your application, add an assets section, like this:
-  # assets:
-  #   - images/a_dot_burr.jpeg
-  #   - images/a_dot_ham.jpeg
+  assets:
+    - .env
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

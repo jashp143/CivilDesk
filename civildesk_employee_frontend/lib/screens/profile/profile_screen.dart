@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/providers/dashboard_provider.dart';
+import '../../widgets/cached_profile_image.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -58,14 +59,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       child: Column(
                         children: [
-                          CircleAvatar(
+                          CachedProfileImageLarge(
+                            imageUrl: null, // Profile photo URL can be added when available
+                            fallbackInitials: authProvider.userName ?? 'E',
                             radius: 50,
                             backgroundColor: Colors.white,
-                            child: Icon(
-                              Icons.person,
-                              size: 50,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
+                            foregroundColor: Theme.of(context).colorScheme.primary,
                           ),
                           const SizedBox(height: 16),
                           Text(

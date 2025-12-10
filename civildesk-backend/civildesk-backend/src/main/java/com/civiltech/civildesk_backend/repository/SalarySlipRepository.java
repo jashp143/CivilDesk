@@ -13,25 +13,34 @@ import java.util.Optional;
 @Repository
 public interface SalarySlipRepository extends JpaRepository<SalarySlip, Long> {
     
-    Optional<SalarySlip> findByEmployeeAndYearAndMonth(Employee employee, Integer year, Integer month);
+    @Query("SELECT s FROM SalarySlip s JOIN FETCH s.employee WHERE s.employee = :employee AND s.year = :year AND s.month = :month")
+    Optional<SalarySlip> findByEmployeeAndYearAndMonth(@Param("employee") Employee employee, @Param("year") Integer year, @Param("month") Integer month);
     
-    List<SalarySlip> findByEmployeeId(Long employeeId);
+    @Query("SELECT s FROM SalarySlip s JOIN FETCH s.employee WHERE s.employee.id = :employeeId")
+    List<SalarySlip> findByEmployeeId(@Param("employeeId") Long employeeId);
     
-    List<SalarySlip> findByEmployeeIdOrderByYearDescMonthDesc(Long employeeId);
+    @Query("SELECT s FROM SalarySlip s JOIN FETCH s.employee WHERE s.employee.id = :employeeId ORDER BY s.year DESC, s.month DESC")
+    List<SalarySlip> findByEmployeeIdOrderByYearDescMonthDesc(@Param("employeeId") Long employeeId);
     
-    @Query("SELECT s FROM SalarySlip s WHERE s.employee.id = :employeeId AND s.year = :year AND s.month = :month")
+    @Query("SELECT s FROM SalarySlip s JOIN FETCH s.employee WHERE s.employee.id = :employeeId AND s.year = :year AND s.month = :month")
     Optional<SalarySlip> findSalarySlipByEmployeeAndPeriod(
             @Param("employeeId") Long employeeId,
             @Param("year") Integer year,
             @Param("month") Integer month);
     
-    @Query("SELECT s FROM SalarySlip s WHERE s.employee.employeeId = :employeeId ORDER BY s.year DESC, s.month DESC")
+    @Query("SELECT s FROM SalarySlip s JOIN FETCH s.employee WHERE s.employee.employeeId = :employeeId ORDER BY s.year DESC, s.month DESC")
     List<SalarySlip> findByEmployeeEmployeeId(@Param("employeeId") String employeeId);
     
-    @Query("SELECT s FROM SalarySlip s WHERE s.year = :year AND s.month = :month")
+    @Query("SELECT s FROM SalarySlip s JOIN FETCH s.employee WHERE s.year = :year AND s.month = :month")
     List<SalarySlip> findByYearAndMonth(@Param("year") Integer year, @Param("month") Integer month);
     
-    @Query("SELECT s FROM SalarySlip s WHERE s.status = :status")
+    @Query("SELECT s FROM SalarySlip s JOIN FETCH s.employee WHERE s.status = :status")
     List<SalarySlip> findByStatus(@Param("status") SalarySlip.SalarySlipStatus status);
+    
+    @Query("SELECT s FROM SalarySlip s JOIN FETCH s.employee WHERE s.id = :id")
+    Optional<SalarySlip> findByIdWithEmployee(@Param("id") Long id);
+    
+    @Query("SELECT DISTINCT s FROM SalarySlip s JOIN FETCH s.employee")
+    List<SalarySlip> findAllWithEmployee();
 }
 

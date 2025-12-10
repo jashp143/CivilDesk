@@ -315,31 +315,54 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = _isMobile(context);
+    
     return AdminLayout(
       currentRoute: AppRoutes.holidayManagement,
       title: const Text('Holiday Management'),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.refresh),
-          onPressed: () {
-            context.read<HolidayProvider>().loadHolidays();
-          },
-          tooltip: 'Refresh',
-        ),
-        FilledButton.icon(
-          onPressed: () => _showAddHolidayDialog(),
-          icon: const Icon(Icons.add),
-          label: const Text('Add Holiday'),
-        ),
-      ],
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      actions: isMobile
+          ? null
+          : [
+              FilledButton.icon(
+                onPressed: () => _showAddHolidayDialog(),
+                icon: const Icon(Icons.add),
+                label: const Text('Add Holiday'),
+              ),
+            ],
+      child: SizedBox.expand(
+        child: Stack(
           children: [
-            _buildHeader(),
-            const SizedBox(height: 32),
-            _buildContent(),
+            RefreshIndicator(
+              onRefresh: () async {
+                await context.read<HolidayProvider>().loadHolidays();
+              },
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: EdgeInsets.only(
+                  left: 10,
+                  right: 10,
+                  top: 10,
+                  bottom: isMobile ? 80 : 10,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildHeader(),
+                    const SizedBox(height: 10),
+                    _buildContent(),
+                  ],
+                ),
+              ),
+            ),
+            if (isMobile)
+              Positioned(
+                bottom: 30,
+                right: 30,
+                child: FloatingActionButton(
+                  onPressed: () => _showAddHolidayDialog(),
+                  child: const Icon(Icons.add),
+                ),
+              ),
           ],
         ),
       ),
@@ -347,39 +370,45 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen> {
   }
 
   Widget _buildHeader() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
+    final isMobile = _isMobile(context);
+    
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: Theme.of(context).colorScheme.primaryContainer,
+          width: 1,
+        ),
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        padding: EdgeInsets.all(isMobile ? 10 : 14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                Icons.event,
-                size: 32,
-                color: Theme.of(context).colorScheme.primary,
-              ),
+            Icon(
+              Icons.info_outline,
+              color: Theme.of(context).colorScheme.primary,
+              size: isMobile ? 18 : 20,
             ),
-            const SizedBox(width: 16),
+            SizedBox(width: isMobile ? 8 : 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    'Holiday Management',
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Define holidays and automatically mark normalized attendance',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    isMobile
+                        ? 'Holiday creates normalized attendance (09:00, 13:00, 14:00, 18:00) for all employees. Sunday holidays: no attendance marked.'
+                        : 'When you create a holiday, normalized attendance (Check-in: 09:00, Lunch-out: 13:00, Lunch-in: 14:00, Check-out: 18:00) will be automatically marked for all employees. If the holiday falls on Sunday, no attendance is marked as Sunday is already a non-working day.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurface,
+                          height: isMobile ? 1.3 : 1.4,
+                          fontSize: isMobile ? 11 : null,
                         ),
                   ),
                 ],
@@ -387,42 +416,7 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen> {
             ),
           ],
         ),
-        const SizedBox(height: 16),
-        Card(
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: BorderSide(
-              color: Theme.of(context).colorScheme.primaryContainer,
-              width: 1,
-            ),
-          ),
-          child: Container(
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.info_outline,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'When you create a holiday, normalized attendance (Check-in: 09:00, Lunch-out: 13:00, Lunch-in: 14:00, Check-out: 18:00) will be automatically marked for all employees. If the holiday falls on Sunday, no attendance is marked as Sunday is already a non-working day.',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurface,
-                        ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 
@@ -540,6 +534,10 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen> {
     );
   }
 
+  bool _isMobile(BuildContext context) {
+    return MediaQuery.of(context).size.shortestSide < 600;
+  }
+
   Widget _buildHolidaysList(List<Holiday> holidays) {
     // Group holidays by year
     final Map<int, List<Holiday>> holidaysByYear = {};
@@ -550,6 +548,8 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen> {
       }
       holidaysByYear[year]!.add(holiday);
     }
+
+    final isMobile = _isMobile(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -573,7 +573,10 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen> {
                     ),
               ),
               const SizedBox(height: 12),
-              ...entry.value.map((holiday) => _buildHolidayCard(holiday)),
+              if (isMobile)
+                ...entry.value.map((holiday) => _buildHolidayCard(holiday))
+              else
+                _buildHolidayListView(entry.value),
               const SizedBox(height: 24),
             ],
           );
@@ -586,11 +589,10 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen> {
     final dateFormat = DateFormat('MMM dd, yyyy');
     final dayFormat = DateFormat('EEEE');
     final isSunday = holiday.date.weekday == 7;
-    final isPast = holiday.date.isBefore(DateTime.now());
 
     return Card(
-      elevation: 0,
-      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
+      margin: const EdgeInsets.only(bottom: 16),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(
@@ -618,168 +620,398 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen> {
           ),
           borderRadius: BorderRadius.circular(16),
         ),
-        child: ListTile(
-          contentPadding: const EdgeInsets.all(16),
-          leading: Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: isSunday
-                  ? Colors.purple.withOpacity(0.2)
-                  : holiday.isActive
-                      ? Colors.green.withOpacity(0.2)
-                      : Colors.grey.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Center(
-              child: Text(
-                holiday.date.day.toString(),
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: isSunday
-                      ? Colors.purple
-                      : holiday.isActive
-                          ? Colors.green
-                          : Colors.grey,
-                ),
-              ),
-            ),
-          ),
-          title: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  holiday.name,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-              ),
-              if (isSunday)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.purple.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    'Sunday',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.purple,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 10,
-                        ),
-                  ),
-                ),
-              if (!holiday.isActive)
-                Container(
-                  margin: const EdgeInsets.only(left: 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    'Inactive',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.grey,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 10,
-                        ),
-                  ),
-                ),
-            ],
-          ),
-          subtitle: Column(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 4),
               Row(
                 children: [
-                  Icon(
-                    Icons.calendar_today,
-                    size: 14,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: isSunday
+                          ? Colors.purple.withOpacity(0.2)
+                          : holiday.isActive
+                              ? Colors.green.withOpacity(0.2)
+                              : Colors.grey.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Center(
+                      child: Text(
+                        holiday.date.day.toString(),
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: isSunday
+                              ? Colors.purple
+                              : holiday.isActive
+                                  ? Colors.green
+                                  : Colors.grey,
+                        ),
+                      ),
+                    ),
                   ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${dateFormat.format(holiday.date)} • ${dayFormat.format(holiday.date)}',
-                    style: Theme.of(context).textTheme.bodySmall,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                holiday.name,
+                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                              ),
+                            ),
+                            if (isSunday)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.purple.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  'Sunday',
+                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                        color: Colors.purple,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 10,
+                                      ),
+                                ),
+                              ),
+                            if (!holiday.isActive)
+                              Container(
+                                margin: const EdgeInsets.only(left: 8),
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  'Inactive',
+                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                        color: Colors.grey,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 10,
+                                      ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.calendar_today,
+                              size: 14,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${dateFormat.format(holiday.date)} • ${dayFormat.format(holiday.date)}',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
               if (holiday.description != null && holiday.description!.isNotEmpty) ...[
-                const SizedBox(height: 4),
+                const SizedBox(height: 12),
                 Text(
                   holiday.description!,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
                 ),
               ],
               if (isSunday) ...[
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.info_outline,
-                      size: 12,
-                      color: Colors.purple,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      'No attendance marked (Sunday is non-working)',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Colors.purple,
-                            fontWeight: FontWeight.w500,
-                            fontSize: 11,
-                          ),
-                    ),
-                  ],
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.purple.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        size: 14,
+                        color: Colors.purple,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'No attendance marked (Sunday is non-working)',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Colors.purple,
+                                fontWeight: FontWeight.w500,
+                              ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ] else if (holiday.isActive) ...[
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.check_circle,
-                      size: 12,
-                      color: Colors.green,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Normalized attendance marked for all employees',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Colors.green,
-                            fontWeight: FontWeight.w500,
-                            fontSize: 11,
-                          ),
-                    ),
-                  ],
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.check_circle,
+                        size: 14,
+                        color: Colors.green,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Normalized attendance marked for all employees',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Colors.green,
+                                fontWeight: FontWeight.w500,
+                              ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
-            ],
-          ),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.edit),
-                onPressed: () => _showAddHolidayDialog(holiday: holiday),
-                tooltip: 'Edit',
-              ),
-              IconButton(
-                icon: const Icon(Icons.delete),
-                onPressed: () => _showDeleteConfirmation(holiday),
-                tooltip: 'Delete',
-                color: Colors.red,
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: () => _showAddHolidayDialog(holiday: holiday),
+                      icon: const Icon(Icons.edit, size: 16),
+                      label: const Text('Edit'),
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: () => _showDeleteConfirmation(holiday),
+                      icon: const Icon(Icons.delete, size: 16),
+                      label: const Text('Delete'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildHolidayListView(List<Holiday> holidays) {
+    final dateFormat = DateFormat('MMM dd, yyyy');
+    final dayFormat = DateFormat('EEEE');
+
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: Theme.of(context).colorScheme.outlineVariant,
+        ),
+      ),
+      child: Column(
+        children: holidays.map((holiday) {
+          final isSunday = holiday.date.weekday == 7;
+          return Container(
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(
+                  color: Theme.of(context).colorScheme.outlineVariant,
+                  width: 0.5,
+                ),
+              ),
+            ),
+            child: ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              leading: Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: isSunday
+                      ? Colors.purple.withOpacity(0.2)
+                      : holiday.isActive
+                          ? Colors.green.withOpacity(0.2)
+                          : Colors.grey.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Center(
+                  child: Text(
+                    holiday.date.day.toString(),
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: isSunday
+                          ? Colors.purple
+                          : holiday.isActive
+                              ? Colors.green
+                              : Colors.grey,
+                    ),
+                  ),
+                ),
+              ),
+              title: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      holiday.name,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                  ),
+                  if (isSunday)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.purple.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        'Sunday',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Colors.purple,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 10,
+                            ),
+                      ),
+                    ),
+                  if (!holiday.isActive)
+                    Container(
+                      margin: const EdgeInsets.only(left: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        'Inactive',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Colors.grey,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 10,
+                            ),
+                      ),
+                    ),
+                ],
+              ),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.calendar_today,
+                        size: 14,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${dateFormat.format(holiday.date)} • ${dayFormat.format(holiday.date)}',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                  if (holiday.description != null && holiday.description!.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      holiday.description!,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                  if (isSunday) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.info_outline,
+                          size: 12,
+                          color: Colors.purple,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'No attendance marked (Sunday is non-working)',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Colors.purple,
+                                fontWeight: FontWeight.w500,
+                                fontSize: 11,
+                              ),
+                        ),
+                      ],
+                    ),
+                  ] else if (holiday.isActive) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.check_circle,
+                          size: 12,
+                          color: Colors.green,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Normalized attendance marked for all employees',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Colors.green,
+                                fontWeight: FontWeight.w500,
+                                fontSize: 11,
+                              ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.edit),
+                    onPressed: () => _showAddHolidayDialog(holiday: holiday),
+                    tooltip: 'Edit',
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete),
+                    onPressed: () => _showDeleteConfirmation(holiday),
+                    tooltip: 'Delete',
+                    color: Colors.red,
+                  ),
+                ],
+              ),
+            ),
+          );
+        }).toList(),
       ),
     );
   }

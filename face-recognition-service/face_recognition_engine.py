@@ -8,10 +8,27 @@ import insightface
 from insightface.app import FaceAnalysis
 from config import Config
 
+# Phase 2 Optimization: FAISS for fast face matching
+try:
+    import faiss
+    FAISS_AVAILABLE = True
+except ImportError:
+    FAISS_AVAILABLE = False
+    logging.warning("FAISS not available. Using linear search for face matching.")
+
+# Phase 4 Optimization: Redis caching
+try:
+    import redis
+    import json
+    REDIS_AVAILABLE = True
+except ImportError:
+    REDIS_AVAILABLE = False
+    logging.warning("Redis not available. Using in-memory cache only.")
+
 logger = logging.getLogger(__name__)
 
 class FaceRecognitionEngine:
-    """Face recognition engine using InsightFace"""
+    """Face recognition engine using InsightFace with FAISS optimization"""
     
     def __init__(self):
         self.app = None
@@ -21,6 +38,31 @@ class FaceRecognitionEngine:
         self.face_cache = {}  # Cache for recent face detections
         self.cache_duration = Config.STREAM_CACHE_DURATION
         self.ctx_id = -1  # Device ID for model
+        
+        # FAISS index for fast similarity search
+        self.faiss_index = None
+        self.index_to_key = {}  # Map FAISS index to embeddings_db key
+        
+        # Phase 4 Optimization: Redis client for distributed caching
+        self.redis_client = None
+        if REDIS_AVAILABLE and Config.REDIS_ENABLED:
+            try:
+                self.redis_client = redis.Redis(
+                    host=Config.REDIS_HOST,
+                    port=Config.REDIS_PORT,
+                    password=Config.REDIS_PASSWORD if Config.REDIS_PASSWORD else None,
+                    db=Config.REDIS_DB,
+                    decode_responses=True,
+                    socket_connect_timeout=5,
+                    socket_timeout=5,
+                )
+                # Test connection
+                self.redis_client.ping()
+                logger.info("Redis connection established for face recognition service")
+            except Exception as e:
+                logger.warning(f"Redis not available: {e}. Using in-memory cache only.")
+                self.redis_client = None
+        
         self._initialize_model()
         self._load_embeddings()
     
@@ -77,12 +119,57 @@ class FaceRecognitionEngine:
                         data['embedding'] = embedding / norm
                 
                 logger.info("All embeddings verified and normalized")
+                
+                # Build FAISS index for fast matching
+                self._build_faiss_index()
             else:
                 self.embeddings_db = {}
                 logger.info("No existing embeddings database found, starting fresh")
         except Exception as e:
             logger.error(f"Error loading embeddings: {e}")
             self.embeddings_db = {}
+    
+    def _build_faiss_index(self):
+        """Build FAISS index for fast similarity search - Phase 2 Optimization"""
+        if not FAISS_AVAILABLE:
+            logger.warning("FAISS not available, skipping index build")
+            return
+        
+        if not self.embeddings_db:
+            logger.info("No embeddings to index")
+            self.faiss_index = None
+            self.index_to_key = {}
+            return
+        
+        try:
+            # Get embedding dimension from first embedding
+            first_key = next(iter(self.embeddings_db))
+            dimension = len(self.embeddings_db[first_key]['embedding'])
+            
+            # Create FAISS index for Inner Product (cosine similarity with normalized vectors)
+            self.faiss_index = faiss.IndexFlatIP(dimension)
+            
+            # Prepare embeddings array
+            embeddings = []
+            self.index_to_key = {}
+            
+            for idx, (key, data) in enumerate(self.embeddings_db.items()):
+                embedding = np.array(data['embedding'], dtype=np.float32)
+                # Normalize for cosine similarity
+                embedding = embedding / np.linalg.norm(embedding)
+                embeddings.append(embedding)
+                self.index_to_key[idx] = key
+            
+            # Convert to numpy array and add to index
+            embeddings_array = np.array(embeddings).astype('float32')
+            self.faiss_index.add(embeddings_array)
+            
+            logger.info(f"FAISS index built successfully with {len(embeddings)} embeddings (dimension: {dimension})")
+            
+        except Exception as e:
+            logger.error(f"Error building FAISS index: {e}")
+            self.faiss_index = None
+            self.index_to_key = {}
     
     def _save_embeddings(self):
         """Save face embeddings to pickle file"""
@@ -242,6 +329,10 @@ class FaceRecognitionEngine:
             }
             
             self._save_embeddings()
+            
+            # Rebuild FAISS index with new embedding (Phase 2 Optimization)
+            self._build_faiss_index()
+            
             logger.info(f"Registered face for {key} (ID: {employee_id})")
             return True
             
@@ -253,6 +344,7 @@ class FaceRecognitionEngine:
     def recognize_face(self, image: np.ndarray, fast_mode: bool = True) -> List[Dict]:
         """
         Recognize faces in an image by matching against all stored embeddings
+        Uses FAISS for O(log n) search when available (Phase 2 Optimization)
         
         Args:
             image: BGR image from OpenCV
@@ -271,6 +363,11 @@ class FaceRecognitionEngine:
             
             results = []
             
+            # Use FAISS for fast matching if available and index is built
+            use_faiss = FAISS_AVAILABLE and self.faiss_index is not None and self.faiss_index.ntotal > 0
+            if use_faiss:
+                logger.info("Using FAISS for fast face matching")
+            
             # Process each detected face
             for face_idx, face in enumerate(detected_faces, 1):
                 detected_embedding = face['embedding']
@@ -286,44 +383,56 @@ class FaceRecognitionEngine:
                 logger.info(f"\nProcessing Face #{face_idx}:")
                 logger.info(f"  Embedding norm: {np.linalg.norm(normalized_embedding):.4f}")
                 
-                # Match against all stored embeddings using COSINE SIMILARITY
                 best_match = None
-                best_similarity = 0.0  # Changed from best_distance
+                best_similarity = 0.0
+                best_match_key = None
                 
-                for key, data in self.embeddings_db.items():
-                    stored_embedding = data['embedding']
+                if use_faiss:
+                    # FAISS-based fast search (O(log n))
+                    query = np.array([normalized_embedding], dtype=np.float32)
+                    similarities, indices = self.faiss_index.search(query, 1)
                     
-                    # Ensure stored embedding is normalized
-                    stored_norm = np.linalg.norm(stored_embedding)
-                    if stored_norm > 0:
-                        stored_embedding = stored_embedding / stored_norm
+                    best_similarity = float(similarities[0][0])
+                    best_idx = int(indices[0][0])
                     
-                    # Calculate COSINE SIMILARITY (dot product of normalized vectors)
-                    similarity = float(np.dot(normalized_embedding, stored_embedding))
-                    
-                    # Ensure similarity is between 0 and 1
-                    similarity = max(0.0, min(1.0, similarity))
-                    
-                    logger.info(f"  {key}: similarity = {similarity:.4f}")
-                    
-                    if similarity > best_similarity:  # Changed from distance < best_distance
-                        best_similarity = similarity
-                        best_match = data
-                        best_match_key = key
+                    if best_idx >= 0 and best_idx in self.index_to_key:
+                        best_match_key = self.index_to_key[best_idx]
+                        best_match = self.embeddings_db.get(best_match_key)
+                        logger.info(f"  FAISS match: {best_match_key}, similarity = {best_similarity:.4f}")
+                else:
+                    # Linear search fallback (O(n))
+                    for key, data in self.embeddings_db.items():
+                        stored_embedding = data['embedding']
+                        
+                        # Ensure stored embedding is normalized
+                        stored_norm = np.linalg.norm(stored_embedding)
+                        if stored_norm > 0:
+                            stored_embedding = stored_embedding / stored_norm
+                        
+                        # Calculate COSINE SIMILARITY (dot product of normalized vectors)
+                        similarity = float(np.dot(normalized_embedding, stored_embedding))
+                        similarity = max(0.0, min(1.0, similarity))
+                        
+                        logger.info(f"  {key}: similarity = {similarity:.4f}")
+                        
+                        if similarity > best_similarity:
+                            best_similarity = similarity
+                            best_match = data
+                            best_match_key = key
                 
-                # Check if best match is ABOVE threshold (reversed logic)
+                # Check if best match is ABOVE threshold
                 recognized = False
                 employee_id = None
                 first_name = None
                 last_name = None
                 match_confidence = 0.0
                 
-                if best_match and best_similarity >= self.matching_threshold:  # Changed from <
+                if best_match and best_similarity >= self.matching_threshold:
                     recognized = True
                     employee_id = best_match['employee_id']
                     first_name = best_match['first_name']
                     last_name = best_match['last_name']
-                    match_confidence = float(best_similarity)  # Similarity IS the confidence
+                    match_confidence = float(best_similarity)
                     
                     logger.info(f"✅ RECOGNIZED: {first_name}_{last_name} (Similarity: {best_similarity:.4f}, Confidence: {match_confidence*100:.1f}%)")
                 else:
@@ -384,6 +493,64 @@ class FaceRecognitionEngine:
         except Exception as e:
             logger.error(f"Error cleaning cache: {e}")
     
+    def get_employee_cached(self, employee_id: str):
+        """
+        Get employee with Redis caching (Phase 4 Optimization)
+        
+        Args:
+            employee_id: Employee ID to lookup
+            
+        Returns:
+            Employee data or None
+        """
+        if not self.redis_client:
+            # Fallback to direct database lookup
+            from database import Database
+            return Database.get_employee_by_id(employee_id)
+        
+        cache_key = f"employee:{employee_id}"
+        
+        try:
+            # Try to get from cache
+            cached = self.redis_client.get(cache_key)
+            if cached:
+                import json
+                return json.loads(cached)
+            
+            # Cache miss - get from database
+            from database import Database
+            employee = Database.get_employee_by_id(employee_id)
+            
+            if employee:
+                # Cache for 5 minutes
+                import json
+                self.redis_client.setex(
+                    cache_key,
+                    300,  # 5 minutes TTL
+                    json.dumps(employee, default=str)
+                )
+            
+            return employee
+        except Exception as e:
+            logger.warning(f"Redis cache error for employee {employee_id}: {e}")
+            # Fallback to direct database lookup
+            from database import Database
+            return Database.get_employee_by_id(employee_id)
+    
+    def invalidate_employee_cache(self, employee_id: str):
+        """
+        Invalidate employee cache when employee data changes
+        
+        Args:
+            employee_id: Employee ID to invalidate
+        """
+        if self.redis_client:
+            try:
+                cache_key = f"employee:{employee_id}"
+                self.redis_client.delete(cache_key)
+            except Exception as e:
+                logger.warning(f"Error invalidating cache for {employee_id}: {e}")
+    
     def delete_embeddings(self, employee_id: str) -> bool:
         """
         Delete face embeddings for an employee
@@ -406,6 +573,10 @@ class FaceRecognitionEngine:
             
             if keys_to_delete:
                 self._save_embeddings()
+                
+                # Rebuild FAISS index after deletion (Phase 2 Optimization)
+                self._build_faiss_index()
+                
                 logger.info(f"Deleted {len(keys_to_delete)} embeddings for employee {employee_id}")
                 return True
             

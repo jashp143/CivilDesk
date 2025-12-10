@@ -143,6 +143,12 @@ public class EmployeeResponse {
 
     private Boolean isActive;
 
+    // Attendance Method
+    private Employee.AttendanceMethod attendanceMethod;
+
+    // Assigned Sites (for GPS-based attendance)
+    private java.util.List<SiteResponse> assignedSites;
+
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;

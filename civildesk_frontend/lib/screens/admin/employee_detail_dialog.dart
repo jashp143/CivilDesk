@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../core/providers/employee_provider.dart';
 import '../../core/services/face_recognition_service.dart';
+import '../../core/theme/app_theme.dart';
 import '../../models/employee.dart';
 import '../attendance/face_registration_screen.dart';
 import 'employee_edit_dialog.dart';
@@ -54,8 +55,8 @@ class _EmployeeDetailDialogState extends State<EmployeeDetailDialog>
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
             ),
             child: const Text('Delete'),
           ),
@@ -87,9 +88,9 @@ class _EmployeeDetailDialogState extends State<EmployeeDetailDialog>
           if (success) {
             Navigator.of(context).pop(); // Close detail dialog
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Employee deleted successfully'),
-                backgroundColor: Colors.green,
+              SnackBar(
+                content: const Text('Employee deleted successfully'),
+                backgroundColor: AppTheme.statusApproved,
               ),
             );
           } else {
@@ -98,7 +99,7 @@ class _EmployeeDetailDialogState extends State<EmployeeDetailDialog>
                 content: Text(
                   'Failed to delete employee: ${provider.error ?? "Unknown error"}',
                 ),
-                backgroundColor: Colors.red,
+                backgroundColor: Theme.of(context).colorScheme.error,
               ),
             );
           }
@@ -109,7 +110,7 @@ class _EmployeeDetailDialogState extends State<EmployeeDetailDialog>
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Error deleting employee: $e'),
-              backgroundColor: Colors.red,
+              backgroundColor: Theme.of(context).colorScheme.error,
             ),
           );
         }
@@ -130,6 +131,10 @@ class _EmployeeDetailDialogState extends State<EmployeeDetailDialog>
         decoration: BoxDecoration(
           color: colorScheme.surface,
           borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: colorScheme.outline,
+            width: 1,
+          ),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -141,7 +146,7 @@ class _EmployeeDetailDialogState extends State<EmployeeDetailDialog>
                 return Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: colorScheme.primary,
+                    color: colorScheme.surface,
                     borderRadius: const BorderRadius.only(
                       topLeft: Radius.circular(16),
                       topRight: Radius.circular(16),
@@ -153,14 +158,14 @@ class _EmployeeDetailDialogState extends State<EmployeeDetailDialog>
                         child: Text(
                           employee?.fullName ?? 'Employee Details',
                           style: theme.textTheme.titleLarge?.copyWith(
-                            color: colorScheme.onPrimary,
+                            color: colorScheme.onSurface,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
                       if (employee != null) ...[
                         IconButton(
-                          icon: Icon(Icons.edit, color: colorScheme.onPrimary),
+                          icon: Icon(Icons.edit, color: colorScheme.onSurface),
                           tooltip: 'Edit Employee',
                           onPressed: () {
                             Navigator.of(context).pop();
@@ -176,7 +181,7 @@ class _EmployeeDetailDialogState extends State<EmployeeDetailDialog>
                           },
                         ),
                         IconButton(
-                          icon: Icon(Icons.face, color: colorScheme.onPrimary),
+                          icon: Icon(Icons.face, color: colorScheme.onSurface),
                           tooltip: 'Register Face',
                           onPressed: () {
                             Navigator.push(
@@ -187,25 +192,25 @@ class _EmployeeDetailDialogState extends State<EmployeeDetailDialog>
                                 ),
                               ),
                             ).then((success) {
-                              if (success == true && mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: const Text('Face registered successfully!'),
-                                    backgroundColor: Colors.green,
-                                  ),
-                                );
-                              }
+                            if (success == true && mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: const Text('Face registered successfully!'),
+                                  backgroundColor: AppTheme.statusApproved,
+                                ),
+                              );
+                            }
                             });
                           },
                         ),
                         IconButton(
-                          icon: Icon(Icons.delete, color: colorScheme.onPrimary),
+                          icon: Icon(Icons.delete, color: colorScheme.onSurface),
                           tooltip: 'Delete Employee',
                           onPressed: () => _handleDelete(context, employee, provider),
                         ),
                       ],
                       IconButton(
-                        icon: Icon(Icons.close, color: colorScheme.onPrimary),
+                        icon: Icon(Icons.close, color: colorScheme.onSurface),
                         onPressed: () => Navigator.of(context).pop(),
                       ),
                     ],
@@ -301,7 +306,10 @@ class _EmployeeDetailDialogState extends State<EmployeeDetailDialog>
               backgroundColor: Theme.of(context).colorScheme.primary,
               child: Text(
                 employee.firstName[0].toUpperCase(),
-                style: const TextStyle(fontSize: 40, color: Colors.white),
+                style: TextStyle(
+                  fontSize: 40,
+                  color: Theme.of(context).colorScheme.onPrimary,
+                ),
               ),
             ),
           ),
@@ -317,14 +325,14 @@ class _EmployeeDetailDialogState extends State<EmployeeDetailDialog>
                     ),
                   ),
                 ).then((success) {
-                  if (success == true && mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Face registered successfully!'),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                  }
+                if (success == true && mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text('Face registered successfully!'),
+                      backgroundColor: AppTheme.statusApproved,
+                    ),
+                  );
+                }
                 });
               },
               icon: const Icon(Icons.face),
@@ -439,6 +447,96 @@ class _EmployeeDetailDialogState extends State<EmployeeDetailDialog>
                 employee.reportingManagerName!,
               ),
           ]),
+          const SizedBox(height: 16),
+          // Attendance Method Card
+          if (employee.attendanceMethod != null)
+            Card(
+              elevation: 2,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: employee.attendanceMethod == AttendanceMethod.gpsBased
+                                ? AppTheme.statusApproved.withOpacity(0.1)
+                                : AppTheme.statBlue.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            employee.attendanceMethod == AttendanceMethod.gpsBased
+                                ? Icons.location_on
+                                : Icons.face,
+                            color: employee.attendanceMethod == AttendanceMethod.gpsBased
+                                ? AppTheme.statusApproved
+                                : AppTheme.statBlue,
+                            size: 24,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Attendance Method',
+                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                employee.attendanceMethod == AttendanceMethod.gpsBased
+                                    ? 'GPS Based (Field Employee)'
+                                    : 'Face Recognition',
+                                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                  color: employee.attendanceMethod == AttendanceMethod.gpsBased
+                                      ? AppTheme.statusApproved
+                                      : AppTheme.statBlue,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Chip(
+                          label: Text(
+                            employee.attendanceMethod == AttendanceMethod.gpsBased
+                                ? 'GPS'
+                                : 'Face',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          backgroundColor: employee.attendanceMethod == AttendanceMethod.gpsBased
+                              ? AppTheme.statusApproved.withOpacity(0.1)
+                              : AppTheme.statBlue.withOpacity(0.1),
+                          labelStyle: TextStyle(
+                            color: employee.attendanceMethod == AttendanceMethod.gpsBased
+                                ? AppTheme.statusApproved
+                                : AppTheme.statBlue,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      employee.attendanceMethod == AttendanceMethod.gpsBased
+                          ? 'Employee marks attendance from mobile app with GPS location verification. Make sure the employee is assigned to construction sites for geofence validation.'
+                          : 'Employee marks attendance via face recognition at office/site terminal.',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -690,9 +788,9 @@ class _EmployeeDetailDialogState extends State<EmployeeDetailDialog>
               ).then((success) {
                 if (success == true && mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Face registered successfully!'),
-                      backgroundColor: Colors.green,
+                    SnackBar(
+                      content: const Text('Face registered successfully!'),
+                      backgroundColor: AppTheme.statusApproved,
                     ),
                   );
                 }
@@ -715,11 +813,11 @@ class _EmployeeDetailDialogState extends State<EmployeeDetailDialog>
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
-                    'Register the employee\'s face for attendance tracking using face recognition technology.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey),
-                  ),
+                  Text(
+                      'Register the employee\'s face for attendance tracking using face recognition technology.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                    ),
                 ],
               ),
             ),
@@ -758,10 +856,10 @@ class _EmployeeDetailDialogState extends State<EmployeeDetailDialog>
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
-                    'Generate employee app credentials to allow the employee to login to the employee app. Credentials will be sent to the employee\'s email address.',
-                    style: TextStyle(color: Colors.grey),
-                  ),
+                    Text(
+                      'Generate employee app credentials to allow the employee to login to the employee app. Credentials will be sent to the employee\'s email address.',
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                    ),
                   const SizedBox(height: 24),
                   Consumer<EmployeeProvider>(
                     builder: (context, provider, child) {
@@ -861,7 +959,7 @@ class _EmployeeDetailDialogState extends State<EmployeeDetailDialog>
                   ? 'Credentials generated successfully! An email has been sent to ${employee.email}'
                   : 'Failed to generate credentials: ${provider.error ?? "Unknown error"}',
             ),
-            backgroundColor: success ? Colors.green : Colors.red,
+            backgroundColor: success ? AppTheme.statusApproved : Theme.of(context).colorScheme.error,
             duration: const Duration(seconds: 4),
           ),
         );
@@ -917,6 +1015,8 @@ class _EmployeeDetailDialogState extends State<EmployeeDetailDialog>
   }
 
   Widget _buildDetailRow(String label, String value, {bool isTotal = false}) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
@@ -929,16 +1029,21 @@ class _EmployeeDetailDialogState extends State<EmployeeDetailDialog>
               style: TextStyle(
                 fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
                 fontSize: isTotal ? 16 : 14,
+                color: colorScheme.onSurfaceVariant,
               ),
             ),
           ),
-          const Text(': '),
+          Text(
+            ': ',
+            style: TextStyle(color: colorScheme.onSurface),
+          ),
           Expanded(
             child: Text(
               value,
               style: TextStyle(
                 fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
                 fontSize: isTotal ? 16 : 14,
+                color: colorScheme.onSurface,
               ),
             ),
           ),
@@ -954,7 +1059,7 @@ class _EmployeeDetailDialogState extends State<EmployeeDetailDialog>
       child: ListTile(
         title: Text(label),
         trailing: url != null
-            ? const Icon(Icons.check_circle, color: Colors.green)
+            ? Icon(Icons.check_circle, color: AppTheme.statusApproved)
             : Icon(Icons.cancel, color: colorScheme.onSurfaceVariant),
         onTap: url != null
             ? () {
@@ -967,4 +1072,5 @@ class _EmployeeDetailDialogState extends State<EmployeeDetailDialog>
     );
   }
 }
+
 

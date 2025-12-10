@@ -4,10 +4,12 @@ import '../../models/dashboard_stats.dart';
 
 class EmployeeTypeChart extends StatelessWidget {
   final EmployeeStats employeeStats;
+  final bool isMobile;
 
   const EmployeeTypeChart({
     super.key,
     required this.employeeStats,
+    this.isMobile = false,
   });
 
   @override
@@ -19,7 +21,9 @@ class EmployeeTypeChart extends StatelessWidget {
       employeeStats.totalEmployeesByTypeIntern,
     ];
 
-    final labels = ['Full Time', 'Part Time', 'Contract', 'Intern'];
+    final labels = isMobile 
+        ? ['Full\nTime', 'Part\nTime', 'Contract', 'Intern']
+        : ['Full Time', 'Part Time', 'Contract', 'Intern'];
     final colors = [Colors.blue, Colors.green, Colors.orange, Colors.purple];
 
     final maxValue = data.reduce((a, b) => a > b ? a : b);
@@ -54,8 +58,8 @@ class EmployeeTypeChart extends StatelessWidget {
                     padding: const EdgeInsets.only(top: 8.0),
                     child: Text(
                       labels[index],
-                      style: const TextStyle(
-                        fontSize: 10,
+                      style: TextStyle(
+                        fontSize: isMobile ? 8 : 10,
                         color: Colors.grey,
                       ),
                       textAlign: TextAlign.center,
@@ -64,19 +68,19 @@ class EmployeeTypeChart extends StatelessWidget {
                 }
                 return const Text('');
               },
-              reservedSize: 40,
+              reservedSize: isMobile ? 35 : 40,
             ),
           ),
           leftTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
-              reservedSize: 40,
+              reservedSize: isMobile ? 30 : 40,
               getTitlesWidget: (value, meta) {
                 if (value % 1 == 0) {
                   return Text(
                     value.toInt().toString(),
-                    style: const TextStyle(
-                      fontSize: 10,
+                    style: TextStyle(
+                      fontSize: isMobile ? 8 : 10,
                       color: Colors.grey,
                     ),
                   );
@@ -101,7 +105,7 @@ class EmployeeTypeChart extends StatelessWidget {
               BarChartRodData(
                 toY: value.toDouble(),
                 color: colors[index],
-                width: 20,
+                width: isMobile ? 16 : 20,
                 borderRadius: const BorderRadius.vertical(
                   top: Radius.circular(4),
                 ),

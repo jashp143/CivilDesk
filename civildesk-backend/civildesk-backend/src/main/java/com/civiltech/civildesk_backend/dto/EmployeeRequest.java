@@ -153,5 +153,11 @@ public class EmployeeRequest {
 
     // User relationship (for creating employee with user)
     private Long userId;
+
+    // Attendance Method - determines how employee marks attendance
+    private com.civiltech.civildesk_backend.model.Employee.AttendanceMethod attendanceMethod;
+
+    // Site assignments for GPS-based attendance
+    private java.util.List<Long> assignedSiteIds;
 }
 

@@ -9,10 +9,16 @@ from pathlib import Path
 from typing import Optional
 import uvicorn
 import io
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
 from config import Config
 from face_recognition_engine import FaceRecognitionEngine
 from database import Database
+
+# Phase 3 Optimization: Thread pool for CPU-intensive face recognition tasks
+# This allows handling multiple concurrent requests without blocking
+executor = ThreadPoolExecutor(max_workers=4)
 
 # Configure logging
 logging.basicConfig(
@@ -46,15 +52,37 @@ face_engine = None
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize face recognition engine on startup"""
+    """Initialize services on startup"""
     global face_engine
     try:
+        # Initialize database connection pool first
+        logger.info("Initializing database connection pool...")
+        Database.initialize_pool()
+        logger.info("Database connection pool initialized successfully")
+        
+        # Initialize face recognition engine
         logger.info("Initializing face recognition engine...")
         face_engine = FaceRecognitionEngine()
         logger.info("Face recognition engine initialized successfully")
     except Exception as e:
-        logger.error(f"Failed to initialize face recognition engine: {e}")
+        logger.error(f"Failed to initialize services: {e}")
         raise
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Cleanup on shutdown"""
+    try:
+        # Shutdown thread pool executor
+        logger.info("Shutting down thread pool executor...")
+        executor.shutdown(wait=True)
+        logger.info("Thread pool executor shut down successfully")
+        
+        # Close database connection pool
+        logger.info("Closing database connection pool...")
+        Database.close_pool()
+        logger.info("Database connection pool closed successfully")
+    except Exception as e:
+        logger.error(f"Error during shutdown: {e}")
 
 @app.get("/health")
 async def health_check():
@@ -77,8 +105,8 @@ async def register_face(
     Stores embeddings as firstname_lastname:embeddings
     """
     try:
-        # Get employee details from database
-        employee = Database.get_employee_by_id(employee_id)
+        # Get employee details with Redis caching (Phase 4 Optimization)
+        employee = face_engine.get_employee_cached(employee_id)
         if not employee:
             raise HTTPException(status_code=404, detail="Employee not found")
         
@@ -167,13 +195,14 @@ async def recognize_stream(
     - Uses fast_mode by default for real-time performance
     - Caches recent detections for temporal consistency
     - Returns all detected faces (recognized and unknown)
+    - Phase 3 Optimization: Uses ThreadPoolExecutor for CPU-intensive operations
     
     Args:
         image: Video frame as image file
         fast_mode: Enable optimizations for real-time processing (default: True)
     """
     try:
-        # Read image
+        # Read image asynchronously
         contents = await image.read()
         nparr = np.frombuffer(contents, np.uint8)
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
@@ -181,8 +210,14 @@ async def recognize_stream(
         if img is None:
             raise HTTPException(status_code=400, detail="Invalid image file")
         
-        # Recognize faces with fast_mode enabled for live video
-        faces = face_engine.recognize_face(img, fast_mode=fast_mode)
+        # Phase 3 Optimization: Run CPU-intensive face recognition in thread pool
+        loop = asyncio.get_event_loop()
+        faces = await loop.run_in_executor(
+            executor,
+            face_engine.recognize_face,
+            img,
+            fast_mode
+        )
         
         # Enhanced terminal logging
         print("\n" + "="*80)
@@ -272,8 +307,8 @@ async def mark_attendance(
                 detail=f"Invalid punch type. Must be one of: {', '.join(valid_punch_types)}"
             )
         
-        # Get employee details
-        employee = Database.get_employee_by_id(employee_id)
+        # Get employee details with Redis caching (Phase 4 Optimization)
+        employee = face_engine.get_employee_cached(employee_id)
         if not employee:
             raise HTTPException(status_code=404, detail="Employee not found")
         

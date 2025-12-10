@@ -12,6 +12,7 @@ import '../screens/expenses/expenses_screen.dart';
 import '../screens/tasks/tasks_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/attendance/attendance_history_screen.dart';
+import '../screens/attendance/gps_attendance_screen.dart';
 import '../screens/leave/leave_screen.dart';
 import '../screens/settings/settings_screen.dart';
 
@@ -42,6 +43,11 @@ class AppRouter {
       case AppRoutes.myAttendance:
         return MaterialPageRoute(
           builder: (_) => const MyAttendanceScreen(),
+        );
+
+      case AppRoutes.gpsAttendance:
+        return MaterialPageRoute(
+          builder: (_) => const GpsAttendanceScreen(),
         );
 
       case AppRoutes.mySalarySlips:

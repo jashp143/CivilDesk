@@ -13,13 +13,14 @@ class SalaryCalculationScreen extends StatefulWidget {
   const SalaryCalculationScreen({super.key});
 
   @override
-  State<SalaryCalculationScreen> createState() => _SalaryCalculationScreenState();
+  State<SalaryCalculationScreen> createState() =>
+      _SalaryCalculationScreenState();
 }
 
 class _SalaryCalculationScreenState extends State<SalaryCalculationScreen> {
   final _formKey = GlobalKey<FormState>();
   final SalaryService _salaryService = SalaryService();
-  
+
   Employee? _selectedEmployee;
   DateTime _selectedDate = DateTime.now();
   bool _isCalculating = false;
@@ -27,11 +28,14 @@ class _SalaryCalculationScreenState extends State<SalaryCalculationScreen> {
 
   // Optional deduction fields
   final TextEditingController _tdsController = TextEditingController();
-  final TextEditingController _advanceSalaryController = TextEditingController();
+  final TextEditingController _advanceSalaryController =
+      TextEditingController();
   final TextEditingController _loanRecoveryController = TextEditingController();
   final TextEditingController _fuelAdvanceController = TextEditingController();
-  final TextEditingController _otherDeductionsController = TextEditingController();
-  final TextEditingController _otherIncentiveController = TextEditingController();
+  final TextEditingController _otherDeductionsController =
+      TextEditingController();
+  final TextEditingController _otherIncentiveController =
+      TextEditingController();
   final TextEditingController _notesController = TextEditingController();
 
   @override
@@ -83,17 +87,24 @@ class _SalaryCalculationScreenState extends State<SalaryCalculationScreen> {
         employeeId: _selectedEmployee!.employeeId,
         year: _selectedDate.year,
         month: _selectedDate.month,
-        tds: _tdsController.text.isNotEmpty ? double.tryParse(_tdsController.text) : null,
-        advanceSalaryRecovery: _advanceSalaryController.text.isNotEmpty 
-            ? double.tryParse(_advanceSalaryController.text) : null,
-        loanRecovery: _loanRecoveryController.text.isNotEmpty 
-            ? double.tryParse(_loanRecoveryController.text) : null,
-        fuelAdvanceRecovery: _fuelAdvanceController.text.isNotEmpty 
-            ? double.tryParse(_fuelAdvanceController.text) : null,
-        otherDeductions: _otherDeductionsController.text.isNotEmpty 
-            ? double.tryParse(_otherDeductionsController.text) : null,
-        otherIncentive: _otherIncentiveController.text.isNotEmpty 
-            ? double.tryParse(_otherIncentiveController.text) : null,
+        tds: _tdsController.text.isNotEmpty
+            ? double.tryParse(_tdsController.text)
+            : null,
+        advanceSalaryRecovery: _advanceSalaryController.text.isNotEmpty
+            ? double.tryParse(_advanceSalaryController.text)
+            : null,
+        loanRecovery: _loanRecoveryController.text.isNotEmpty
+            ? double.tryParse(_loanRecoveryController.text)
+            : null,
+        fuelAdvanceRecovery: _fuelAdvanceController.text.isNotEmpty
+            ? double.tryParse(_fuelAdvanceController.text)
+            : null,
+        otherDeductions: _otherDeductionsController.text.isNotEmpty
+            ? double.tryParse(_otherDeductionsController.text)
+            : null,
+        otherIncentive: _otherIncentiveController.text.isNotEmpty
+            ? double.tryParse(_otherIncentiveController.text)
+            : null,
         notes: _notesController.text.isNotEmpty ? _notesController.text : null,
       );
 
@@ -103,7 +114,8 @@ class _SalaryCalculationScreenState extends State<SalaryCalculationScreen> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => SalarySlipDetailScreen(salarySlip: salarySlip),
+            builder: (context) =>
+                SalarySlipDetailScreen(salarySlip: salarySlip),
           ),
         ).then((_) {
           // Clear form after successful calculation
@@ -152,331 +164,349 @@ class _SalaryCalculationScreenState extends State<SalaryCalculationScreen> {
     return AdminLayout(
       currentRoute: AppRoutes.adminSalaryCalculation,
       title: const Text('Salary Calculation'),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Employee Selection Card
-              Card(
-                elevation: 2,
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Employee Information',
-                        style: theme.textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
+      child: RefreshIndicator(
+        onRefresh: () async {
+          final provider = Provider.of<EmployeeProvider>(
+            context,
+            listen: false,
+          );
+          await provider.loadEmployees(refresh: true);
+        },
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16.0),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Employee Selection Card
+                Card(
+                  elevation: 2,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Employee Information',
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 16),
-                      Consumer<EmployeeProvider>(
-                        builder: (context, provider, _) {
-                          return DropdownButtonFormField<Employee>(
-                            value: _selectedEmployee,
-                            decoration: const InputDecoration(
-                              labelText: 'Select Employee *',
-                              border: OutlineInputBorder(),
-                              prefixIcon: Icon(Icons.person),
-                            ),
-                            items: provider.employees.map((employee) {
-                              return DropdownMenuItem<Employee>(
-                                value: employee,
-                                child: Text(
-                                  '${employee.firstName} ${employee.lastName} (${employee.employeeId})',
-                                ),
-                              );
-                            }).toList(),
-                            onChanged: (employee) {
-                              setState(() {
-                                _selectedEmployee = employee;
-                              });
-                            },
-                            validator: (value) {
-                              if (value == null) {
-                                return 'Please select an employee';
-                              }
-                              return null;
-                            },
-                          );
-                        },
-                      ),
-                      if (_selectedEmployee != null) ...[
                         const SizedBox(height: 16),
-                        _InfoRow(
-                          label: 'Department',
-                          value: _selectedEmployee!.department ?? 'N/A',
+                        Consumer<EmployeeProvider>(
+                          builder: (context, provider, _) {
+                            return DropdownButtonFormField<Employee>(
+                              value: _selectedEmployee,
+                              decoration: const InputDecoration(
+                                labelText: 'Select Employee *',
+                                border: OutlineInputBorder(),
+                                prefixIcon: Icon(Icons.person),
+                              ),
+                              items: provider.employees.map((employee) {
+                                return DropdownMenuItem<Employee>(
+                                  value: employee,
+                                  child: Text(
+                                    '${employee.firstName} ${employee.lastName} (${employee.employeeId})',
+                                  ),
+                                );
+                              }).toList(),
+                              onChanged: (employee) {
+                                setState(() {
+                                  _selectedEmployee = employee;
+                                });
+                              },
+                              validator: (value) {
+                                if (value == null) {
+                                  return 'Please select an employee';
+                                }
+                                return null;
+                              },
+                            );
+                          },
                         ),
-                        _InfoRow(
-                          label: 'Designation',
-                          value: _selectedEmployee!.designation ?? 'N/A',
+                        if (_selectedEmployee != null) ...[
+                          const SizedBox(height: 16),
+                          _InfoRow(
+                            label: 'Department',
+                            value: _selectedEmployee!.department ?? 'N/A',
+                          ),
+                          _InfoRow(
+                            label: 'Designation',
+                            value: _selectedEmployee!.designation ?? 'N/A',
+                          ),
+                          _InfoRow(
+                            label: 'Basic Salary',
+                            value:
+                                '₹${NumberFormat('#,##0.00').format(_selectedEmployee!.basicSalary ?? 0)}',
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Period Selection Card
+                Card(
+                  elevation: 2,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Salary Period',
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                        _InfoRow(
-                          label: 'Basic Salary',
-                          value: '₹${NumberFormat('#,##0.00').format(_selectedEmployee!.basicSalary ?? 0)}',
+                        const SizedBox(height: 16),
+                        InkWell(
+                          onTap: _selectDate,
+                          child: InputDecorator(
+                            decoration: const InputDecoration(
+                              labelText: 'Select Month & Year *',
+                              border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.calendar_today),
+                              suffixIcon: Icon(Icons.arrow_drop_down),
+                            ),
+                            child: Text(
+                              DateFormat('MMMM yyyy').format(_selectedDate),
+                              style: theme.textTheme.bodyLarge,
+                            ),
+                          ),
                         ),
                       ],
-                    ],
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 16),
+                const SizedBox(height: 16),
 
-              // Period Selection Card
-              Card(
-                elevation: 2,
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Salary Period',
-                        style: theme.textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
+                // Optional Deductions Card
+                Card(
+                  elevation: 2,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              color: colorScheme.primary,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Optional Deductions & Incentives',
+                                style: theme.textTheme.titleLarge?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                      const SizedBox(height: 16),
-                      InkWell(
-                        onTap: _selectDate,
-                        child: InputDecorator(
+                        const SizedBox(height: 8),
+                        Text(
+                          'Leave blank if not applicable. These fields are optional.',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextFormField(
+                                controller: _tdsController,
+                                decoration: const InputDecoration(
+                                  labelText: 'TDS',
+                                  border: OutlineInputBorder(),
+                                  prefixIcon: Icon(Icons.account_balance),
+                                ),
+                                keyboardType: TextInputType.number,
+                                validator: (value) {
+                                  if (value != null && value.isNotEmpty) {
+                                    final amount = double.tryParse(value);
+                                    if (amount == null || amount < 0) {
+                                      return 'Enter a valid amount';
+                                    }
+                                  }
+                                  return null;
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: TextFormField(
+                                controller: _otherIncentiveController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Other Incentive',
+                                  border: OutlineInputBorder(),
+                                  prefixIcon: Icon(Icons.card_giftcard),
+                                ),
+                                keyboardType: TextInputType.number,
+                                validator: (value) {
+                                  if (value != null && value.isNotEmpty) {
+                                    final amount = double.tryParse(value);
+                                    if (amount == null || amount < 0) {
+                                      return 'Enter a valid amount';
+                                    }
+                                  }
+                                  return null;
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _advanceSalaryController,
                           decoration: const InputDecoration(
-                            labelText: 'Select Month & Year *',
+                            labelText: 'Advance Salary Recovery',
                             border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.calendar_today),
-                            suffixIcon: Icon(Icons.arrow_drop_down),
+                            prefixIcon: Icon(Icons.money_off),
                           ),
+                          keyboardType: TextInputType.number,
+                          validator: (value) {
+                            if (value != null && value.isNotEmpty) {
+                              final amount = double.tryParse(value);
+                              if (amount == null || amount < 0) {
+                                return 'Enter a valid amount';
+                              }
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _loanRecoveryController,
+                          decoration: const InputDecoration(
+                            labelText: 'Loan Recovery',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.account_balance_wallet),
+                          ),
+                          keyboardType: TextInputType.number,
+                          validator: (value) {
+                            if (value != null && value.isNotEmpty) {
+                              final amount = double.tryParse(value);
+                              if (amount == null || amount < 0) {
+                                return 'Enter a valid amount';
+                              }
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextFormField(
+                                controller: _fuelAdvanceController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Fuel Advance Recovery',
+                                  border: OutlineInputBorder(),
+                                  prefixIcon: Icon(Icons.local_gas_station),
+                                ),
+                                keyboardType: TextInputType.number,
+                                validator: (value) {
+                                  if (value != null && value.isNotEmpty) {
+                                    final amount = double.tryParse(value);
+                                    if (amount == null || amount < 0) {
+                                      return 'Enter a valid amount';
+                                    }
+                                  }
+                                  return null;
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: TextFormField(
+                                controller: _otherDeductionsController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Other Deductions',
+                                  border: OutlineInputBorder(),
+                                  prefixIcon: Icon(Icons.remove_circle_outline),
+                                ),
+                                keyboardType: TextInputType.number,
+                                validator: (value) {
+                                  if (value != null && value.isNotEmpty) {
+                                    final amount = double.tryParse(value);
+                                    if (amount == null || amount < 0) {
+                                      return 'Enter a valid amount';
+                                    }
+                                  }
+                                  return null;
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _notesController,
+                          decoration: const InputDecoration(
+                            labelText: 'Notes (Optional)',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.note),
+                          ),
+                          maxLines: 3,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Error message
+                if (_errorMessage != null)
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: colorScheme.errorContainer,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.error_outline, color: colorScheme.error),
+                        const SizedBox(width: 8),
+                        Expanded(
                           child: Text(
-                            DateFormat('MMMM yyyy').format(_selectedDate),
-                            style: theme.textTheme.bodyLarge,
+                            _errorMessage!,
+                            style: TextStyle(
+                              color: colorScheme.onErrorContainer,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ),
-              const SizedBox(height: 16),
 
-              // Optional Deductions Card
-              Card(
-                elevation: 2,
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.info_outline, color: colorScheme.primary),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Optional Deductions & Incentives',
-                              style: theme.textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Leave blank if not applicable. These fields are optional.',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextFormField(
-                              controller: _tdsController,
-                              decoration: const InputDecoration(
-                                labelText: 'TDS',
-                                border: OutlineInputBorder(),
-                                prefixIcon: Icon(Icons.account_balance),
-                              ),
-                              keyboardType: TextInputType.number,
-                              validator: (value) {
-                                if (value != null && value.isNotEmpty) {
-                                  final amount = double.tryParse(value);
-                                  if (amount == null || amount < 0) {
-                                    return 'Enter a valid amount';
-                                  }
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: TextFormField(
-                              controller: _otherIncentiveController,
-                              decoration: const InputDecoration(
-                                labelText: 'Other Incentive',
-                                border: OutlineInputBorder(),
-                                prefixIcon: Icon(Icons.card_giftcard),
-                              ),
-                              keyboardType: TextInputType.number,
-                              validator: (value) {
-                                if (value != null && value.isNotEmpty) {
-                                  final amount = double.tryParse(value);
-                                  if (amount == null || amount < 0) {
-                                    return 'Enter a valid amount';
-                                  }
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        controller: _advanceSalaryController,
-                        decoration: const InputDecoration(
-                          labelText: 'Advance Salary Recovery',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.money_off),
-                        ),
-                        keyboardType: TextInputType.number,
-                        validator: (value) {
-                          if (value != null && value.isNotEmpty) {
-                            final amount = double.tryParse(value);
-                            if (amount == null || amount < 0) {
-                              return 'Enter a valid amount';
-                            }
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        controller: _loanRecoveryController,
-                        decoration: const InputDecoration(
-                          labelText: 'Loan Recovery',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.account_balance_wallet),
-                        ),
-                        keyboardType: TextInputType.number,
-                        validator: (value) {
-                          if (value != null && value.isNotEmpty) {
-                            final amount = double.tryParse(value);
-                            if (amount == null || amount < 0) {
-                              return 'Enter a valid amount';
-                            }
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextFormField(
-                              controller: _fuelAdvanceController,
-                              decoration: const InputDecoration(
-                                labelText: 'Fuel Advance Recovery',
-                                border: OutlineInputBorder(),
-                                prefixIcon: Icon(Icons.local_gas_station),
-                              ),
-                              keyboardType: TextInputType.number,
-                              validator: (value) {
-                                if (value != null && value.isNotEmpty) {
-                                  final amount = double.tryParse(value);
-                                  if (amount == null || amount < 0) {
-                                    return 'Enter a valid amount';
-                                  }
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: TextFormField(
-                              controller: _otherDeductionsController,
-                              decoration: const InputDecoration(
-                                labelText: 'Other Deductions',
-                                border: OutlineInputBorder(),
-                                prefixIcon: Icon(Icons.remove_circle_outline),
-                              ),
-                              keyboardType: TextInputType.number,
-                              validator: (value) {
-                                if (value != null && value.isNotEmpty) {
-                                  final amount = double.tryParse(value);
-                                  if (amount == null || amount < 0) {
-                                    return 'Enter a valid amount';
-                                  }
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        controller: _notesController,
-                        decoration: const InputDecoration(
-                          labelText: 'Notes (Optional)',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.note),
-                        ),
-                        maxLines: 3,
-                      ),
-                    ],
+                // Calculate Button
+                ElevatedButton.icon(
+                  onPressed: _isCalculating ? null : _calculateSalary,
+                  icon: _isCalculating
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.calculate),
+                  label: Text(
+                    _isCalculating ? 'Calculating...' : 'Calculate Salary',
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    textStyle: theme.textTheme.titleMedium,
                   ),
                 ),
-              ),
-              const SizedBox(height: 24),
-
-              // Error message
-              if (_errorMessage != null)
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: colorScheme.errorContainer,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.error_outline, color: colorScheme.error),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _errorMessage!,
-                          style: TextStyle(color: colorScheme.onErrorContainer),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-              // Calculate Button
-              ElevatedButton.icon(
-                onPressed: _isCalculating ? null : _calculateSalary,
-                icon: _isCalculating
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.calculate),
-                label: Text(_isCalculating ? 'Calculating...' : 'Calculate Salary'),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  textStyle: theme.textTheme.titleMedium,
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -500,18 +530,17 @@ class _InfoRow extends StatelessWidget {
           Text(
             label,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
           Text(
             value,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w500,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
           ),
         ],
       ),
     );
   }
 }
-

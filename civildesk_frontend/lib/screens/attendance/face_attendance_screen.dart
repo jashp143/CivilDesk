@@ -1,11 +1,15 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import '../../core/services/face_recognition_service.dart';
 import '../../models/face_recognition.dart';
 import '../../models/employee.dart';
 
+/// Face Attendance Screen with optimized frame processing
+/// Phase 2 Optimization - Debouncing and cancel tokens for network efficiency
 class FaceAttendanceScreen extends StatefulWidget {
   const FaceAttendanceScreen({Key? key}) : super(key: key);
 
@@ -22,6 +26,11 @@ class _FaceAttendanceScreenState extends State<FaceAttendanceScreen> {
   Size? _lastImageSize;
   DetectedFace? _selectedFace;
   final FaceRecognitionService _faceService = FaceRecognitionService();
+  
+  // Phase 2 Optimization: Debounce timer and cancel token
+  Timer? _debounceTimer;
+  CancelToken? _cancelToken;
+  static const Duration _detectionInterval = Duration(seconds: 2); // Increased from 1.5s
 
   @override
   void initState() {
@@ -33,8 +42,14 @@ class _FaceAttendanceScreenState extends State<FaceAttendanceScreen> {
     try {
       _cameras = await availableCameras();
       if (_cameras != null && _cameras!.isNotEmpty) {
+        // Find front-facing camera for face attendance
+        CameraDescription? frontCamera = _cameras!.firstWhere(
+          (camera) => camera.lensDirection == CameraLensDirection.front,
+          orElse: () => _cameras!.first, // Fallback to first camera if no front camera found
+        );
+        
         _cameraController = CameraController(
-          _cameras![0],
+          frontCamera,
           ResolutionPreset.high,
           enableAudio: false,
         );
@@ -60,7 +75,11 @@ class _FaceAttendanceScreenState extends State<FaceAttendanceScreen> {
       return;
     }
 
-    Future.delayed(const Duration(milliseconds: 1500), () {
+    // Cancel any pending debounce timer
+    _debounceTimer?.cancel();
+    
+    // Use debounce timer to avoid too frequent requests
+    _debounceTimer = Timer(_detectionInterval, () {
       if (mounted && !_isProcessing) {
         _detectFaces();
       }
@@ -79,6 +98,10 @@ class _FaceAttendanceScreenState extends State<FaceAttendanceScreen> {
       _isDetecting = true;
     });
 
+    // Cancel previous request if still pending
+    _cancelToken?.cancel();
+    _cancelToken = CancelToken();
+
     try {
       final XFile imageFile = await _cameraController!.takePicture();
       final File file = File(imageFile.path);
@@ -92,8 +115,11 @@ class _FaceAttendanceScreenState extends State<FaceAttendanceScreen> {
         frame.image.height.toDouble()
       );
 
-      // Recognize faces
-      final response = await _faceService.recognizeStream(file);
+      // Recognize faces with cancel token
+      final response = await _faceService.recognizeStream(
+        file,
+        cancelToken: _cancelToken,
+      );
       
       if (response['success'] == true && response['faces'] != null) {
         final faces = (response['faces'] as List)
@@ -112,7 +138,24 @@ class _FaceAttendanceScreenState extends State<FaceAttendanceScreen> {
         });
       }
 
+      // Clean up temp file
+      try {
+        await file.delete();
+      } catch (_) {}
+
       // Continue detection
+      _startDetection();
+    } on DioException catch (e) {
+      // Ignore cancelled requests
+      if (e.type != DioExceptionType.cancel) {
+        print('Error detecting faces: $e');
+        setState(() {
+          _detectedFaces = [];
+        });
+      }
+      setState(() {
+        _isDetecting = false;
+      });
       _startDetection();
     } catch (e) {
       print('Error detecting faces: $e');
@@ -230,6 +273,9 @@ class _FaceAttendanceScreenState extends State<FaceAttendanceScreen> {
 
   @override
   void dispose() {
+    // Cancel pending operations
+    _debounceTimer?.cancel();
+    _cancelToken?.cancel();
     _cameraController?.dispose();
     super.dispose();
   }

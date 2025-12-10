@@ -62,7 +62,11 @@ class FaceRecognitionService {
   }
 
   /// Recognize faces in real-time stream
-  Future<Map<String, dynamic>> recognizeStream(File imageFile) async {
+  /// Phase 2 Optimization: Added CancelToken support for cancelling in-flight requests
+  Future<Map<String, dynamic>> recognizeStream(
+    File imageFile, {
+    CancelToken? cancelToken,
+  }) async {
     try {
       FormData formData = FormData.fromMap({
         'image': await MultipartFile.fromFile(imageFile.path),
@@ -71,12 +75,15 @@ class FaceRecognitionService {
       final response = await _faceServiceDio.post(
         '/face/recognize-stream',
         data: formData,
+        cancelToken: cancelToken,
         options: Options(
           headers: {'Content-Type': 'multipart/form-data'},
         ),
       );
 
       return response.data;
+    } on DioException {
+      rethrow; // Allow caller to handle cancel errors
     } catch (e) {
       throw Exception('Error recognizing faces: $e');
     }

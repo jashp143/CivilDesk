@@ -173,11 +173,6 @@ class _SalarySlipsListScreenState extends State<SalarySlipsListScreen> {
             ).then((_) => _loadSalarySlips());
           },
         ),
-        IconButton(
-          icon: const Icon(Icons.refresh),
-          tooltip: 'Refresh',
-          onPressed: _loadSalarySlips,
-        ),
       ],
       child: Column(
         children: [
@@ -205,66 +200,82 @@ class _SalarySlipsListScreenState extends State<SalarySlipsListScreen> {
 
           // Content
           Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _errorMessage != null
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
+            child: RefreshIndicator(
+              onRefresh: _loadSalarySlips,
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _errorMessage != null
+                      ? ListView(
+                          padding: const EdgeInsets.all(16),
                           children: [
-                            Icon(Icons.error_outline, size: 64, color: Colors.red),
-                            const SizedBox(height: 16),
-                            Text(
-                              _errorMessage!,
-                              style: theme.textTheme.bodyLarge,
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 16),
-                            ElevatedButton.icon(
-                              onPressed: _loadSalarySlips,
-                              icon: const Icon(Icons.refresh),
-                              label: const Text('Retry'),
+                            SizedBox(
+                              height: MediaQuery.of(context).size.height * 0.3,
+                              child: Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.error_outline, size: 64, color: Colors.red),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      _errorMessage!,
+                                      style: theme.textTheme.bodyLarge,
+                                      textAlign: TextAlign.center,
+                                    ),
+                                    const SizedBox(height: 16),
+                                    ElevatedButton.icon(
+                                      onPressed: _loadSalarySlips,
+                                      icon: const Icon(Icons.refresh),
+                                      label: const Text('Retry'),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
                           ],
-                        ),
-                      )
-                    : _salarySlips.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
+                        )
+                      : _salarySlips.isEmpty
+                          ? ListView(
+                              padding: const EdgeInsets.all(16),
                               children: [
-                                Icon(Icons.receipt_long, size: 64, color: theme.colorScheme.onSurfaceVariant),
-                                const SizedBox(height: 16),
-                                Text(
-                                  'No salary slips found',
-                                  style: theme.textTheme.titleLarge,
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Calculate a new salary slip to get started',
-                                  style: theme.textTheme.bodyMedium?.copyWith(
-                                    color: theme.colorScheme.onSurfaceVariant,
+                                SizedBox(
+                                  height: MediaQuery.of(context).size.height * 0.3,
+                                  child: Center(
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.receipt_long, size: 64, color: theme.colorScheme.onSurfaceVariant),
+                                        const SizedBox(height: 16),
+                                        Text(
+                                          'No salary slips found',
+                                          style: theme.textTheme.titleLarge,
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          'Calculate a new salary slip to get started',
+                                          style: theme.textTheme.bodyMedium?.copyWith(
+                                            color: theme.colorScheme.onSurfaceVariant,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 24),
+                                        ElevatedButton.icon(
+                                          onPressed: () {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (context) => const SalaryCalculationScreen(),
+                                              ),
+                                            ).then((_) => _loadSalarySlips());
+                                          },
+                                          icon: const Icon(Icons.calculate),
+                                          label: const Text('Calculate Salary'),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
-                                const SizedBox(height: 24),
-                                ElevatedButton.icon(
-                                  onPressed: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => const SalaryCalculationScreen(),
-                                      ),
-                                    ).then((_) => _loadSalarySlips());
-                                  },
-                                  icon: const Icon(Icons.calculate),
-                                  label: const Text('Calculate Salary'),
-                                ),
                               ],
-                            ),
-                          )
-                        : RefreshIndicator(
-                            onRefresh: _loadSalarySlips,
-                            child: ListView.builder(
+                            )
+                          : ListView.builder(
                               padding: const EdgeInsets.all(16),
                               itemCount: _salarySlips.length,
                               itemBuilder: (context, index) {
@@ -389,7 +400,7 @@ class _SalarySlipsListScreenState extends State<SalarySlipsListScreen> {
                                 );
                               },
                             ),
-                          ),
+            ),
           ),
         ],
       ),

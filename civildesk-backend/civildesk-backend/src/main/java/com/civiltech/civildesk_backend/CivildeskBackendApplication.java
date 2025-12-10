@@ -3,8 +3,11 @@ package com.civiltech.civildesk_backend;
 import io.github.cdimascio.dotenv.Dotenv;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration;
+import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
-@SpringBootApplication
+@SpringBootApplication(exclude = {RedisRepositoriesAutoConfiguration.class})
+@EnableJpaRepositories(basePackages = "com.civiltech.civildesk_backend.repository")
 public class CivildeskBackendApplication {
 
 	public static void main(String[] args) {

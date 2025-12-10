@@ -32,8 +32,14 @@ class _FaceAttendanceAnnotatedScreenState extends State<FaceAttendanceAnnotatedS
     try {
       _cameras = await availableCameras();
       if (_cameras != null && _cameras!.isNotEmpty) {
+        // Find front-facing camera for face attendance
+        CameraDescription? frontCamera = _cameras!.firstWhere(
+          (camera) => camera.lensDirection == CameraLensDirection.front,
+          orElse: () => _cameras!.first, // Fallback to first camera if no front camera found
+        );
+        
         _cameraController = CameraController(
-          _cameras![0],
+          frontCamera,
           ResolutionPreset.high,
           enableAudio: false,
         );

@@ -34,15 +34,21 @@ public class SalaryService {
         SalarySlip salarySlip = calculationService.calculateSalary(request, currentUserId);
         salarySlip = salarySlipRepository.save(salarySlip);
         
+        // Reload with Employee to ensure it's properly initialized
+        salarySlip = salarySlipRepository.findByIdWithEmployee(salarySlip.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Salary slip not found after save"));
+        
         return buildCalculationResponse(salarySlip);
     }
 
+    @Transactional(readOnly = true)
     public SalarySlipResponse getSalarySlipById(Long id) {
-        SalarySlip salarySlip = salarySlipRepository.findById(id)
+        SalarySlip salarySlip = salarySlipRepository.findByIdWithEmployee(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Salary slip not found with ID: " + id));
         return mapToResponse(salarySlip);
     }
 
+    @Transactional(readOnly = true)
     public SalarySlipResponse getSalarySlipByEmployeeAndPeriod(String employeeId, Integer year, Integer month) {
         Employee employee = employeeRepository.findByEmployeeIdAndDeletedFalse(employeeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found with ID: " + employeeId));
@@ -54,6 +60,7 @@ public class SalaryService {
         return mapToResponse(salarySlip);
     }
 
+    @Transactional(readOnly = true)
     public List<SalarySlipResponse> getEmployeeSalarySlips(String employeeId) {
         List<SalarySlip> salarySlips = salarySlipRepository.findByEmployeeEmployeeId(employeeId);
         return salarySlips.stream()
@@ -65,6 +72,7 @@ public class SalaryService {
         return employeeRepository.findByUserIdAndDeletedFalse(userId).orElse(null);
     }
 
+    @Transactional(readOnly = true)
     public List<SalarySlipResponse> getMySalarySlips(String employeeId, Integer year, Integer month, String status) {
         List<SalarySlip> salarySlips = salarySlipRepository.findByEmployeeEmployeeId(employeeId);
         
@@ -113,12 +121,13 @@ public class SalaryService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public List<SalarySlipResponse> getAllSalarySlips(Integer year, Integer month) {
         List<SalarySlip> salarySlips;
         if (year != null && month != null) {
             salarySlips = salarySlipRepository.findByYearAndMonth(year, month);
         } else {
-            salarySlips = salarySlipRepository.findAll();
+            salarySlips = salarySlipRepository.findAllWithEmployee();
         }
         return salarySlips.stream()
                 .map(this::mapToResponse)
@@ -127,7 +136,7 @@ public class SalaryService {
 
     @Transactional
     public SalarySlipResponse finalizeSalarySlip(Long id) {
-        SalarySlip salarySlip = salarySlipRepository.findById(id)
+        SalarySlip salarySlip = salarySlipRepository.findByIdWithEmployee(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Salary slip not found with ID: " + id));
         
         salarySlip.setStatus(SalarySlip.SalarySlipStatus.FINALIZED);
@@ -138,7 +147,7 @@ public class SalaryService {
 
     @Transactional
     public SalarySlipResponse updateSalarySlipStatus(Long id, SalarySlip.SalarySlipStatus status) {
-        SalarySlip salarySlip = salarySlipRepository.findById(id)
+        SalarySlip salarySlip = salarySlipRepository.findByIdWithEmployee(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Salary slip not found with ID: " + id));
         
         salarySlip.setStatus(status);
@@ -149,7 +158,7 @@ public class SalaryService {
 
     @Transactional
     public void deleteSalarySlip(Long id) {
-        SalarySlip salarySlip = salarySlipRepository.findById(id)
+        SalarySlip salarySlip = salarySlipRepository.findByIdWithEmployee(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Salary slip not found with ID: " + id));
         
         salarySlip.setDeleted(true);

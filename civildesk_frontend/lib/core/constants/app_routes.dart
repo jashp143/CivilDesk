@@ -18,8 +18,16 @@ class AppRoutes {
   static const String adminSalaryCalculation = '/admin/salary/calculate';
   static const String adminSalarySlips = '/admin/salary/slips';
   static const String adminLeave = '/admin/leave';
+  static const String adminOvertime = '/admin/overtime';
+  static const String adminExpenses = '/admin/expenses';
+  static const String adminTasks = '/admin/tasks';
   static const String adminReports = '/admin/reports';
   static const String adminSettings = '/admin/settings';
+  
+  // Site & GPS Attendance Routes
+  static const String siteManagement = '/admin/sites';
+  static const String siteDetail = '/admin/sites/:id';
+  static const String gpsAttendanceMap = '/admin/gps-attendance-map';
 
   // HR Manager Routes
   static const String hrDashboard = '/hr/dashboard';

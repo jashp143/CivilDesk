@@ -8,6 +8,7 @@ class EmployeeLayout extends StatefulWidget {
   final Widget title;
   final List<Widget>? actions;
   final String currentRoute;
+  final Widget? floatingActionButton;
 
   const EmployeeLayout({
     super.key,
@@ -15,6 +16,7 @@ class EmployeeLayout extends StatefulWidget {
     required this.title,
     this.actions,
     required this.currentRoute,
+    this.floatingActionButton,
   });
 
   @override
@@ -51,6 +53,21 @@ class _EmployeeLayoutState extends State<EmployeeLayout> {
             Navigator.pushNamedAndRemoveUntil(
               context,
               AppRoutes.myAttendance,
+              (route) => false,
+            );
+          }
+        },
+      ),
+      DrawerItem(
+        title: 'Mark GPS Attendance',
+        icon: Icons.location_on,
+        route: AppRoutes.gpsAttendance,
+        onTap: () {
+          Navigator.pop(context); // Close drawer
+          if (widget.currentRoute != AppRoutes.gpsAttendance) {
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              AppRoutes.gpsAttendance,
               (route) => false,
             );
           }
@@ -235,6 +252,7 @@ class _EmployeeLayoutState extends State<EmployeeLayout> {
       ),
       drawer: _buildDrawer(),
       body: widget.child,
+      floatingActionButton: widget.floatingActionButton,
     );
   }
 }

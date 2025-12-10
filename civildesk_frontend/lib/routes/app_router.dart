@@ -19,6 +19,12 @@ import '../screens/admin/attendance_analytics_screen.dart';
 import '../screens/admin/holiday_management_screen.dart';
 import '../screens/admin/salary_calculation_screen.dart';
 import '../screens/admin/salary_slips_list_screen.dart';
+import '../screens/admin/site_management_screen.dart';
+import '../screens/admin/gps_attendance_map_screen.dart';
+import '../screens/admin/leaves_management_screen.dart';
+import '../screens/admin/overtime_management_screen.dart';
+import '../screens/admin/expenses_management_screen.dart';
+import '../screens/admin/tasks_management_screen.dart';
 import '../widgets/route_guard.dart';
 
 class AppRouter {
@@ -147,6 +153,48 @@ class AppRouter {
         return MaterialPageRoute(
           builder: (_) => AdminRouteGuard(
             child: const SalarySlipsListScreen(),
+          ),
+        );
+
+      case AppRoutes.siteManagement:
+        return MaterialPageRoute(
+          builder: (_) => AdminRouteGuard(
+            child: const SiteManagementScreen(),
+          ),
+        );
+
+      case AppRoutes.gpsAttendanceMap:
+        return MaterialPageRoute(
+          builder: (_) => AdminRouteGuard(
+            child: const GpsAttendanceMapScreen(),
+          ),
+        );
+
+      case AppRoutes.adminLeave:
+        return MaterialPageRoute(
+          builder: (_) => ManagerRouteGuard(
+            child: const LeavesManagementScreen(),
+          ),
+        );
+
+      case AppRoutes.adminOvertime:
+        return MaterialPageRoute(
+          builder: (_) => ManagerRouteGuard(
+            child: const OvertimeManagementScreen(),
+          ),
+        );
+
+      case AppRoutes.adminExpenses:
+        return MaterialPageRoute(
+          builder: (_) => ManagerRouteGuard(
+            child: const ExpensesManagementScreen(),
+          ),
+        );
+
+      case AppRoutes.adminTasks:
+        return MaterialPageRoute(
+          builder: (_) => ManagerRouteGuard(
+            child: const TasksManagementScreen(),
           ),
         );
 

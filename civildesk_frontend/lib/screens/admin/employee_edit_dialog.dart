@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../core/providers/employee_provider.dart';
+import '../../core/theme/app_theme.dart';
 import '../../models/employee.dart';
 import '../../core/utils/validators.dart';
 
@@ -53,6 +54,7 @@ class _EmployeeEditDialogState extends State<EmployeeEditDialog>
   DateTime? _joiningDate;
   EmploymentType? _employmentType;
   late final TextEditingController _workLocationController;
+  AttendanceMethod? _attendanceMethod;
 
   // Step 5: Salary Structure Information
   late final TextEditingController _basicSalaryController;
@@ -118,6 +120,7 @@ class _EmployeeEditDialogState extends State<EmployeeEditDialog>
     _joiningDate = emp.joiningDate;
     _employmentType = emp.employmentType;
     _workLocationController = TextEditingController(text: emp.workLocation ?? '');
+    _attendanceMethod = emp.attendanceMethod ?? AttendanceMethod.faceRecognition;
     
     _basicSalaryController = TextEditingController(text: emp.basicSalary?.toString() ?? '');
     _hraController = TextEditingController(text: emp.houseRentAllowance?.toString() ?? '');
@@ -279,6 +282,7 @@ class _EmployeeEditDialogState extends State<EmployeeEditDialog>
       workLocation: _workLocationController.text.trim().isEmpty
           ? null
           : _workLocationController.text.trim(),
+      attendanceMethod: _attendanceMethod ?? AttendanceMethod.faceRecognition,
       basicSalary: _basicSalaryController.text.trim().isEmpty
           ? null
           : double.tryParse(_basicSalaryController.text.trim()),
@@ -373,6 +377,10 @@ class _EmployeeEditDialogState extends State<EmployeeEditDialog>
         decoration: BoxDecoration(
           color: colorScheme.surface,
           borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: colorScheme.outline,
+            width: 1,
+          ),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -381,7 +389,7 @@ class _EmployeeEditDialogState extends State<EmployeeEditDialog>
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: colorScheme.primary,
+                color: colorScheme.surface,
                 borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(16),
                   topRight: Radius.circular(16),
@@ -393,13 +401,13 @@ class _EmployeeEditDialogState extends State<EmployeeEditDialog>
                     child: Text(
                       'Edit Employee - ${widget.employee.fullName}',
                       style: theme.textTheme.titleLarge?.copyWith(
-                        color: colorScheme.onPrimary,
+                        color: colorScheme.onSurface,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
                   IconButton(
-                    icon: Icon(Icons.close, color: colorScheme.onPrimary),
+                    icon: Icon(Icons.close, color: colorScheme.onSurface),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                 ],
@@ -705,9 +713,87 @@ class _EmployeeEditDialogState extends State<EmployeeEditDialog>
               controller: _workLocationController,
               decoration: const InputDecoration(labelText: 'Work Location'),
             ),
+            const SizedBox(height: 24),
+            const Divider(),
+            const SizedBox(height: 16),
+            Text(
+              'Attendance Method',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Choose how this employee will mark their attendance. Only one method can be active at a time.',
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 16),
+            _buildAttendanceMethodSelector(),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildAttendanceMethodSelector() {
+    return Column(
+      children: [
+        RadioListTile<AttendanceMethod>(
+          value: AttendanceMethod.faceRecognition,
+          groupValue: _attendanceMethod,
+          onChanged: (value) => setState(() => _attendanceMethod = value!),
+          title: const Text('Face Recognition'),
+          subtitle: const Text('Employee marks attendance via face recognition at office/site terminal'),
+          secondary: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppTheme.statBlue.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(Icons.face, color: AppTheme.statBlue),
+          ),
+        ),
+        const SizedBox(height: 8),
+        RadioListTile<AttendanceMethod>(
+          value: AttendanceMethod.gpsBased,
+          groupValue: _attendanceMethod,
+          onChanged: (value) => setState(() => _attendanceMethod = value!),
+          title: const Text('GPS Based (Field Employee)'),
+          subtitle: const Text('Employee marks attendance from mobile app with GPS location verification'),
+          secondary: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppTheme.statusApproved.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(Icons.location_on, color: AppTheme.statusApproved),
+          ),
+        ),
+        if (_attendanceMethod == AttendanceMethod.gpsBased) ...[
+          const SizedBox(height: 16),
+          Card(
+            color: AppTheme.statusPending.withOpacity(0.1),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: AppTheme.statusPending),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'After updating, assign construction sites to this employee for GPS-based attendance validation.',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ],
     );
   }
 
@@ -986,9 +1072,12 @@ class _EmployeeEditDialogState extends State<EmployeeEditDialog>
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'Face registration can be updated from the employee details page.',
-              style: TextStyle(fontSize: 14, color: Colors.grey),
+              style: TextStyle(
+                fontSize: 14,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 24),
             Card(
@@ -996,12 +1085,12 @@ class _EmployeeEditDialogState extends State<EmployeeEditDialog>
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   children: [
-                    Icon(Icons.face, size: 64, color: Colors.grey[400]),
+                    Icon(Icons.face, size: 64, color: Theme.of(context).colorScheme.onSurfaceVariant),
                     const SizedBox(height: 16),
-                    const Text(
+                    Text(
                       'Use the face registration button in the employee details dialog to update face data.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey),
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                     ),
                   ],
                 ),
@@ -1026,9 +1115,12 @@ class _EmployeeEditDialogState extends State<EmployeeEditDialog>
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'Employee login credentials are managed separately. To reset credentials, contact the system administrator.',
-              style: TextStyle(fontSize: 14, color: Colors.grey),
+              style: TextStyle(
+                fontSize: 14,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 24),
             Card(
@@ -1036,20 +1128,20 @@ class _EmployeeEditDialogState extends State<EmployeeEditDialog>
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   children: [
-                    Icon(Icons.email, size: 64, color: Colors.grey[400]),
+                    Icon(Icons.email, size: 64, color: Theme.of(context).colorScheme.onSurfaceVariant),
                     const SizedBox(height: 16),
                     Text(
                       'Email: ${widget.employee.email}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 16,
-                        color: Colors.blue,
+                        color: Theme.of(context).colorScheme.primary,
                       ),
                     ),
                     const SizedBox(height: 16),
-                    const Text(
+                    Text(
                       'Credentials are managed through the authentication system.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey),
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                     ),
                   ],
                 ),

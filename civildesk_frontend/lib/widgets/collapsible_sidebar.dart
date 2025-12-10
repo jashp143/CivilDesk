@@ -1,19 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class CollapsibleSidebar extends StatefulWidget {
   final Widget child;
   final List<SidebarItem> items;
+  final SidebarItem? logoutItem;
   final String currentRoute;
   final Widget? title;
   final List<Widget>? actions;
+  final bool showBackButton;
 
   const CollapsibleSidebar({
     super.key,
     required this.child,
     required this.items,
+    this.logoutItem,
     required this.currentRoute,
     this.title,
     this.actions,
+    this.showBackButton = false,
   });
 
   @override
@@ -25,6 +30,7 @@ class _CollapsibleSidebarState extends State<CollapsibleSidebar>
   bool _isExpanded = false;
   late AnimationController _animationController;
   late Animation<double> _expandAnimation;
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
   void initState() {
@@ -37,7 +43,7 @@ class _CollapsibleSidebarState extends State<CollapsibleSidebar>
       parent: _animationController,
       curve: Curves.easeInOut,
     );
-    // Start collapsed (default state)
+    // Start collapsed by default on all screen sizes
     _animationController.value = 0.0;
   }
 
@@ -58,125 +64,316 @@ class _CollapsibleSidebarState extends State<CollapsibleSidebar>
     });
   }
 
+  void _openDrawer() {
+    _scaffoldKey.currentState?.openDrawer();
+  }
+
+  bool _isMobile(BuildContext context) {
+    // Use shortestSide for better device detection regardless of orientation
+    // Mobile devices typically have shortestSide < 600px
+    return MediaQuery.of(context).size.shortestSide < 600;
+  }
+
+  bool _isTablet(BuildContext context) {
+    // Tablets typically have shortestSide >= 600px
+    final shortestSide = MediaQuery.of(context).size.shortestSide;
+    return shortestSide >= 600 && shortestSide < 1024;
+  }
+
+  bool _isDesktop(BuildContext context) {
+    // Desktop typically has shortestSide >= 1024px
+    return MediaQuery.of(context).size.shortestSide >= 1024;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isMobile = _isMobile(context);
+
+    if (isMobile) {
+      // Mobile layout with drawer
+      return Scaffold(
+        key: _scaffoldKey,
+        appBar: AppBar(
+          // Use theme's AppBar colors (white bg/black text in light, black bg/white text in dark)
+          title: widget.title,
+          actions: widget.actions,
+          leading: widget.showBackButton
+              ? IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: () => Navigator.of(context).pop(),
+                  tooltip: 'Back',
+                )
+              : IconButton(
+                  icon: const Icon(Icons.menu),
+                  onPressed: _openDrawer,
+                  tooltip: 'Menu',
+                ),
+          automaticallyImplyLeading: false,
+        ),
+        drawer: Drawer(
+          backgroundColor: Theme.of(context).colorScheme.background,
+          child: Column(
+            children: [
+              DrawerHeader(
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.admin_panel_settings,
+                      size: 48,
+                      color: Theme.of(context).colorScheme.onPrimary,
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Text(
+                        'Admin Panel',
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.onPrimary,
+                            ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  itemCount:
+                      widget.items.length + (widget.logoutItem != null ? 1 : 0),
+                  itemBuilder: (context, index) {
+                    if (widget.logoutItem != null &&
+                        index == widget.items.length) {
+                      // Logout item at the end
+                      return Column(
+                        children: [
+                          Divider(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.outline.withOpacity(0.2),
+                          ),
+                          _MobileDrawerMenuItem(
+                            item: widget.logoutItem!,
+                            isActive: false,
+                            isLogout: true,
+                            onTap: () {
+                              Navigator.pop(context); // Close drawer
+                              widget.logoutItem!.onTap();
+                            },
+                          ),
+                        ],
+                      );
+                    }
+                    final item = widget.items[index];
+                    final isActive = widget.currentRoute == item.route;
+                    return _MobileDrawerMenuItem(
+                      item: item,
+                      isActive: isActive,
+                      onTap: () {
+                        Navigator.pop(context); // Close drawer
+                        item.onTap();
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+        body: widget.child,
+      );
+    }
+
+    // Desktop/Tablet layout with collapsible sidebar (always visible)
     return Row(
       children: [
-        // Sidebar (full height)
+        // Sidebar (full height, always visible)
         AnimatedBuilder(
           animation: _expandAnimation,
           builder: (context, child) {
-            return Container(
-              width: _isExpanded ? 250 : 70,
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.1),
-                    blurRadius: 4,
-                    offset: const Offset(2, 0),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  // Toggle button (at top, aligned with app bar)
-                  Container(
-                    height: kToolbarHeight,
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
+            return AnnotatedRegion<SystemUiOverlayStyle>(
+              value: Theme.of(context).brightness == Brightness.dark
+                  ? SystemUiOverlayStyle.light
+                  : SystemUiOverlayStyle.dark,
+                child: SafeArea(
+                  bottom: false,
+                  child: Container(
+                    width: _isExpanded ? 250 : 70,
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primary,
+                    color: Theme.of(context).colorScheme.surface,
                       border: Border(
-                        bottom: BorderSide(
-                          color: Colors.black.withValues(alpha: 0.1),
+                        right: BorderSide(
+                        color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
                           width: 1,
                         ),
                       ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: _isExpanded
-                          ? MainAxisAlignment.spaceBetween
-                          : MainAxisAlignment.center,
-                      children: [
-                        if (_isExpanded)
-                          Padding(
-                            padding: const EdgeInsets.only(left: 16),
-                            child: Text(
-                              'Menu',
-                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: Theme.of(context).colorScheme.onPrimary,
-                                  ),
-                            ),
-                          ),
-                        IconButton(
-                          icon: Icon(
-                            _isExpanded ? Icons.chevron_left : Icons.menu,
-                            color: Theme.of(context).colorScheme.onPrimary,
-                          ),
-                          onPressed: _toggleSidebar,
-                          tooltip: _isExpanded ? 'Collapse' : 'Expand',
+                      boxShadow: [
+                        BoxShadow(
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.black.withValues(alpha: 0.3)
+                            : Colors.black.withValues(alpha: 0.05),
+                          blurRadius: 4,
+                          offset: const Offset(2, 0),
                         ),
                       ],
                     ),
-                  ),
-                  const Divider(height: 1),
-                  // Menu items
-                  Expanded(
-                    child: ListView.builder(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      itemCount: widget.items.length,
-                      itemBuilder: (context, index) {
-                        final item = widget.items[index];
-                        final isActive = widget.currentRoute == item.route;
-                        return _SidebarMenuItem(
-                          item: item,
-                          isExpanded: _isExpanded,
-                          isActive: isActive,
-                          animation: _expandAnimation,
-                        );
-                      },
+                    child: Column(
+                      children: [
+                        // Toggle button (at top, aligned with app bar - right angle connection)
+                        Container(
+                          height: kToolbarHeight,
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          decoration: BoxDecoration(
+                           color: Theme.of(context).colorScheme.surface,
+                            border: Border(
+                              bottom: BorderSide(
+                                color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                                width: 1,
+                              ),
+                            ),
+                          ),
+                      child: Row(
+                        mainAxisAlignment: _isExpanded
+                            ? MainAxisAlignment.spaceBetween
+                            : MainAxisAlignment.center,
+                        children: [
+                          if (_isExpanded)
+                            Padding(
+                              padding: const EdgeInsets.only(left: 8),
+                              child: Text(
+                                'Menu',
+                                   style: Theme.of(context).textTheme.titleMedium
+                                       ?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                         color: Theme.of(context).colorScheme.onSurface,
+                                    ),
+                              ),
+                            ),
+                          IconButton(
+                            icon: Icon(
+                              _isExpanded ? Icons.chevron_left : Icons.menu,
+                                 color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                            onPressed: _toggleSidebar,
+                            tooltip: _isExpanded ? 'Collapse' : 'Expand',
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                      Divider(
+                        height: 1,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.outline.withOpacity(0.2),
+                      ),
+                    // Menu items (scrollable)
+                    Expanded(
+                      child: ListView.builder(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        itemCount: widget.items.length,
+                        itemBuilder: (context, index) {
+                          final item = widget.items[index];
+                          final isActive = widget.currentRoute == item.route;
+                          return _SidebarMenuItem(
+                            item: item,
+                            isExpanded: _isExpanded,
+                            isActive: isActive,
+                            animation: _expandAnimation,
+                          );
+                        },
+                      ),
+                    ),
+                    // Fixed Logout button at bottom
+                    if (widget.logoutItem != null)
+                      Container(
+                        decoration: BoxDecoration(
+                          border: Border(
+                            top: BorderSide(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.outline.withOpacity(0.2),
+                              width: 1,
+                            ),
+                          ),
+                        ),
+                        child: _SidebarMenuItem(
+                          item: widget.logoutItem!,
+                          isExpanded: _isExpanded,
+                          isActive: false,
+                          animation: _expandAnimation,
+                          isLogout: true,
+                        ),
+                      ),
+                  ],
               ),
-            );
+            ),
+          ),
+        );
           },
         ),
         // Main content area with app bar
         Expanded(
           child: Column(
             children: [
-              // App Bar (meets sidebar at right angle)
-              Container(
-                height: kToolbarHeight,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primary,
-                  border: Border(
-                    bottom: BorderSide(
-                      color: Colors.black.withOpacity(0.1),
-                      width: 1,
-                    ),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    const SizedBox(width: 16),
-                    if (widget.title != null)
-                      Expanded(
-                        child: DefaultTextStyle(
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                color: Theme.of(context).colorScheme.onPrimary,
-                                fontWeight: FontWeight.bold,
-                              ) ?? const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                          child: widget.title!,
+              // App Bar (meets sidebar at right angle, always visible)
+              AnnotatedRegion<SystemUiOverlayStyle>(
+                value: Theme.of(context).brightness == Brightness.light
+                    ? SystemUiOverlayStyle.dark
+                    : SystemUiOverlayStyle.light,
+                child: Container(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.surface, // White in light, black in dark
+                  child: SafeArea(
+                    bottom: false,
+                    child: Container(
+                      height: kToolbarHeight,
+                      decoration: BoxDecoration(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.surface, // White in light, black in dark
+                        border: Border(
+                          bottom: BorderSide(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.outline.withOpacity(0.2),
+                            width: 1,
+                          ),
                         ),
                       ),
-                    if (widget.actions != null) ...widget.actions!,
-                  ],
+                      child: Row(
+                        children: [
+                          const SizedBox(width: 16),
+                          if (widget.title != null)
+                            Expanded(
+                              child: DefaultTextStyle(
+                                style:
+                                    Theme.of(
+                                      context,
+                                    ).textTheme.titleLarge?.copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface, // Black in light, white in dark
+                                      fontWeight: FontWeight.bold,
+                                    ) ??
+                                    TextStyle(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurface,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                child: widget.title!,
+                              ),
+                            ),
+                          if (widget.actions != null) ...widget.actions!,
+                          const SizedBox(width: 8),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
               ),
               // Main content
@@ -194,12 +391,14 @@ class _SidebarMenuItem extends StatelessWidget {
   final bool isExpanded;
   final bool isActive;
   final Animation<double> animation;
+  final bool isLogout;
 
   const _SidebarMenuItem({
     required this.item,
     required this.isExpanded,
     required this.isActive,
     required this.animation,
+    this.isLogout = false,
   });
 
   @override
@@ -207,42 +406,47 @@ class _SidebarMenuItem extends StatelessWidget {
     return AnimatedBuilder(
       animation: animation,
       builder: (context, child) {
+        final theme = Theme.of(context);
+        final colorScheme = theme.colorScheme;
+        final logoutColor = isLogout 
+            ? colorScheme.error
+            : (isActive ? colorScheme.primary : colorScheme.onSurfaceVariant);
+
+        final isDark = theme.brightness == Brightness.dark;
+        
         return InkWell(
           onTap: item.onTap,
+          hoverColor: isLogout 
+              ? colorScheme.error.withOpacity(isDark ? 0.2 : 0.1)
+              : colorScheme.primary.withOpacity(isDark ? 0.2 : 0.1),
           child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            margin: EdgeInsets.symmetric(
+              horizontal: 8, 
+              vertical: isLogout ? 8 : 4,
+            ),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             decoration: BoxDecoration(
-              color: isActive
-                  ? Theme.of(context).colorScheme.primary.withOpacity(0.15)
+              color: isActive && !isLogout
+                  ? colorScheme.primary.withOpacity(isDark ? 0.25 : 0.15)
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(10),
-              border: isActive
-                  ? Border.all(
-                      color: Theme.of(context).colorScheme.primary,
-                      width: 1.5,
-                    )
+              border: isActive && !isLogout
+                  ? Border.all(color: colorScheme.primary, width: 1.5)
                   : null,
             ),
             child: Row(
               children: [
-                Icon(
-                  item.icon,
-                  color: isActive
-                      ? Theme.of(context).colorScheme.primary
-                      : Theme.of(context).iconTheme.color,
-                  size: 24,
-                ),
+                Icon(item.icon, color: logoutColor, size: 24),
                 if (isExpanded) ...[
                   const SizedBox(width: 16),
                   Expanded(
                     child: Text(
                       item.title,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: isActive
-                                ? Theme.of(context).colorScheme.primary
-                                : null,
-                            fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                            color: logoutColor,
+                        fontWeight: isActive || isLogout
+                            ? FontWeight.w600
+                            : FontWeight.normal,
                           ),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -253,6 +457,46 @@ class _SidebarMenuItem extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _MobileDrawerMenuItem extends StatelessWidget {
+  final SidebarItem item;
+  final bool isActive;
+  final VoidCallback onTap;
+  final bool isLogout;
+
+  const _MobileDrawerMenuItem({
+    required this.item,
+    required this.isActive,
+    required this.onTap,
+    this.isLogout = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final logoutColor = isLogout 
+        ? colorScheme.error
+        : (isActive ? colorScheme.primary : colorScheme.onSurfaceVariant);
+    final isDark = theme.brightness == Brightness.dark;
+    
+    return ListTile(
+      leading: Icon(item.icon, color: logoutColor),
+      title: Text(
+        item.title,
+        style: theme.textTheme.bodyLarge?.copyWith(
+              color: logoutColor,
+          fontWeight: isActive || isLogout
+              ? FontWeight.w600
+              : FontWeight.normal,
+            ),
+      ),
+      selected: isActive && !isLogout,
+      selectedTileColor: colorScheme.primary.withOpacity(isDark ? 0.2 : 0.1),
+      onTap: onTap,
     );
   }
 }
@@ -270,4 +514,3 @@ class SidebarItem {
     required this.onTap,
   });
 }
-

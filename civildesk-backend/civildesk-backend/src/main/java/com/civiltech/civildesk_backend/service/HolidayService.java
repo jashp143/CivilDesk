@@ -11,6 +11,8 @@ import com.civiltech.civildesk_backend.repository.AttendanceRepository;
 import com.civiltech.civildesk_backend.repository.EmployeeRepository;
 import com.civiltech.civildesk_backend.repository.HolidayRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,6 +45,7 @@ public class HolidayService {
     private static final LocalTime HOLIDAY_CHECK_OUT = LocalTime.of(18, 0);  // 18:00
 
     @Transactional
+    @CacheEvict(value = "holidays", allEntries = true)
     public HolidayResponse createHoliday(HolidayRequest request) {
         // Validate date
         if (request.getDate() == null) {
@@ -77,6 +80,7 @@ public class HolidayService {
     }
 
     @Transactional
+    @CacheEvict(value = "holidays", allEntries = true)
     public HolidayResponse updateHoliday(Long id, HolidayRequest request) {
         Long holidayId = Objects.requireNonNull(id, "Holiday ID cannot be null");
         Holiday holiday = holidayRepository.findById(holidayId)
@@ -134,6 +138,7 @@ public class HolidayService {
     }
 
     @Transactional
+    @CacheEvict(value = "holidays", allEntries = true)
     public void deleteHoliday(Long id) {
         Long holidayId = Objects.requireNonNull(id, "Holiday ID cannot be null");
         Holiday holiday = holidayRepository.findById(holidayId)
@@ -175,6 +180,7 @@ public class HolidayService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "holidays", key = "'all'")
     public List<HolidayResponse> getAllHolidays() {
         return holidayRepository.findByIsActiveTrueAndDeletedFalseOrderByDateAsc()
                 .stream()
@@ -191,6 +197,7 @@ public class HolidayService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "holidays", key = "'upcoming'")
     public List<HolidayResponse> getUpcomingHolidays() {
         LocalDate today = LocalDate.now();
         return holidayRepository.findUpcomingHolidays(today)

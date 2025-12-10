@@ -82,5 +82,11 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
     
     // Get all active employees
     List<Employee> findByEmploymentStatusAndDeletedFalse(Employee.EmploymentStatus status);
+    
+    // Find all employee IDs with pattern CTS-EMP-XXXX
+    @Query("SELECT e.employeeId FROM Employee e " +
+           "WHERE e.deleted = false AND e.employeeId LIKE 'CTS-EMP-%' " +
+           "ORDER BY e.employeeId DESC")
+    List<String> findEmployeeIdsWithPattern(org.springframework.data.domain.Pageable pageable);
 }
 

@@ -40,6 +40,13 @@ class Config:
     USE_GPU = os.getenv("USE_GPU", "True").lower() == "true"
     GPU_DEVICE_ID = int(os.getenv("GPU_DEVICE_ID", "0"))
     
+    # Redis Configuration (Phase 4 Optimization - Enhanced Caching)
+    REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+    REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
+    REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")
+    REDIS_DB = int(os.getenv("REDIS_DB", "0"))
+    REDIS_ENABLED = os.getenv("REDIS_ENABLED", "True").lower() == "true"
+    
     # Database connection string
     DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
     

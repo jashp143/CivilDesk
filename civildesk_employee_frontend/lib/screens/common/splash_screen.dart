@@ -18,11 +18,18 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _navigateToNextScreen() async {
-    await Future.delayed(const Duration(seconds: 2));
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    
+    // Wait for auth data to finish loading
+    while (authProvider.isLoading) {
+      await Future.delayed(const Duration(milliseconds: 100));
+      if (!mounted) return;
+    }
+
+    // Add a small delay for smooth transition
+    await Future.delayed(const Duration(milliseconds: 500));
 
     if (!mounted) return;
-
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
     if (authProvider.isAuthenticated) {
       Navigator.of(context).pushReplacementNamed(AppRoutes.home);
