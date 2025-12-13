@@ -17,8 +17,16 @@ class _MyAttendanceScreenState extends State<MyAttendanceScreen> {
   DateTime? _startDate;
   DateTime? _endDate;
   String? _selectedStatus;
-  final List<String> _statusOptions = ['All', 'Present', 'Absent', 'Half Day', 'On Leave', 'Late'];
+  final List<String> _statusOptions = [
+    'All',
+    'Present',
+    'Absent',
+    'Half Day',
+    'On Leave',
+    'Late',
+  ];
   bool _isStatsExpanded = false; // Statistics collapsed by default
+  final Set<String> _expandedDates = {}; // Track expanded timeline items
 
   @override
   void initState() {
@@ -30,7 +38,7 @@ class _MyAttendanceScreenState extends State<MyAttendanceScreen> {
     final lastDayOfMonth = DateTime(now.year, now.month + 1, 0);
     _endDate = lastDayOfMonth.isAfter(now) ? now : lastDayOfMonth;
     _selectedStatus = 'All';
-    
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadAttendance();
     });
@@ -48,19 +56,18 @@ class _MyAttendanceScreenState extends State<MyAttendanceScreen> {
     final now = DateTime.now();
     final initialStart = _startDate ?? now.subtract(const Duration(days: 30));
     final initialEnd = _endDate ?? now;
-    
+
     // Ensure initial dates don't exceed lastDate
-    final safeStart = initialStart.isAfter(now) ? now.subtract(const Duration(days: 30)) : initialStart;
+    final safeStart = initialStart.isAfter(now)
+        ? now.subtract(const Duration(days: 30))
+        : initialStart;
     final safeEnd = initialEnd.isAfter(now) ? now : initialEnd;
-    
+
     final picked = await showDateRangePicker(
       context: context,
       firstDate: DateTime(2020),
       lastDate: now,
-      initialDateRange: DateTimeRange(
-        start: safeStart,
-        end: safeEnd,
-      ),
+      initialDateRange: DateTimeRange(start: safeStart, end: safeEnd),
     );
 
     if (picked != null) {
@@ -75,7 +82,7 @@ class _MyAttendanceScreenState extends State<MyAttendanceScreen> {
   List<Attendance> _getFilteredAttendance() {
     final provider = Provider.of<AttendanceProvider>(context);
     List<Attendance> filtered = List.from(provider.attendanceList);
-    
+
     if (_selectedStatus != null && _selectedStatus != 'All') {
       filtered = filtered.where((attendance) {
         final status = attendance.status.toUpperCase();
@@ -95,17 +102,17 @@ class _MyAttendanceScreenState extends State<MyAttendanceScreen> {
         }
       }).toList();
     }
-    
+
     // Sort by date descending (newest first)
     filtered.sort((a, b) => b.date.compareTo(a.date));
-    
+
     return filtered;
   }
 
   Map<String, dynamic> _calculateStats() {
     final provider = Provider.of<AttendanceProvider>(context);
     final attendances = provider.attendanceList;
-    
+
     int totalPresent = 0;
     int totalAbsent = 0;
     int totalHalfDay = 0;
@@ -113,7 +120,7 @@ class _MyAttendanceScreenState extends State<MyAttendanceScreen> {
     int totalLate = 0;
     double totalWorkingHours = 0;
     double totalOvertimeHours = 0;
-    
+
     for (var attendance in attendances) {
       final status = attendance.status.toUpperCase();
       switch (status) {
@@ -134,7 +141,7 @@ class _MyAttendanceScreenState extends State<MyAttendanceScreen> {
           totalLate++;
           break;
       }
-      
+
       if (attendance.workingHours != null) {
         totalWorkingHours += attendance.workingHours!;
       }
@@ -142,12 +149,12 @@ class _MyAttendanceScreenState extends State<MyAttendanceScreen> {
         totalOvertimeHours += attendance.overtimeHours!;
       }
     }
-    
+
     final totalDays = attendances.length;
-    final attendancePercentage = totalDays > 0 
-        ? ((totalPresent + totalHalfDay) / totalDays * 100) 
+    final attendancePercentage = totalDays > 0
+        ? ((totalPresent + totalHalfDay) / totalDays * 100)
         : 0.0;
-    
+
     return {
       'totalDays': totalDays,
       'totalPresent': totalPresent,
@@ -177,254 +184,295 @@ class _MyAttendanceScreenState extends State<MyAttendanceScreen> {
           tooltip: 'Filter',
         ),
       ],
-      child: Column(
-        children: [
+      child: CustomScrollView(
+        slivers: [
           // Stats Section (Collapsible)
-          Container(
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surface,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                // Header with toggle
-                InkWell(
-                  onTap: () {
-                    setState(() {
-                      _isStatsExpanded = !_isStatsExpanded;
-                    });
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Statistics',
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                        ),
-                        Icon(
-                          _isStatsExpanded
-                              ? Icons.keyboard_arrow_up
-                              : Icons.keyboard_arrow_down,
-                          color: Theme.of(context).colorScheme.onSurface,
-                        ),
-                      ],
+          SliverToBoxAdapter(
+            child: Container(
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  // Header with toggle
+                  InkWell(
+                    onTap: () {
+                      setState(() {
+                        _isStatsExpanded = !_isStatsExpanded;
+                      });
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Statistics',
+                            style: Theme.of(context).textTheme.titleLarge
+                                ?.copyWith(fontWeight: FontWeight.bold),
+                          ),
+                          Icon(
+                            _isStatsExpanded
+                                ? Icons.keyboard_arrow_up
+                                : Icons.keyboard_arrow_down,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                // Collapsible content
-                AnimatedCrossFade(
-                  firstChild: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                    child: Column(
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildStatCard(
+                  // Collapsible content
+                  AnimatedCrossFade(
+                    firstChild: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final screenWidth = constraints.maxWidth;
+                        // Responsive grid: 3 columns for large screens, 2 for medium, 1 for small
+                        int crossAxisCount;
+                        double childAspectRatio;
+                        
+                        if (screenWidth > 600) {
+                          crossAxisCount = 3;
+                          childAspectRatio = 1.8; // More height for content
+                        } else if (screenWidth > 400) {
+                          crossAxisCount = 2;
+                          childAspectRatio = 2.0; // More height for content
+                        } else {
+                          crossAxisCount = 2;
+                          childAspectRatio = 2.2; // More height for narrow screens
+                        }
+                        
+                        return Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                          child: GridView.count(
+                            crossAxisCount: crossAxisCount,
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            mainAxisSpacing: 12,
+                            crossAxisSpacing: 12,
+                            childAspectRatio: childAspectRatio,
+                            children: [
+                              _buildStatCard(
                                 'Present',
                                 stats['totalPresent'].toString(),
-                                Icons.check_circle,
-                                Colors.green,
+                                const Color(0xFF16A34A), // success green
                               ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: _buildStatCard(
+                              _buildStatCard(
                                 'Absent',
                                 stats['totalAbsent'].toString(),
-                                Icons.cancel,
-                                Colors.red,
+                                const Color(0xFFEF4444), // danger red
                               ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: _buildStatCard(
+                              _buildStatCard(
                                 'Attendance',
                                 '${stats['attendancePercentage'].toStringAsFixed(1)}%',
-                                Icons.pie_chart,
-                                Theme.of(context).colorScheme.primary,
+                                const Color(0xFF2563EB), // info blue
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildStatCard(
+                              _buildStatCard(
                                 'Working Hours',
                                 _formatHours(stats['totalWorkingHours']),
-                                Icons.access_time,
-                                Colors.blue,
+                                const Color(0xFF2563EB), // info blue
                               ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: _buildStatCard(
+                              _buildStatCard(
                                 'Overtime',
                                 _formatHours(stats['totalOvertimeHours']),
-                                Icons.schedule,
-                                Colors.orange,
+                                const Color(0xFFF59E0B), // warn orange
                               ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: _buildStatCard(
+                              _buildStatCard(
                                 'Total Days',
                                 stats['totalDays'].toString(),
-                                Icons.calendar_today,
-                                Colors.purple,
+                                const Color(0xFF6B7280), // gray
                               ),
-                            ),
-                          ],
-                        ),
-                      ],
+                            ],
+                          ),
+                        );
+                      },
                     ),
+                    secondChild: const SizedBox.shrink(),
+                    crossFadeState: _isStatsExpanded
+                        ? CrossFadeState.showFirst
+                        : CrossFadeState.showSecond,
+                    duration: const Duration(milliseconds: 300),
                   ),
-                  secondChild: const SizedBox.shrink(),
-                  crossFadeState: _isStatsExpanded
-                      ? CrossFadeState.showFirst
-                      : CrossFadeState.showSecond,
-                  duration: const Duration(milliseconds: 300),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
 
-          // Date Range Filter
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Date Range',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
-                            ),
+          // Sticky Date Range Filter Header
+          SliverPersistentHeader(
+            pinned: true,
+            delegate: _StickyHeaderDelegate(
+              minHeight: 44,
+              maxHeight: 44,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(
+                        Theme.of(context).brightness == Brightness.dark ? 0.3 : 0.04,
                       ),
-                      const SizedBox(height: 4),
-                      Text(
+                      blurRadius: 20,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
                         _startDate != null && _endDate != null
                             ? '${DateFormat('dd MMM yyyy').format(_startDate!)} - ${DateFormat('dd MMM yyyy').format(_endDate!)}'
                             : 'Select date range',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
                       ),
-                    ],
-                  ),
+                    ),
+                    Semantics(
+                      label: 'Change date range',
+                      button: true,
+                      child: TextButton(
+                        onPressed: _selectDateRange,
+                        style: TextButton.styleFrom(
+                          foregroundColor: Theme.of(context).colorScheme.primary,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          minimumSize: const Size(
+                            44,
+                            44,
+                          ), // Minimum touch target
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: Text(
+                          'Change',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                TextButton.icon(
-                  onPressed: _selectDateRange,
-                  icon: const Icon(Icons.calendar_today, size: 18),
-                  label: const Text('Change'),
-                ),
-              ],
+              ),
             ),
           ),
 
           // Timeline View
-          Expanded(
-            child: provider.isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : RefreshIndicator(
-                    onRefresh: _loadAttendance,
-                    child: filteredAttendance.isEmpty
-                        ? ListView(
-                            padding: const EdgeInsets.all(16),
-                            children: [
-                              SizedBox(
-                                height: MediaQuery.of(context).size.height * 0.3,
-                                child: Center(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        Icons.inbox,
-                                        size: 64,
-                                        color: Colors.grey[400],
-                                      ),
-                                      const SizedBox(height: 16),
-                                      Text(
-                                        'No attendance records found',
-                                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                              color: Colors.grey[600],
-                                            ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        'Try adjusting your filters',
-                                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                              color: Colors.grey[500],
-                                            ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          )
-                        : ListView.builder(
-                            padding: const EdgeInsets.all(16),
-                            itemCount: filteredAttendance.length,
-                            itemBuilder: (context, index) {
-                              final attendance = filteredAttendance[index];
-                              final isLast = index == filteredAttendance.length - 1;
-                              
-                              return _buildTimelineItem(attendance, isLast);
-                            },
-                          ),
+          provider.isLoading
+              ? const SliverFillRemaining(
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              : filteredAttendance.isEmpty
+              ? SliverFillRemaining(
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.inbox, size: 64, color: Colors.grey[400]),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No attendance records found',
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(color: Colors.grey[600]),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Try adjusting your filters',
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: Colors.grey[500]),
+                        ),
+                      ],
+                    ),
                   ),
-          ),
+                )
+              : SliverPadding(
+                  padding: const EdgeInsets.all(16),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      final attendance = filteredAttendance[index];
+                      final isLast = index == filteredAttendance.length - 1;
+                      return _buildTimelineItem(attendance, isLast);
+                    }, childCount: filteredAttendance.length),
+                  ),
+                ),
         ],
       ),
     );
   }
 
-  Widget _buildStatCard(String label, String value, IconData icon, Color color) {
+  Widget _buildStatCard(String label, String value, Color accentColor) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: color.withOpacity(0.3),
-          width: 1,
-        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(
+              Theme.of(context).brightness == Brightness.dark ? 0.3 : 0.04,
+            ),
+            blurRadius: 20,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: color,
-                  fontWeight: FontWeight.bold,
+          Row(
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: accentColor,
+                  shape: BoxShape.circle,
                 ),
+              ),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Colors.grey[600],
-                ),
-            textAlign: TextAlign.center,
+          const SizedBox(height: 6),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: accentColor,
+              ),
+              maxLines: 1,
+            ),
           ),
         ],
       ),
@@ -434,144 +482,227 @@ class _MyAttendanceScreenState extends State<MyAttendanceScreen> {
   Widget _buildTimelineItem(Attendance attendance, bool isLast) {
     final statusColor = _getStatusColor(attendance.status);
     final statusLabel = _getStatusLabel(attendance.status);
-    
+    final dateKey = attendance.date.toIso8601String();
+    final isExpanded = _expandedDates.contains(dateKey);
+
+    // Get time range for collapsed view
+    String timeRange = '-';
+    if (attendance.checkInTime != null && attendance.checkOutTime != null) {
+      timeRange =
+          '${DateFormat('HH:mm').format(attendance.checkInTime!)} - ${DateFormat('HH:mm').format(attendance.checkOutTime!)}';
+    } else if (attendance.checkInTime != null) {
+      timeRange = '${DateFormat('HH:mm').format(attendance.checkInTime!)} -';
+    }
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Timeline Line
+        // Timeline Line and Dot
         Column(
           children: [
             Container(
-              width: 16,
-              height: 16,
+              width: 12,
+              height: 12,
               decoration: BoxDecoration(
                 color: statusColor,
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: Colors.white,
-                  width: 3,
+                  color: Theme.of(context).colorScheme.surface,
+                  width: 2,
                 ),
               ),
             ),
             if (!isLast)
               Container(
                 width: 2,
-                height: 120,
-                color: Colors.grey[300],
+                height: isExpanded ? 200 : 60,
+                color: const Color(0xFFE6EEF3),
                 margin: const EdgeInsets.symmetric(vertical: 4),
               ),
           ],
         ),
-        const SizedBox(width: 16),
-        
+        const SizedBox(width: 12),
+
         // Content Card
         Expanded(
-          child: Card(
-            margin: const EdgeInsets.only(bottom: 16),
-            elevation: 2,
-            shape: RoundedRectangleBorder(
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
               borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                width: 1,
+              ),
             ),
-            child: InkWell(
-              onTap: () => _showAttendanceDetails(attendance),
-              borderRadius: BorderRadius.circular(12),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Date and Status
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                DateFormat('EEEE, dd MMMM yyyy').format(attendance.date),
-                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                    ),
+            child: Semantics(
+              label:
+                  'Attendance entry for ${DateFormat('EEEE, dd MMMM yyyy').format(attendance.date)}, Status: $statusLabel',
+              hint: isExpanded
+                  ? 'Tap to collapse details'
+                  : 'Tap to expand details',
+              button: true,
+              expanded: isExpanded,
+              child: InkWell(
+                onTap: () {
+                  setState(() {
+                    if (isExpanded) {
+                      _expandedDates.remove(dateKey);
+                    } else {
+                      _expandedDates.add(dateKey);
+                    }
+                  });
+                },
+                borderRadius: BorderRadius.circular(12),
+                focusColor: Theme.of(
+                  context,
+                ).colorScheme.primary.withOpacity(0.1),
+                autofocus: false,
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Collapsed Header Row
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              DateFormat(
+                                'EEE, dd MMM yyyy',
+                              ).format(attendance.date),
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Theme.of(context).colorScheme.onSurface,
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                DateFormat('dd/MM/yyyy').format(attendance.date),
-                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: Colors.grey[600],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: statusColor.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: statusColor, width: 1),
+                            ),
+                            child: Text(
+                              statusLabel,
+                              style: TextStyle(
+                                color: statusColor,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            timeRange,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Semantics(
+                            label: isExpanded ? 'Collapse' : 'Expand',
+                            child: Icon(
+                              isExpanded
+                                  ? Icons.expand_less
+                                  : Icons.expand_more,
+                              size: 20,
+                              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      // Expanded Details with Animation
+                      AnimatedCrossFade(
+                        firstChild: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 12),
+                            Divider(
+                              height: 1,
+                              color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                            ),
+                            const SizedBox(height: 12),
+                            _buildCompactTimeRow(
+                              'Check In',
+                              attendance.checkInTime,
+                            ),
+                            const SizedBox(height: 8),
+                            _buildCompactTimeRow(
+                              'Lunch Start',
+                              attendance.lunchOutTime,
+                            ),
+                            const SizedBox(height: 8),
+                            _buildCompactTimeRow(
+                              'Lunch End',
+                              attendance.lunchInTime,
+                            ),
+                            const SizedBox(height: 8),
+                            _buildCompactTimeRow(
+                              'Check Out',
+                              attendance.checkOutTime,
+                            ),
+
+                            if (attendance.formattedWorkingHours != null ||
+                                attendance.formattedOvertimeHours != null) ...[
+                              const SizedBox(height: 12),
+                              Divider(
+                                height: 1,
+                                color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  if (attendance.formattedWorkingHours !=
+                                      null) ...[
+                                    Text(
+                                      'Working: ${attendance.formattedWorkingHours}',
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: Color(0xFF2563EB),
+                                      ),
                                     ),
+                                  ],
+                                  if (attendance.formattedWorkingHours !=
+                                          null &&
+                                      attendance.formattedOvertimeHours != null)
+                                    const Text(
+                                      '  •  ',
+                                      style: TextStyle(
+                                        color: Color(0xFF666666),
+                                      ),
+                                    ),
+                                  if (attendance.formattedOvertimeHours != null)
+                                    Text(
+                                      'Overtime: ${attendance.formattedOvertimeHours}',
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: Color(0xFFF59E0B),
+                                      ),
+                                    ),
+                                ],
                               ),
                             ],
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: statusColor.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: statusColor,
-                              width: 1.5,
-                            ),
-                          ),
-                          child: Text(
-                            statusLabel,
-                            style: TextStyle(
-                              color: statusColor,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const Divider(height: 24),
-                    
-                    // Time Details
-                    _buildTimeDetail('Check In', attendance.checkInTime, Icons.login),
-                    const SizedBox(height: 8),
-                    _buildTimeDetail('Lunch Start', attendance.lunchOutTime, Icons.restaurant_outlined),
-                    const SizedBox(height: 8),
-                    _buildTimeDetail('Lunch End', attendance.lunchInTime, Icons.restaurant),
-                    const SizedBox(height: 8),
-                    _buildTimeDetail('Check Out', attendance.checkOutTime, Icons.logout),
-                    
-                    // Working Hours
-                    if (attendance.formattedWorkingHours != null || 
-                        attendance.formattedOvertimeHours != null) ...[
-                      const Divider(height: 24),
-                      if (attendance.formattedWorkingHours != null)
-                        Row(
-                          children: [
-                            Icon(Icons.access_time, size: 18, color: Colors.blue),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Working: ${attendance.formattedWorkingHours}',
-                              style: const TextStyle(
-                                color: Colors.blue,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
                           ],
                         ),
-                      if (attendance.formattedOvertimeHours != null) ...[
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            Icon(Icons.schedule, size: 18, color: Colors.orange),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Overtime: ${attendance.formattedOvertimeHours}',
-                              style: const TextStyle(
-                                color: Colors.orange,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                        secondChild: const SizedBox.shrink(),
+                        crossFadeState: isExpanded
+                            ? CrossFadeState.showFirst
+                            : CrossFadeState.showSecond,
+                        duration: const Duration(milliseconds: 160),
+                      ),
                     ],
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -581,25 +712,26 @@ class _MyAttendanceScreenState extends State<MyAttendanceScreen> {
     );
   }
 
-  Widget _buildTimeDetail(String label, DateTime? time, IconData icon) {
+  Widget _buildCompactTimeRow(String label, DateTime? time) {
     return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Icon(icon, size: 18, color: Colors.grey[600]),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            label,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.grey[700],
-                ),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
           ),
         ),
         Text(
           time != null ? DateFormat('hh:mm a').format(time) : '-',
           style: TextStyle(
-            color: time != null ? Colors.black87 : Colors.grey[400],
-            fontWeight: time != null ? FontWeight.w600 : FontWeight.normal,
             fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: time != null
+                ? Theme.of(context).colorScheme.onSurface
+                : Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
           ),
         ),
       ],
@@ -666,10 +798,7 @@ class _MyAttendanceScreenState extends State<MyAttendanceScreen> {
                 value: _selectedStatus,
                 isExpanded: true,
                 items: _statusOptions.map((status) {
-                  return DropdownMenuItem(
-                    value: status,
-                    child: Text(status),
-                  );
+                  return DropdownMenuItem(value: status, child: Text(status));
                 }).toList(),
                 onChanged: (value) {
                   setState(() {
@@ -736,14 +865,18 @@ class _MyAttendanceScreenState extends State<MyAttendanceScreen> {
                   children: [
                     Text(
                       'Attendance Details',
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(fontWeight: FontWeight.bold),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
-                        color: _getStatusColor(attendance.status).withOpacity(0.2),
+                        color: _getStatusColor(
+                          attendance.status,
+                        ).withOpacity(0.2),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
                           color: _getStatusColor(attendance.status),
@@ -761,31 +894,53 @@ class _MyAttendanceScreenState extends State<MyAttendanceScreen> {
                   ],
                 ),
                 const SizedBox(height: 24),
-                _buildDetailRow('Date', DateFormat('EEEE, dd MMMM yyyy').format(attendance.date)),
+                _buildDetailRow(
+                  'Date',
+                  DateFormat('EEEE, dd MMMM yyyy').format(attendance.date),
+                ),
                 const Divider(),
-                _buildDetailRow('Check In', attendance.checkInTime != null 
-                    ? DateFormat('hh:mm a').format(attendance.checkInTime!)
-                    : 'Not marked'),
-                _buildDetailRow('Lunch Start', attendance.lunchOutTime != null 
-                    ? DateFormat('hh:mm a').format(attendance.lunchOutTime!)
-                    : 'Not marked'),
-                _buildDetailRow('Lunch End', attendance.lunchInTime != null 
-                    ? DateFormat('hh:mm a').format(attendance.lunchInTime!)
-                    : 'Not marked'),
-                _buildDetailRow('Check Out', attendance.checkOutTime != null 
-                    ? DateFormat('hh:mm a').format(attendance.checkOutTime!)
-                    : 'Not marked'),
-                if (attendance.formattedWorkingHours != null || 
+                _buildDetailRow(
+                  'Check In',
+                  attendance.checkInTime != null
+                      ? DateFormat('hh:mm a').format(attendance.checkInTime!)
+                      : 'Not marked',
+                ),
+                _buildDetailRow(
+                  'Lunch Start',
+                  attendance.lunchOutTime != null
+                      ? DateFormat('hh:mm a').format(attendance.lunchOutTime!)
+                      : 'Not marked',
+                ),
+                _buildDetailRow(
+                  'Lunch End',
+                  attendance.lunchInTime != null
+                      ? DateFormat('hh:mm a').format(attendance.lunchInTime!)
+                      : 'Not marked',
+                ),
+                _buildDetailRow(
+                  'Check Out',
+                  attendance.checkOutTime != null
+                      ? DateFormat('hh:mm a').format(attendance.checkOutTime!)
+                      : 'Not marked',
+                ),
+                if (attendance.formattedWorkingHours != null ||
                     attendance.formattedOvertimeHours != null) ...[
                   const Divider(),
                   if (attendance.formattedWorkingHours != null)
-                    _buildDetailRow('Working Hours', attendance.formattedWorkingHours!,
-                        color: Colors.blue),
+                    _buildDetailRow(
+                      'Working Hours',
+                      attendance.formattedWorkingHours!,
+                      color: Colors.blue,
+                    ),
                   if (attendance.formattedOvertimeHours != null)
-                    _buildDetailRow('Overtime Hours', attendance.formattedOvertimeHours!,
-                        color: Colors.orange),
+                    _buildDetailRow(
+                      'Overtime Hours',
+                      attendance.formattedOvertimeHours!,
+                      color: Colors.orange,
+                    ),
                 ],
-                if (attendance.remarks != null && attendance.remarks!.isNotEmpty) ...[
+                if (attendance.remarks != null &&
+                    attendance.remarks!.isNotEmpty) ...[
                   const Divider(),
                   _buildDetailRow('Remarks', attendance.remarks!),
                 ],
@@ -808,22 +963,70 @@ class _MyAttendanceScreenState extends State<MyAttendanceScreen> {
             child: Text(
               label,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.grey[600],
-                    fontWeight: FontWeight.w500,
-                  ),
+                color: Colors.grey[600],
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
           Expanded(
             child: Text(
               value,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: color ?? Colors.black87,
-                    fontWeight: color != null ? FontWeight.w600 : FontWeight.normal,
-                  ),
+                color: color ?? Colors.black87,
+                fontWeight: color != null ? FontWeight.w600 : FontWeight.normal,
+              ),
             ),
           ),
         ],
       ),
     );
+  }
+}
+
+// Sticky Header Delegate for date range filter
+class _StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final double minHeight;
+  final double maxHeight;
+  final Widget child;
+
+  _StickyHeaderDelegate({
+    required this.minHeight,
+    required this.maxHeight,
+    required this.child,
+  });
+
+  @override
+  double get minExtent => minHeight;
+
+  @override
+  double get maxExtent => maxHeight;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.3 : 0.04),
+            blurRadius: 20,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+
+  @override
+  bool shouldRebuild(_StickyHeaderDelegate oldDelegate) {
+    return maxHeight != oldDelegate.maxHeight ||
+        minHeight != oldDelegate.minHeight ||
+        child != oldDelegate.child;
   }
 }

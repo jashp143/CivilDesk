@@ -185,12 +185,16 @@ class SiteService {
 
   // ==================== GPS Attendance ====================
 
-  Future<List<GpsAttendanceLog>> getMapDashboardData(DateTime date) async {
+  Future<List<GpsAttendanceLog>> getMapDashboardData(DateTime date, {String? employeeId}) async {
     try {
       final headers = await _getHeaders();
       final dateStr = date.toIso8601String().split('T')[0];
+      final uri = employeeId != null && employeeId != 'all'
+          ? Uri.parse('$baseUrl/gps-attendance/dashboard/map?date=$dateStr&employeeId=$employeeId')
+          : Uri.parse('$baseUrl/gps-attendance/dashboard/map?date=$dateStr');
+      
       final response = await http.get(
-        Uri.parse('$baseUrl/gps-attendance/dashboard/map?date=$dateStr'),
+        uri,
         headers: headers,
       );
 

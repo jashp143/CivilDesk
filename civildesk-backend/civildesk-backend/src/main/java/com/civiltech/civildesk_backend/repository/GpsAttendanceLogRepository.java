@@ -15,7 +15,8 @@ import java.util.List;
 @Repository
 public interface GpsAttendanceLogRepository extends JpaRepository<GpsAttendanceLog, Long> {
 
-    @Query("SELECT g FROM GpsAttendanceLog g WHERE g.employee.employeeId = :employeeId " +
+    @Query("SELECT g FROM GpsAttendanceLog g JOIN FETCH g.employee LEFT JOIN FETCH g.site " +
+           "WHERE g.employee.employeeId = :employeeId " +
            "AND DATE(g.punchTime) = :date ORDER BY g.punchTime ASC")
     List<GpsAttendanceLog> findByEmployeeIdAndDate(
             @Param("employeeId") String employeeId, @Param("date") LocalDate date);
@@ -63,6 +64,14 @@ public interface GpsAttendanceLogRepository extends JpaRepository<GpsAttendanceL
     @Query("SELECT g FROM GpsAttendanceLog g JOIN FETCH g.employee JOIN FETCH g.site " +
            "WHERE DATE(g.punchTime) = :date ORDER BY g.punchTime DESC")
     List<GpsAttendanceLog> findAllPunchesForDateWithDetails(@Param("date") LocalDate date);
+
+    // For map dashboard - get all punches with location for a date, optionally filtered by employee
+    @Query("SELECT g FROM GpsAttendanceLog g JOIN FETCH g.employee JOIN FETCH g.site " +
+           "WHERE DATE(g.punchTime) = :date " +
+           "AND (:employeeId IS NULL OR g.employee.employeeId = :employeeId) " +
+           "ORDER BY g.punchTime DESC")
+    List<GpsAttendanceLog> findAllPunchesForDateWithDetailsAndEmployee(
+            @Param("date") LocalDate date, @Param("employeeId") String employeeId);
 
     // For map dashboard - get all punches within date range
     @Query("SELECT g FROM GpsAttendanceLog g JOIN FETCH g.employee " +

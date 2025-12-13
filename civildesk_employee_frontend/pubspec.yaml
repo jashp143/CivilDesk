@@ -50,6 +50,12 @@ dependencies:
   # Image Caching - Phase 1 Optimization
   cached_network_image: ^3.3.1
   flutter_cache_manager: ^3.3.2
+  
+  # App Info
+  package_info_plus: ^8.0.0
+  
+  # Toast Messages
+  fluttertoast: ^8.2.4
 
 dev_dependencies:
   flutter_test:

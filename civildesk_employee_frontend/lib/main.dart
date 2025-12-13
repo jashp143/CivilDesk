@@ -36,11 +36,12 @@ class CivildeskEmployeeApp extends StatelessWidget {
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, _) {
+          final brightness = themeProvider.isDarkMode ? Brightness.dark : Brightness.light;
           return MaterialApp(
             title: 'Civildesk Employee',
             debugShowCheckedModeBanner: false,
-            theme: AppTheme.lightTheme,
-            darkTheme: AppTheme.darkTheme,
+            theme: AppTheme.getTheme(themeProvider.colorPalette, Brightness.light),
+            darkTheme: AppTheme.getTheme(themeProvider.colorPalette, Brightness.dark),
             themeMode: themeProvider.themeMode,
             initialRoute: AppRoutes.splash,
             onGenerateRoute: AppRouter.generateRoute,

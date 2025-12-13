@@ -15,6 +15,10 @@ class LeavesManagementScreen extends StatefulWidget {
 }
 
 class _LeavesManagementScreenState extends State<LeavesManagementScreen> {
+  bool _isMobile(BuildContext context) {
+    return MediaQuery.of(context).size.shortestSide < 600;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -241,6 +245,8 @@ class _LeavesManagementScreenState extends State<LeavesManagementScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = _isMobile(context);
+    
     return AdminLayout(
       title: const Text('Leave Management'),
       currentRoute: AppRoutes.adminLeave,
@@ -251,6 +257,35 @@ class _LeavesManagementScreenState extends State<LeavesManagementScreen> {
             if (provider.selectedStatus != null) activeFilters++;
             if (provider.selectedLeaveType != null) activeFilters++;
             if (provider.selectedDepartment != null) activeFilters++;
+
+            if (isMobile) {
+              return Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.filter_list),
+                    onPressed: _showFilterDialog,
+                    tooltip: activeFilters > 0 ? 'Filters ($activeFilters)' : 'Filter',
+                  ),
+                  if (activeFilters > 0)
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.error,
+                          shape: BoxShape.circle,
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 12,
+                          minHeight: 12,
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            }
 
             return Padding(
               padding: const EdgeInsets.only(right: 8.0),

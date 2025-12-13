@@ -138,13 +138,14 @@ public class GpsAttendanceController {
     @GetMapping("/dashboard/map")
     @PreAuthorize("hasRole('ADMIN') or hasRole('HR_MANAGER')")
     public ResponseEntity<ApiResponse<List<GpsAttendanceResponse>>> getMapDashboardData(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(required = false) String employeeId) {
         try {
             if (date == null) {
                 date = LocalDate.now();
             }
             
-            List<GpsAttendanceResponse> responses = gpsAttendanceService.getAllAttendanceForDate(date);
+            List<GpsAttendanceResponse> responses = gpsAttendanceService.getAllAttendanceForDate(date, employeeId);
             return ResponseEntity.ok(ApiResponse.success("Map data retrieved successfully", responses));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

@@ -45,6 +45,9 @@ public class GpsAttendanceRequest {
     // For offline attendance - original timestamp from device
     private LocalDateTime offlineTimestamp;
 
+    // Timestamp when location was captured (to validate location freshness)
+    private LocalDateTime locationTimestamp;
+
     // Site ID if known
     private Long siteId;
 }

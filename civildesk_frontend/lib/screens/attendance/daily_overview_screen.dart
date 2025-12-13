@@ -158,63 +158,101 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
       title: Text(
         'Daily Attendance Overview',
         style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+          fontSize: isMobile ? 20 : 24,
+          fontWeight: FontWeight.w600,
+          letterSpacing: -0.5,
+          height: 1.2,
+        ),
       ),
       actions: [
-        if (!isMobile) ...[
+        if (isMobile) ...[
+          // Change Date button for mobile
+          IconButton(
+            icon: Icon(
+              Icons.calendar_today_rounded,
+              size: 22,
+            ),
+            iconSize: 22,
+            padding: const EdgeInsets.all(8),
+            constraints: const BoxConstraints(
+              minWidth: 40,
+              minHeight: 40,
+            ),
+            onPressed: _selectDate,
+            tooltip: 'Change Date',
+          ),
+        ] else ...[
           _buildAppBarSummaryStats(),
         ],
-        ],
+      ],
                   child: Column(
                     children: [
           // Date selector, search bar and summary stats
           Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.fromLTRB(12.0, 12.0, 12.0, 8.0),
             child: Column(
               children: [
-                // Date selector
-                Row(
-                  children: [
-                    Icon(
-                      Icons.calendar_today,
-                      color: theme.colorScheme.onSurfaceVariant,
-                      size: 20,
+                // Date selector - More prominent
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: theme.colorScheme.primary.withOpacity(0.2),
+                      width: 1,
                     ),
-                    const SizedBox(width: 8),
-                      Text(
-                      DateFormat('EEEE, MMMM d, yyyy').format(_selectedDate),
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                      ),
-                    const Spacer(),
-                    TextButton.icon(
-                      onPressed: _selectDate,
-                      icon: Icon(
-                        Icons.edit,
-                        size: 18,
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.calendar_today_rounded,
                         color: theme.colorScheme.primary,
+                        size: 22,
                       ),
-                      label: Text(
-                        'Change Date',
-                        style: TextStyle(
-                          color: theme.colorScheme.primary,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          DateFormat('EEEE, MMMM d, yyyy').format(_selectedDate),
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            fontSize: isMobile ? 18 : 20,
+                            color: theme.colorScheme.onSurface,
+                            letterSpacing: -0.3,
+                          ),
                         ),
                       ),
-                      ),
+                      if (!isMobile) ...[
+                        const SizedBox(width: 8),
+                        TextButton.icon(
+                          onPressed: _selectDate,
+                          icon: Icon(
+                            Icons.edit_rounded,
+                            size: 18,
+                            color: theme.colorScheme.primary,
+                          ),
+                          label: Text(
+                            'Change Date',
+                            style: TextStyle(
+                              color: theme.colorScheme.primary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
-                const SizedBox(height: 16),
+                ),
+                const SizedBox(height: 10),
                 // Search bar
                 TextField(
                   controller: _searchController,
                   decoration: InputDecoration(
-                    hintText: 'Search by employee name or ID...',
-                    prefixIcon: const Icon(Icons.search),
+                    hintText: 'Search employees...',
+                    prefixIcon: const Icon(Icons.search_rounded),
                     suffixIcon: _searchQuery.isNotEmpty
                         ? IconButton(
-                            icon: const Icon(Icons.clear),
+                            icon: const Icon(Icons.clear_rounded),
                             onPressed: () {
                               _searchController.clear();
                               _handleSearch('');
@@ -226,10 +264,11 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
                     ),
                     filled: true,
                     fillColor: theme.colorScheme.surfaceVariant.withOpacity(0.3),
-                            ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  ),
                   onChanged: _handleSearch,
-                          ),
-                const SizedBox(height: 16),
+                ),
+                const SizedBox(height: 12),
                 // Summary stats
                 if (isMobile)
                   Row(
@@ -348,61 +387,51 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: color.withOpacity(0.3),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        color: isDark
+            ? color.withOpacity(0.15)
+            : color.withOpacity(0.1),
+        border: Border.all(
+          color: color.withOpacity(0.25),
           width: 1,
         ),
       ),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          color: isDark
-              ? color.withOpacity(0.2)
-              : color.withOpacity(0.1),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
                 icon,
                 color: color,
                 size: 20,
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-        child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              value,
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: color,
+              const SizedBox(width: 6),
+              Text(
+                value,
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 24,
+                  color: color,
+                  letterSpacing: -0.5,
+                ),
               ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            title,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
             ),
-            Text(
-              title,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-              ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -415,46 +444,49 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
         .where((a) => a.status == AttendanceStatus.absent)
         .length;
     final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
     
     return Row(
       mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-            color: AppTheme.statusApproved.withOpacity(0.15),
-            borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: AppTheme.statusApproved.withOpacity(isDark ? 0.2 : 0.12),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
               color: AppTheme.statusApproved.withOpacity(0.3),
               width: 1,
-                  ),
-                ),
+            ),
+          ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
-                  children: [
+            children: [
               Icon(
-                Icons.check_circle,
-                size: 16,
+                Icons.check_circle_rounded,
+                size: 18,
                 color: AppTheme.statusApproved,
               ),
-              const SizedBox(width: 6),
-                    Text(
+              const SizedBox(width: 8),
+              Text(
                 '$presentCount Present',
-                      style: TextStyle(
-                  fontSize: 13,
+                style: TextStyle(
+                  fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: AppTheme.statusApproved,
+                  letterSpacing: 0.1,
                 ),
               ),
             ],
-                      ),
+          ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 10),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
-            color: AppTheme.statusRejected.withOpacity(0.15),
-            borderRadius: BorderRadius.circular(20),
+            color: AppTheme.statusRejected.withOpacity(isDark ? 0.2 : 0.12),
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: AppTheme.statusRejected.withOpacity(0.3),
               width: 1,
@@ -462,23 +494,24 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                Icons.cancel,
-                size: 16,
+            children: [
+              Icon(
+                Icons.cancel_rounded,
+                size: 18,
                 color: AppTheme.statusRejected,
-                        ),
-              const SizedBox(width: 6),
-                        Text(
+              ),
+              const SizedBox(width: 8),
+              Text(
                 '$absentCount Absent',
-                          style: TextStyle(
-                  fontSize: 13,
+                style: TextStyle(
+                  fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: AppTheme.statusRejected,
-                          ),
-                        ),
-                      ],
-                    ),
+                  letterSpacing: 0.1,
+                ),
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -507,92 +540,59 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
               width: 1,
             ),
           ),
-          child: Column(
-                    children: [
-              // Table Header
-              Container(
-                decoration: BoxDecoration(
-                  color: colorScheme.surfaceVariant,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(12),
-                    topRight: Radius.circular(12),
-                  ),
-                  border: Border(
-                    bottom: BorderSide(
-                      color: colorScheme.outline,
-                      width: 2,
-                    ),
-                  ),
-                ),
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  controller: _horizontalScrollController,
-                  child: SizedBox(
-                    width: tableWidth,
-                    child: Table(
-                      columnWidths: const {
-                        0: FlexColumnWidth(2.5), // Full Name with Employee ID
-                        1: FlexColumnWidth(1.2), // Check In
-                        2: FlexColumnWidth(1.2), // Lunch Out
-                        3: FlexColumnWidth(1.2), // Lunch In
-                        4: FlexColumnWidth(1.2), // Check Out
-                        5: FlexColumnWidth(1.5), // Working Hours
-                        6: FlexColumnWidth(1.2), // Overtime
-                        7: FlexColumnWidth(1.8), // Actions/Status
-                      },
-                      children: [
-                        TableRow(
-                          children: [
-                            _buildTableHeaderCell('Full Name (ID)', theme, Icons.person),
-                            _buildTableHeaderCell('Check In', theme, Icons.login),
-                            _buildTableHeaderCell('Lunch Out', theme, Icons.restaurant),
-                            _buildTableHeaderCell('Lunch In', theme, Icons.restaurant_menu),
-                            _buildTableHeaderCell('Check Out', theme, Icons.logout),
-                            _buildTableHeaderCell('Working Hours', theme, Icons.access_time),
-                            _buildTableHeaderCell('Overtime', theme, Icons.timer),
-                            _buildTableHeaderCell('Status/Actions', theme, Icons.more_vert),
-                          ],
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            controller: _horizontalScrollController,
+            child: SingleChildScrollView(
+              controller: _scrollController,
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: SizedBox(
+                width: tableWidth,
+                child: Table(
+                  columnWidths: const {
+                    0: FlexColumnWidth(2.5), // Full Name with Employee ID
+                    1: FlexColumnWidth(1.2), // Check In
+                    2: FlexColumnWidth(1.2), // Lunch Out
+                    3: FlexColumnWidth(1.2), // Lunch In
+                    4: FlexColumnWidth(1.2), // Check Out
+                    5: FlexColumnWidth(1.5), // Working Hours
+                    6: FlexColumnWidth(1.2), // Overtime
+                    7: FlexColumnWidth(1.8), // Actions/Status
+                  },
+                  children: [
+                    // Header Row
+                    TableRow(
+                      decoration: BoxDecoration(
+                        color: colorScheme.surfaceVariant,
+                        border: Border(
+                          bottom: BorderSide(
+                            color: colorScheme.outline,
+                            width: 2,
+                          ),
+                        ),
                       ),
-                    ],
-                  ),
-                ),
+                      children: [
+                        _buildTableHeaderCell('Full Name (ID)', theme, Icons.person),
+                        _buildTableHeaderCell('Check In', theme, Icons.login),
+                        _buildTableHeaderCell('Lunch Out', theme, Icons.restaurant),
+                        _buildTableHeaderCell('Lunch In', theme, Icons.restaurant_menu),
+                        _buildTableHeaderCell('Check Out', theme, Icons.logout),
+                        _buildTableHeaderCell('Working Hours', theme, Icons.access_time),
+                        _buildTableHeaderCell('Overtime', theme, Icons.timer),
+                        _buildTableHeaderCell('Status/Actions', theme, Icons.more_vert),
+                      ],
+                    ),
+                    // Data Rows
+                    ..._filteredAttendances.asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final attendance = entry.value;
+                      return _buildTableRow(context, attendance, theme, index);
+                    }).toList(),
+                  ],
                 ),
               ),
-              // Table Body - Scrollable both directions
-                Expanded(
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  controller: _horizontalScrollController,
-                  child: SingleChildScrollView(
-                    controller: _scrollController,
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    child: SizedBox(
-                      width: tableWidth,
-                      child: Table(
-                        columnWidths: const {
-                          0: FlexColumnWidth(2.5), // Full Name with Employee ID
-                          1: FlexColumnWidth(1.2), // Check In
-                          2: FlexColumnWidth(1.2), // Lunch Out
-                          3: FlexColumnWidth(1.2), // Lunch In
-                          4: FlexColumnWidth(1.2), // Check Out
-                          5: FlexColumnWidth(1.5), // Working Hours
-                          6: FlexColumnWidth(1.2), // Overtime
-                          7: FlexColumnWidth(1.8), // Actions/Status
-                        },
-                    children: [
-                          ..._filteredAttendances.asMap().entries.map((entry) {
-                            final index = entry.key;
-                            final attendance = entry.value;
-                            return _buildTableRow(context, attendance, theme, index);
-                          }).toList(),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                          ),
-                        ],
-                      ),
+            ),
+          ),
         );
       },
     );
@@ -681,7 +681,7 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
                   fontWeight: FontWeight.w600,
                             ),
                 overflow: TextOverflow.ellipsis,
-                maxLines: 1,
+                maxLines: 2,
                         ),
               const SizedBox(height: 4),
                       Row(
@@ -884,219 +884,186 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
     final statusColor = isPresent ? AppTheme.statusApproved : AppTheme.statusRejected;
     final statusText = isPresent ? 'Present' : 'Absent';
     final isDark = theme.brightness == Brightness.dark;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final isSmallScreen = screenHeight < 700;
     
     return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      elevation: 2,
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 1,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         side: BorderSide(
-          color: statusColor.withOpacity(0.3),
+          color: isDark 
+              ? Colors.white.withOpacity(0.1)
+              : Colors.black.withOpacity(0.1),
           width: 1,
         ),
       ),
       child: InkWell(
         onTap: () => _navigateToEditScreen(attendance),
-          borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(14.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header: Employee ID and Status
+              // Employee Header: Name, ID, and Status
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          attendance.employeeName,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 16,
+                            letterSpacing: -0.2,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
                         Row(
                           children: [
                             Icon(
-                              Icons.badge,
-                        size: 18,
-                        color: colorScheme.primary,
+                              Icons.badge_outlined,
+                              size: 14,
+                              color: colorScheme.onSurfaceVariant,
                             ),
-                      const SizedBox(width: 8),
+                            const SizedBox(width: 4),
                             Text(
                               attendance.employeeId,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                        color: statusColor.withOpacity(0.3),
-                        width: 1,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            color: statusColor,
-                            shape: BoxShape.circle,
-                          ),
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                          statusText,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: statusColor,
-                                fontWeight: FontWeight.w600,
-                            fontSize: 12,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: colorScheme.onSurfaceVariant,
+                                fontSize: 12,
                               ),
                             ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: statusColor.withOpacity(isDark ? 0.2 : 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          isPresent ? Icons.check_circle_rounded : Icons.cancel_rounded,
+                          size: 14,
+                          color: statusColor,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          statusText,
+                          style: TextStyle(
+                            color: statusColor,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                          ),
+                        ),
                       ],
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-              const Divider(),
-              const SizedBox(height: 16),
-              // Time Information
-              _buildMobileTimeRow(
-                'Check In',
-                attendance.formattedCheckInTime,
-                Icons.login,
-                Colors.blue,
+              const SizedBox(height: 12),
+              // Soft Divider
+              Divider(
+                height: 1,
+                thickness: 1,
+                color: colorScheme.outline.withOpacity(0.1),
               ),
               const SizedBox(height: 12),
-              _buildMobileTimeRow(
-                'Lunch Out',
-                _formatTime(attendance.lunchOutTime),
-                Icons.restaurant,
-                Colors.orange,
+              // Punch Logs Block - Clean Two-Column Layout
+              _buildPunchLogRow('Check In', attendance.formattedCheckInTime),
+              const SizedBox(height: 8),
+              _buildPunchLogRow('Lunch Out', _formatTime(attendance.lunchOutTime)),
+              const SizedBox(height: 8),
+              _buildPunchLogRow('Lunch In', _formatTime(attendance.lunchInTime)),
+              const SizedBox(height: 8),
+              _buildPunchLogRow('Check Out', attendance.formattedCheckOutTime),
+              const SizedBox(height: 12),
+              // Soft Divider
+              Divider(
+                height: 1,
+                thickness: 1,
+                color: colorScheme.outline.withOpacity(0.1),
               ),
               const SizedBox(height: 12),
-              _buildMobileTimeRow(
-                'Lunch In',
-                _formatTime(attendance.lunchInTime),
-                Icons.restaurant_menu,
-                Colors.teal,
-              ),
-              const SizedBox(height: 12),
-              _buildMobileTimeRow(
-                'Check Out',
-                attendance.formattedCheckOutTime,
-                Icons.logout,
-                Colors.purple,
-                        ),
-              const SizedBox(height: 16),
-              const Divider(),
-              const SizedBox(height: 16),
-              // Working Hours and Overtime
-              Row(
-                children: [
-                  if (attendance.formattedWorkingHours != null) ...[
-                    Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: isDark
-                              ? Colors.green.withOpacity(0.2)
-                              : Colors.green.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: Colors.green.withOpacity(0.3),
-                            width: 1,
-                        ),
-                        ),
-                        child: Column(
-                          children: [
-                            Icon(
-                              Icons.access_time,
-                              size: 20,
-                              color: Colors.green,
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Working Hours',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                              Text(
-                              attendance.formattedWorkingHours!,
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.green,
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
+              // Summary Row: Working Hours & Overtime
+              if (isSmallScreen && attendance.formattedWorkingHours != null && attendance.formattedOvertimeHours != null)
+                // Compact single line for small screens
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildCompactHoursCard(
+                      'Working Hours',
+                      attendance.formattedWorkingHours!,
+                      Colors.green,
+                      isDark,
+                    ),
+                    _buildCompactHoursCard(
+                      'Overtime',
+                      attendance.formattedOvertimeHours!,
+                      Colors.orange,
+                      isDark,
                     ),
                   ],
-                  if (attendance.formattedWorkingHours != null &&
-                      attendance.formattedOvertimeHours != null)
-                    const SizedBox(width: 12),
-                  if (attendance.formattedOvertimeHours != null) ...[
-                    Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: isDark
-                              ? Colors.orange.withOpacity(0.2)
-                              : Colors.orange.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: Colors.orange.withOpacity(0.3),
-                            width: 1,
-                        ),
-                        ),
-                        child: Column(
-                          children: [
-                            Icon(
-                              Icons.timer,
-                              size: 20,
-                              color: Colors.orange,
-                            ),
-                            const SizedBox(height: 4),
-                              Text(
-                              'Overtime',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
-                                  ),
-                                ),
-                            const SizedBox(height: 4),
-                              Text(
-                                attendance.formattedOvertimeHours!,
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                color: Colors.orange,
-                                ),
-                              ),
-                          ],
+                )
+              else
+                // Full cards for larger screens
+                Row(
+                  children: [
+                    if (attendance.formattedWorkingHours != null) ...[
+                      Expanded(
+                        child: _buildHoursCard(
+                          'Working Hours',
+                          attendance.formattedWorkingHours!,
+                          Colors.green,
+                          isDark,
                         ),
                       ),
+                      if (attendance.formattedOvertimeHours != null)
+                        const SizedBox(width: 10),
+                    ],
+                    if (attendance.formattedOvertimeHours != null) ...[
+                      Expanded(
+                        child: _buildHoursCard(
+                          'Overtime',
+                          attendance.formattedOvertimeHours!,
+                          Colors.orange,
+                          isDark,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
-              ],
-                ],
-              ),
-              const SizedBox(height: 16),
-              // Edit Button
+              const SizedBox(height: 12),
+              // Edit Button - Improved
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: () => _navigateToEditScreen(attendance),
-                  icon: const Icon(Icons.edit_outlined, size: 18),
-                  label: const Text('Edit Punch Times'),
+                  icon: const Icon(Icons.edit_rounded, size: 18),
+                  label: const Text(
+                    'Edit Time Logs',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: colorScheme.primary,
                     foregroundColor: colorScheme.onPrimary,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    padding: const EdgeInsets.symmetric(vertical: 11),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(10),
                     ),
+                    elevation: 0,
                   ),
                 ),
               ),
@@ -1107,50 +1074,110 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
     );
   }
 
-  Widget _buildMobileTimeRow(
-    String label,
-    String time,
-    IconData icon,
-    Color color,
-  ) {
+  Widget _buildPunchLogRow(String label, String time) {
     final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     
     return Row(
-        children: [
-          Container(
-          padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              icon,
-              size: 18,
-            color: color,
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
             ),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                label,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                time,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
+        ),
+        Text(
+          time,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: colorScheme.onSurface,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
           ),
+        ),
       ],
+    );
+  }
+
+  Widget _buildHoursCard(String label, String value, Color color, bool isDark) {
+    final theme = Theme.of(context);
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: isDark
+            ? color.withOpacity(0.15)
+            : color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: color.withOpacity(0.25),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+              fontSize: 16,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCompactHoursCard(String label, String value, Color color, bool isDark) {
+    final theme = Theme.of(context);
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: isDark
+            ? color.withOpacity(0.15)
+            : color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: color.withOpacity(0.25),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontSize: 10,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: theme.textTheme.bodyLarge?.copyWith(
+              fontWeight: FontWeight.w700,
+              fontSize: 14,
+              color: color,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

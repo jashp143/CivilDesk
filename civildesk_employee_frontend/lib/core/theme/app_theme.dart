@@ -1,129 +1,152 @@
 import 'package:flutter/material.dart';
+import '../providers/theme_provider.dart';
 
 class AppTheme {
-  // Light Theme Colors
-  // Primary
-  static const Color lightPrimary = Color(0xFF6B2B3A);
-  static const Color lightPrimaryLight = Color(0xFF8B4B5A);
-  static const Color lightPrimaryDark = Color(0xFF4B1B2A);
+  // Color Palette 1: Blue tones
+  // Light: #0047AB, #000080, #82C8E5, #6D8196
+  // Dark: #0047AB, #000080, #82C8E5, #6D8196
+  static const Color _palette1LightPrimary = Color(0xFF0047AB);
+  static const Color _palette1LightPrimaryDark = Color(0xFF000080);
+  static const Color _palette1LightSecondary = Color(0xFF82C8E5);
+  static const Color _palette1LightAccent = Color(0xFF6D8196);
   
-  // Secondary
-  static const Color lightSecondary = Color(0xFF9B5B6A);
-  static const Color lightSecondaryLight = Color(0xFFB37B8A);
-  static const Color lightSecondaryDark = Color(0xFF7B3B4A);
+  static const Color _palette1DarkPrimary = Color(0xFF0047AB);
+  static const Color _palette1DarkPrimaryDark = Color(0xFF000080);
+  static const Color _palette1DarkSecondary = Color(0xFF82C8E5);
+  static const Color _palette1DarkAccent = Color(0xFF6D8196);
+
+  // Color Palette 2: Grayscale
+  // Light: #FFFFFF, #D4D4D4, #B3B3B3, #2B2B2B
+  // Dark: #FFFFFF, #D4D4D4, #B3B3B3, #2B2B2B
+  static const Color _palette2LightPrimary = Color(0xFF2B2B2B);
+  static const Color _palette2LightPrimaryDark = Color(0xFF1A1A1A);
+  static const Color _palette2LightSecondary = Color(0xFFB3B3B3);
+  static const Color _palette2LightAccent = Color(0xFFD4D4D4);
   
-  // Background
-  static const Color lightBackground = Color(0xFFF8F2F3);
+  static const Color _palette2DarkPrimary = Color(0xFFB3B3B3);
+  static const Color _palette2DarkPrimaryDark = Color(0xFFD4D4D4);
+  static const Color _palette2DarkSecondary = Color(0xFF2B2B2B);
+  static const Color _palette2DarkAccent = Color(0xFF1A1A1A);
+
+  // Color Palette 3: Green/Red tones
+  // Light: #CBCBCB, #F2F2F2, #174D38, #4D1717
+  // Dark: #CBCBCB, #F2F2F2, #174D38, #4D1717
+  static const Color _palette3LightPrimary = Color(0xFF174D38);
+  static const Color _palette3LightPrimaryDark = Color(0xFF0F3525);
+  static const Color _palette3LightSecondary = Color(0xFF4D1717);
+  static const Color _palette3LightAccent = Color(0xFFCBCBCB);
+  
+  static const Color _palette3DarkPrimary = Color(0xFF174D38);
+  static const Color _palette3DarkPrimaryDark = Color(0xFF0F3525);
+  static const Color _palette3DarkSecondary = Color(0xFF4D1717);
+  static const Color _palette3DarkAccent = Color(0xFFCBCBCB);
+
+  // Common colors
+  static const Color lightBackground = Color(0xFFF5F5F5);
   static const Color lightSurface = Color(0xFFFFFFFF);
-  
-  // Text
-  static const Color lightTextPrimary = Color(0xFF6B2B3A);
-  static const Color lightTextSecondary = Color(0xFF6B7280);
-  
-  // Error
+  static const Color lightTextPrimary = Color(0xFF212121);
+  static const Color lightTextSecondary = Color(0xFF757575);
   static const Color lightError = Color(0xFFD32F2F);
   static const Color lightOnError = Color(0xFFFFFFFF);
-  
-  // On Colors
-  static const Color lightOnPrimary = Color(0xFFFFFFFF);
-  static const Color lightOnSecondary = Color(0xFFFFFFFF);
-  static const Color lightOnBackground = Color(0xFF6B2B3A);
-  static const Color lightOnSurface = Color(0xFF6B2B3A);
 
-  // Dark Theme Colors
-  // Primary
-  static const Color darkPrimary = Color(0xFF8B4B5A);
-  static const Color darkPrimaryLight = Color(0xFFAB6B7A);
-  static const Color darkPrimaryDark = Color(0xFF6B2B3A);
-  
-  // Secondary
-  static const Color darkSecondary = Color(0xFF9B5B6A);
-  static const Color darkSecondaryLight = Color(0xFFBB7B8A);
-  static const Color darkSecondaryDark = Color(0xFF7B3B4A);
-  
-  // Background
   static const Color darkBackground = Color(0xFF121212);
   static const Color darkSurface = Color(0xFF1E1E1E);
-  
-  // Text
   static const Color darkTextPrimary = Color(0xFFFFFFFF);
-  static const Color darkTextSecondary = Color(0xFFE0E0E0);
-  
-  // Actions
-  static const Color darkActionActive = Color(0xFFFFFFFF);
-  static const Color darkActionHover = Color.fromRGBO(255, 255, 255, 0.08);
-  static const Color darkActionSelected = Color.fromRGBO(255, 255, 255, 0.16);
-  static const Color darkActionDisabled = Color.fromRGBO(255, 255, 255, 0.3);
-  static const Color darkActionDisabledBackground = Color.fromRGBO(255, 255, 255, 0.12);
-  static const Color darkDivider = Color.fromRGBO(255, 255, 255, 0.12);
-  
-  // Error
+  static const Color darkTextSecondary = Color(0xFFB0B0B0);
   static const Color darkError = Color(0xFFCF6679);
   static const Color darkOnError = Color(0xFFFFFFFF);
-  
-  // On Colors
-  static const Color darkOnPrimary = Color(0xFFFFFFFF);
-  static const Color darkOnSecondary = Color(0xFFFFFFFF);
-  static const Color darkOnBackground = Color(0xFFFFFFFF);
-  static const Color darkOnSurface = Color(0xFFFFFFFF);
+  static const Color darkDivider = Color.fromRGBO(255, 255, 255, 0.12);
 
-  // Light Theme
-  static ThemeData get lightTheme {
+  // Get theme based on palette and brightness
+  static ThemeData getTheme(ColorPalette palette, Brightness brightness) {
+    if (brightness == Brightness.light) {
+      return _getLightTheme(palette);
+    } else {
+      return _getDarkTheme(palette);
+    }
+  }
+
+  static ThemeData _getLightTheme(ColorPalette palette) {
+    Color primary;
+    Color primaryDark;
+    Color secondary;
+    Color accent;
+
+    switch (palette) {
+      case ColorPalette.palette1:
+        primary = _palette1LightPrimary;
+        primaryDark = _palette1LightPrimaryDark;
+        secondary = _palette1LightSecondary;
+        accent = _palette1LightAccent;
+        break;
+      case ColorPalette.palette2:
+        primary = _palette2LightPrimary;
+        primaryDark = _palette2LightPrimaryDark;
+        secondary = _palette2LightSecondary;
+        accent = _palette2LightAccent;
+        break;
+      case ColorPalette.palette3:
+        primary = _palette3LightPrimary;
+        primaryDark = _palette3LightPrimaryDark;
+        secondary = _palette3LightSecondary;
+        accent = _palette3LightAccent;
+        break;
+    }
+
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
-      primaryColor: lightPrimary,
-      primaryColorDark: lightPrimaryDark,
-      primaryColorLight: lightPrimaryLight,
-      scaffoldBackgroundColor: lightBackground,
-      colorScheme: const ColorScheme.light(
-        primary: lightPrimary,
-        primaryContainer: lightPrimaryLight,
-        secondary: lightSecondary,
-        secondaryContainer: lightSecondaryLight,
-        surface: lightSurface,
-        surfaceVariant: lightBackground,
+      primaryColor: primary,
+      primaryColorDark: primaryDark,
+      scaffoldBackgroundColor: palette == ColorPalette.palette2 ? Color(0xFFF2F2F2) : lightBackground,
+      colorScheme: ColorScheme.light(
+        primary: primary,
+        primaryContainer: primaryDark,
+        secondary: secondary,
+        secondaryContainer: accent,
+        surface: palette == ColorPalette.palette2 ? Color(0xFFFFFFFF) : lightSurface,
+        surfaceVariant: palette == ColorPalette.palette2 ? Color(0xFFF2F2F2) : lightBackground,
         error: lightError,
-        onPrimary: lightOnPrimary,
-        onSecondary: lightOnSecondary,
-        onSurface: lightOnSurface,
+        onPrimary: Colors.white,
+        onSecondary: Colors.white,
+        onSurface: palette == ColorPalette.palette2 ? Color(0xFF2B2B2B) : lightTextPrimary,
         onSurfaceVariant: lightTextSecondary,
         onError: lightOnError,
         outline: lightTextSecondary,
       ),
-      textTheme: const TextTheme(
-        displayLarge: TextStyle(color: lightTextPrimary, fontWeight: FontWeight.bold),
-        displayMedium: TextStyle(color: lightTextPrimary, fontWeight: FontWeight.bold),
-        displaySmall: TextStyle(color: lightTextPrimary, fontWeight: FontWeight.bold),
-        headlineLarge: TextStyle(color: lightTextPrimary, fontWeight: FontWeight.bold),
-        headlineMedium: TextStyle(color: lightTextPrimary, fontWeight: FontWeight.w600),
-        headlineSmall: TextStyle(color: lightTextPrimary, fontWeight: FontWeight.w600),
-        titleLarge: TextStyle(color: lightTextPrimary, fontWeight: FontWeight.w600),
-        titleMedium: TextStyle(color: lightTextPrimary, fontWeight: FontWeight.w500),
-        titleSmall: TextStyle(color: lightTextPrimary, fontWeight: FontWeight.w500),
-        bodyLarge: TextStyle(color: lightTextPrimary),
-        bodyMedium: TextStyle(color: lightTextPrimary),
+      textTheme: TextTheme(
+        displayLarge: TextStyle(color: palette == ColorPalette.palette2 ? Color(0xFF2B2B2B) : lightTextPrimary, fontWeight: FontWeight.bold),
+        displayMedium: TextStyle(color: palette == ColorPalette.palette2 ? Color(0xFF2B2B2B) : lightTextPrimary, fontWeight: FontWeight.bold),
+        displaySmall: TextStyle(color: palette == ColorPalette.palette2 ? Color(0xFF2B2B2B) : lightTextPrimary, fontWeight: FontWeight.bold),
+        headlineLarge: TextStyle(color: palette == ColorPalette.palette2 ? Color(0xFF2B2B2B) : lightTextPrimary, fontWeight: FontWeight.bold),
+        headlineMedium: TextStyle(color: palette == ColorPalette.palette2 ? Color(0xFF2B2B2B) : lightTextPrimary, fontWeight: FontWeight.w600),
+        headlineSmall: TextStyle(color: palette == ColorPalette.palette2 ? Color(0xFF2B2B2B) : lightTextPrimary, fontWeight: FontWeight.w600),
+        titleLarge: TextStyle(color: palette == ColorPalette.palette2 ? Color(0xFF2B2B2B) : lightTextPrimary, fontWeight: FontWeight.w600),
+        titleMedium: TextStyle(color: palette == ColorPalette.palette2 ? Color(0xFF2B2B2B) : lightTextPrimary, fontWeight: FontWeight.w500),
+        titleSmall: TextStyle(color: palette == ColorPalette.palette2 ? Color(0xFF2B2B2B) : lightTextPrimary, fontWeight: FontWeight.w500),
+        bodyLarge: TextStyle(color: palette == ColorPalette.palette2 ? Color(0xFF2B2B2B) : lightTextPrimary),
+        bodyMedium: TextStyle(color: palette == ColorPalette.palette2 ? Color(0xFF2B2B2B) : lightTextPrimary),
         bodySmall: TextStyle(color: lightTextSecondary),
-        labelLarge: TextStyle(color: lightTextPrimary, fontWeight: FontWeight.w500),
+        labelLarge: TextStyle(color: palette == ColorPalette.palette2 ? Color(0xFF2B2B2B) : lightTextPrimary, fontWeight: FontWeight.w500),
         labelMedium: TextStyle(color: lightTextSecondary),
         labelSmall: TextStyle(color: lightTextSecondary),
       ),
       appBarTheme: AppBarTheme(
-        backgroundColor: lightPrimary,
-        foregroundColor: lightOnPrimary,
+        backgroundColor: primary,
+        foregroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
-        iconTheme: const IconThemeData(color: lightOnPrimary),
+        iconTheme: const IconThemeData(color: Colors.white),
         titleTextStyle: const TextStyle(
-          color: lightOnPrimary,
+          color: Colors.white,
           fontSize: 20,
           fontWeight: FontWeight.w600,
         ),
       ),
       cardTheme: CardThemeData(
-        color: lightSurface,
+        color: palette == ColorPalette.palette2 ? Color(0xFFFFFFFF) : lightSurface,
         elevation: 2.0,
-        shadowColor: lightPrimary.withOpacity(0.1),
+        shadowColor: primary.withOpacity(0.1),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12.0),
         ),
@@ -131,8 +154,8 @@ class AppTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: lightPrimary,
-          foregroundColor: lightOnPrimary,
+          backgroundColor: primary,
+          foregroundColor: Colors.white,
           elevation: 2,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           shape: RoundedRectangleBorder(
@@ -146,9 +169,9 @@ class AppTheme {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: lightPrimary,
+          foregroundColor: primary,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-          side: const BorderSide(color: lightPrimary, width: 1.5),
+          side: BorderSide(color: primary, width: 1.5),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10.0),
           ),
@@ -160,7 +183,7 @@ class AppTheme {
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: lightPrimary,
+          foregroundColor: primary,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8.0),
@@ -173,7 +196,7 @@ class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: lightSurface,
+        fillColor: palette == ColorPalette.palette2 ? Color(0xFFFFFFFF) : lightSurface,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10.0),
@@ -185,7 +208,7 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10.0),
-          borderSide: const BorderSide(color: lightPrimary, width: 2.0),
+          borderSide: BorderSide(color: primary, width: 2.0),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10.0),
@@ -195,12 +218,12 @@ class AppTheme {
           borderRadius: BorderRadius.circular(10.0),
           borderSide: const BorderSide(color: lightError, width: 2.0),
         ),
-        labelStyle: const TextStyle(color: lightTextSecondary),
+        labelStyle: TextStyle(color: lightTextSecondary),
         hintStyle: TextStyle(color: lightTextSecondary.withOpacity(0.6)),
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
-        backgroundColor: lightPrimary,
-        foregroundColor: lightOnPrimary,
+        backgroundColor: primary,
+        foregroundColor: Colors.white,
         elevation: 4,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16.0),
@@ -211,61 +234,85 @@ class AppTheme {
         thickness: 1.0,
         space: 1.0,
       ),
-      iconTheme: const IconThemeData(
-        color: lightTextPrimary,
+      iconTheme: IconThemeData(
+        color: palette == ColorPalette.palette2 ? Color(0xFF2B2B2B) : lightTextPrimary,
         size: 24,
       ),
       chipTheme: ChipThemeData(
-        backgroundColor: lightBackground,
-        selectedColor: lightPrimary,
-        labelStyle: const TextStyle(color: lightTextPrimary),
-        secondaryLabelStyle: const TextStyle(color: lightOnPrimary),
+        backgroundColor: palette == ColorPalette.palette2 ? Color(0xFFF2F2F2) : lightBackground,
+        selectedColor: primary,
+        labelStyle: TextStyle(color: palette == ColorPalette.palette2 ? Color(0xFF2B2B2B) : lightTextPrimary),
+        secondaryLabelStyle: const TextStyle(color: Colors.white),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8.0),
         ),
       ),
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: lightSurface,
-        contentTextStyle: const TextStyle(color: lightOnSurface),
+        backgroundColor: palette == ColorPalette.palette2 ? Color(0xFFFFFFFF) : lightSurface,
+        contentTextStyle: TextStyle(color: palette == ColorPalette.palette2 ? Color(0xFF2B2B2B) : lightTextPrimary),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8.0),
         ),
         behavior: SnackBarBehavior.floating,
       ),
       drawerTheme: DrawerThemeData(
-        backgroundColor: lightSurface,
+        backgroundColor: palette == ColorPalette.palette2 ? Color(0xFFFFFFFF) : lightSurface,
         elevation: 0,
       ),
       listTileTheme: ListTileThemeData(
-        selectedColor: lightPrimary,
-        selectedTileColor: lightPrimary.withOpacity(0.1),
-        iconColor: lightTextPrimary,
-        textColor: lightTextPrimary,
+        selectedColor: primary,
+        selectedTileColor: primary.withOpacity(0.1),
+        iconColor: palette == ColorPalette.palette2 ? Color(0xFF2B2B2B) : lightTextPrimary,
+        textColor: palette == ColorPalette.palette2 ? Color(0xFF2B2B2B) : lightTextPrimary,
       ),
     );
   }
 
-  // Dark Theme
-  static ThemeData get darkTheme {
+  static ThemeData _getDarkTheme(ColorPalette palette) {
+    Color primary;
+    Color primaryDark;
+    Color secondary;
+    Color accent;
+
+    switch (palette) {
+      case ColorPalette.palette1:
+        primary = _palette1DarkPrimary;
+        primaryDark = _palette1DarkPrimaryDark;
+        secondary = _palette1DarkSecondary;
+        accent = _palette1DarkAccent;
+        break;
+      case ColorPalette.palette2:
+        primary = _palette2DarkPrimary;
+        primaryDark = _palette2DarkPrimaryDark;
+        secondary = _palette2DarkSecondary;
+        accent = _palette2DarkAccent;
+        break;
+      case ColorPalette.palette3:
+        primary = _palette3DarkPrimary;
+        primaryDark = _palette3DarkPrimaryDark;
+        secondary = _palette3DarkSecondary;
+        accent = _palette3DarkAccent;
+        break;
+    }
+
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
-      primaryColor: darkPrimary,
-      primaryColorDark: darkPrimaryDark,
-      primaryColorLight: darkPrimaryLight,
-      scaffoldBackgroundColor: darkBackground,
-      colorScheme: const ColorScheme.dark(
-        primary: darkPrimary,
-        primaryContainer: darkPrimaryLight,
-        secondary: darkSecondary,
-        secondaryContainer: darkSecondaryLight,
-        surface: darkSurface,
-        surfaceVariant: darkBackground,
+      primaryColor: primary,
+      primaryColorDark: primaryDark,
+      scaffoldBackgroundColor: palette == ColorPalette.palette2 ? Color(0xFF1A1A1A) : darkBackground,
+      colorScheme: ColorScheme.dark(
+        primary: primary,
+        primaryContainer: primaryDark,
+        secondary: secondary,
+        secondaryContainer: accent,
+        surface: palette == ColorPalette.palette2 ? Color(0xFF2B2B2B) : darkSurface,
+        surfaceVariant: palette == ColorPalette.palette2 ? Color(0xFF1A1A1A) : darkBackground,
         error: darkError,
-        onPrimary: darkOnPrimary,
-        onSecondary: darkOnSecondary,
-        onSurface: darkOnSurface,
+        onPrimary: Colors.white,
+        onSecondary: Colors.white,
+        onSurface: darkTextPrimary,
         onSurfaceVariant: darkTextSecondary,
         onError: darkOnError,
         outline: darkDivider,
@@ -288,19 +335,19 @@ class AppTheme {
         labelSmall: TextStyle(color: darkTextSecondary),
       ),
       appBarTheme: AppBarTheme(
-        backgroundColor: darkSurface,
-        foregroundColor: darkOnSurface,
+        backgroundColor: palette == ColorPalette.palette2 ? Color(0xFF2B2B2B) : darkSurface,
+        foregroundColor: darkTextPrimary,
         elevation: 0,
         centerTitle: true,
-        iconTheme: const IconThemeData(color: darkOnSurface),
+        iconTheme: const IconThemeData(color: darkTextPrimary),
         titleTextStyle: const TextStyle(
-          color: darkOnSurface,
+          color: darkTextPrimary,
           fontSize: 20,
           fontWeight: FontWeight.w600,
         ),
       ),
       cardTheme: CardThemeData(
-        color: darkSurface,
+        color: palette == ColorPalette.palette2 ? Color(0xFF2B2B2B) : darkSurface,
         elevation: 2.0,
         shadowColor: Colors.black.withOpacity(0.3),
         shape: RoundedRectangleBorder(
@@ -310,8 +357,8 @@ class AppTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: darkPrimary,
-          foregroundColor: darkOnPrimary,
+          backgroundColor: primary,
+          foregroundColor: Colors.white,
           elevation: 2,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           shape: RoundedRectangleBorder(
@@ -325,9 +372,9 @@ class AppTheme {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: darkPrimary,
+          foregroundColor: primary,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-          side: const BorderSide(color: darkPrimary, width: 1.5),
+          side: BorderSide(color: primary, width: 1.5),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10.0),
           ),
@@ -339,7 +386,7 @@ class AppTheme {
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: darkPrimary,
+          foregroundColor: primary,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8.0),
@@ -352,7 +399,7 @@ class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: darkSurface,
+        fillColor: palette == ColorPalette.palette2 ? Color(0xFF2B2B2B) : darkSurface,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10.0),
@@ -364,7 +411,7 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10.0),
-          borderSide: const BorderSide(color: darkPrimary, width: 2.0),
+          borderSide: BorderSide(color: primary, width: 2.0),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10.0),
@@ -378,8 +425,8 @@ class AppTheme {
         hintStyle: TextStyle(color: darkTextSecondary.withOpacity(0.6)),
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
-        backgroundColor: darkPrimary,
-        foregroundColor: darkOnPrimary,
+        backgroundColor: primary,
+        foregroundColor: Colors.white,
         elevation: 4,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16.0),
@@ -395,33 +442,37 @@ class AppTheme {
         size: 24,
       ),
       chipTheme: ChipThemeData(
-        backgroundColor: darkSurface,
-        selectedColor: darkPrimary,
+        backgroundColor: palette == ColorPalette.palette2 ? Color(0xFF2B2B2B) : darkSurface,
+        selectedColor: primary,
         labelStyle: const TextStyle(color: darkTextPrimary),
-        secondaryLabelStyle: const TextStyle(color: darkOnPrimary),
+        secondaryLabelStyle: const TextStyle(color: Colors.white),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8.0),
         ),
       ),
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: darkSurface,
-        contentTextStyle: const TextStyle(color: darkOnSurface),
+        backgroundColor: palette == ColorPalette.palette2 ? Color(0xFF2B2B2B) : darkSurface,
+        contentTextStyle: const TextStyle(color: darkTextPrimary),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8.0),
         ),
         behavior: SnackBarBehavior.floating,
       ),
       drawerTheme: DrawerThemeData(
-        backgroundColor: darkSurface,
+        backgroundColor: palette == ColorPalette.palette2 ? Color(0xFF2B2B2B) : darkSurface,
         elevation: 0,
       ),
       listTileTheme: ListTileThemeData(
-        selectedColor: darkActionSelected,
-        selectedTileColor: darkActionSelected,
+        selectedColor: primary,
+        selectedTileColor: primary.withOpacity(0.2),
         iconColor: darkTextPrimary,
         textColor: darkTextPrimary,
       ),
     );
   }
+
+  // Legacy methods for backward compatibility
+  static ThemeData get lightTheme => _getLightTheme(ColorPalette.palette1);
+  static ThemeData get darkTheme => _getDarkTheme(ColorPalette.palette1);
 }

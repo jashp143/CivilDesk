@@ -49,7 +49,9 @@ public class GpsAttendanceResponse {
         }
         if (log.getEmployee() != null) {
             response.setEmployeeId(log.getEmployee().getEmployeeId());
-            response.setEmployeeName(log.getEmployee().getFirstName() + " " + log.getEmployee().getLastName());
+            String firstName = log.getEmployee().getFirstName() != null ? log.getEmployee().getFirstName() : "";
+            String lastName = log.getEmployee().getLastName() != null ? log.getEmployee().getLastName() : "";
+            response.setEmployeeName((firstName + " " + lastName).trim());
         }
         response.setPunchType(log.getPunchType() != null ? log.getPunchType().name() : null);
         response.setPunchTime(log.getPunchTime());

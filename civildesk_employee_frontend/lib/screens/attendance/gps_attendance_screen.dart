@@ -6,9 +6,11 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:dio/dio.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import '../../core/services/location_service.dart';
 import '../../core/services/gps_attendance_service.dart';
 import '../../core/providers/auth_provider.dart';
+import '../../core/providers/theme_provider.dart';
 import '../../core/constants/app_constants.dart';
 import '../../models/site.dart';
 import '../../widgets/employee_layout.dart';
@@ -31,10 +33,12 @@ class _GpsAttendanceScreenState extends State<GpsAttendanceScreen> {
   String? _error;
   Position? _currentPosition;
   List<Site> _assignedSites = [];
+  List<Map<String, dynamic>> _sitesWithDistance = []; // Sites with calculated distances
   Site? _nearestSite;
   double? _distanceFromSite;
   List<GpsAttendanceLog> _todayLogs = [];
   String? _employeeId;
+  final GlobalKey<RefreshIndicatorState> _refreshIndicatorKey = GlobalKey<RefreshIndicatorState>();
 
   @override
   void initState() {
@@ -123,6 +127,11 @@ class _GpsAttendanceScreenState extends State<GpsAttendanceScreen> {
           _getCurrentLocation();
         }
       });
+
+      // Calculate distances if position is already available
+      if (_currentPosition != null) {
+        _calculateSitesDistance();
+      }
     } catch (e) {
       if (!mounted) return;
       
@@ -184,6 +193,7 @@ class _GpsAttendanceScreenState extends State<GpsAttendanceScreen> {
       setState(() {
         _currentPosition = position;
         _findNearestSite();
+        _calculateSitesDistance();
         _error = null; // Clear any previous errors only on success
       });
     } catch (e) {
@@ -242,6 +252,30 @@ class _GpsAttendanceScreenState extends State<GpsAttendanceScreen> {
     });
   }
 
+  void _calculateSitesDistance() {
+    if (_currentPosition == null || _assignedSites.isEmpty) {
+      _sitesWithDistance = [];
+      return;
+    }
+
+    _sitesWithDistance = _assignedSites.map((site) {
+      final distance = _locationService.calculateDistance(
+        _currentPosition!.latitude,
+        _currentPosition!.longitude,
+        site.latitude,
+        site.longitude,
+      );
+      return {
+        'site': site,
+        'distance': distance,
+        'isInsideGeofence': distance <= site.geofenceRadiusMeters,
+      };
+    }).toList();
+
+    // Sort by distance (closest first)
+    _sitesWithDistance.sort((a, b) => (a['distance'] as double).compareTo(b['distance'] as double));
+  }
+
   bool get _isInsideGeofence {
     if (_nearestSite == null || _distanceFromSite == null) {
       // If no site assigned, allow marking (will be validated on server)
@@ -264,64 +298,14 @@ class _GpsAttendanceScreenState extends State<GpsAttendanceScreen> {
     return null;
   }
 
-  void _showGeofenceWarningDialog(String punchType) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Outside Site Boundary'),
-        content: Text(
-          'You are ${_distanceFromSite?.toStringAsFixed(0)}m away from the site. '
-          'The site boundary is ${_nearestSite?.geofenceRadiusMeters}m.\n\n'
-          'Attendance may be rejected by the server. Do you want to continue?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _markAttendance(punchType, forceAllow: true);
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-            child: const Text('Mark Anyway'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _markAttendance(String punchType, {bool forceAllow = false}) async {
-    if (_currentPosition == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please wait for location to be determined'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
-
-    if (!forceAllow && !_isInsideGeofence && _nearestSite != null && _distanceFromSite != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'You are ${_distanceFromSite?.toStringAsFixed(0)}m from the site. '
-            'Please move closer (within ${_nearestSite?.geofenceRadiusMeters}m) to mark attendance.',
-          ),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
+  Future<void> _markAttendance(String punchType) async {
     if (_employeeId == null || _employeeId!.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Employee ID not found. Please refresh the page.'),
-          backgroundColor: Colors.red,
-        ),
+      Fluttertoast.showToast(
+        msg: 'Employee ID not found. Please refresh the page.',
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        backgroundColor: Colors.red,
+        textColor: Colors.white,
       );
       return;
     }
@@ -329,18 +313,106 @@ class _GpsAttendanceScreenState extends State<GpsAttendanceScreen> {
     setState(() => _isLoading = true);
 
     try {
+      // CRITICAL: Always fetch fresh location right before marking attendance
+      // This prevents using stale/cached location data
+      Position? freshPosition;
+      try {
+        freshPosition = await _locationService.getCurrentPosition();
+        
+        // Check for mock location
+        if (freshPosition.isMocked) {
+          throw LocationException('Mock location detected. Please disable mock location apps.');
+        }
+      } catch (e) {
+        setState(() => _isLoading = false);
+        String errorMessage = e.toString().replaceFirst('Exception: ', '');
+        if (errorMessage.contains('timeout')) {
+          errorMessage = 'Location request timed out. Please try again.';
+        } else if (errorMessage.contains('permission')) {
+          errorMessage = 'Location permission is required. Please grant location permission.';
+        }
+        
+        Fluttertoast.showToast(
+          msg: errorMessage,
+          toastLength: Toast.LENGTH_LONG,
+          gravity: ToastGravity.BOTTOM,
+          backgroundColor: Colors.red,
+          textColor: Colors.white,
+        );
+        return;
+      }
+
+      // Find nearest site with fresh location
+      Site? nearestSiteForFreshLocation;
+      double? distanceFromSiteForFreshLocation;
+      
+      if (freshPosition != null && _assignedSites.isNotEmpty) {
+        double minDistance = double.infinity;
+        Site? nearest;
+        
+        for (final site in _assignedSites) {
+          final distance = _locationService.calculateDistance(
+            freshPosition.latitude,
+            freshPosition.longitude,
+            site.latitude,
+            site.longitude,
+          );
+          
+          if (distance < minDistance) {
+            minDistance = distance;
+            nearest = site;
+          }
+        }
+        
+        nearestSiteForFreshLocation = nearest;
+        distanceFromSiteForFreshLocation = minDistance;
+      }
+
+      // Validate that employee is inside geofence with fresh location
+      if (nearestSiteForFreshLocation == null || distanceFromSiteForFreshLocation == null) {
+        setState(() => _isLoading = false);
+        Fluttertoast.showToast(
+          msg: 'You are not assigned to any site or location could not be determined. Please contact your administrator.',
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.BOTTOM,
+          backgroundColor: Colors.red,
+          textColor: Colors.white,
+        );
+        return;
+      }
+
+      final isInsideGeofence = distanceFromSiteForFreshLocation <= nearestSiteForFreshLocation.geofenceRadiusMeters;
+      
+      if (!isInsideGeofence) {
+        setState(() => _isLoading = false);
+        final distanceToMove = (distanceFromSiteForFreshLocation - nearestSiteForFreshLocation.geofenceRadiusMeters).clamp(0, double.infinity);
+        Fluttertoast.showToast(
+          msg: 'You must be inside the site to mark attendance. '
+              'You are ${distanceFromSiteForFreshLocation.toStringAsFixed(0)}m away. '
+              'Please move ${distanceToMove.toStringAsFixed(0)}m closer (within ${nearestSiteForFreshLocation.geofenceRadiusMeters}m of the site).',
+          toastLength: Toast.LENGTH_LONG,
+          gravity: ToastGravity.BOTTOM,
+          backgroundColor: Colors.red,
+          textColor: Colors.white,
+        );
+        return;
+      }
+
+      // Create request with fresh location and current timestamp
+      final locationCaptureTime = DateTime.now();
       final request = GpsAttendanceRequest(
         employeeId: _employeeId!,
         punchType: punchType,
-        latitude: _currentPosition!.latitude,
-        longitude: _currentPosition!.longitude,
-        accuracyMeters: _currentPosition!.accuracy,
-        altitude: _currentPosition!.altitude,
-        isMockLocation: _currentPosition!.isMocked,
+        latitude: freshPosition.latitude,
+        longitude: freshPosition.longitude,
+        accuracyMeters: freshPosition.accuracy,
+        altitude: freshPosition.altitude,
+        isMockLocation: freshPosition.isMocked,
         networkStatus: 'ONLINE',
-        siteId: _nearestSite?.id,
+        siteId: nearestSiteForFreshLocation.id,
         deviceName: Platform.operatingSystem,
         osVersion: Platform.operatingSystemVersion,
+        locationTimestamp: locationCaptureTime, // Send timestamp to backend for validation
       );
 
       final log = await _attendanceService.markAttendance(request);
@@ -349,12 +421,25 @@ class _GpsAttendanceScreenState extends State<GpsAttendanceScreen> {
       _todayLogs = await _attendanceService.getTodayAttendance(_employeeId!);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${_getPunchTypeLabel(punchType)} marked successfully!'),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 2),
-          ),
+        // Update current position with fresh location
+        setState(() {
+          _currentPosition = freshPosition;
+          _nearestSite = nearestSiteForFreshLocation;
+          _distanceFromSite = distanceFromSiteForFreshLocation;
+        });
+        
+        // Recalculate distances with fresh location
+        _calculateSitesDistance();
+        
+        final siteName = nearestSiteForFreshLocation.siteName;
+        final time = _formatTime12Hour(DateTime.now());
+        
+        Fluttertoast.showToast(
+          msg: '${_getPunchTypeLabel(punchType)} at $siteName — $time',
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.BOTTOM,
+          backgroundColor: const Color(0xFF16A34A),
+          textColor: Colors.white,
         );
         
         // Refresh the UI
@@ -375,12 +460,12 @@ class _GpsAttendanceScreenState extends State<GpsAttendanceScreen> {
           errorMessage = 'Please mark punches in the correct sequence.';
         }
         
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(errorMessage),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 4),
-          ),
+        Fluttertoast.showToast(
+          msg: errorMessage,
+          toastLength: Toast.LENGTH_LONG,
+          gravity: ToastGravity.BOTTOM,
+          backgroundColor: Colors.red,
+          textColor: Colors.white,
         );
       }
     } finally {
@@ -443,36 +528,39 @@ class _GpsAttendanceScreenState extends State<GpsAttendanceScreen> {
     return EmployeeLayout(
       currentRoute: AppRoutes.gpsAttendance,
       title: const Text('GPS Attendance'),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.refresh),
-          onPressed: _loadData,
-          tooltip: 'Refresh',
-        ),
-      ],
+      actions: [],
       child: _isLoading && _currentPosition == null
           ? const Center(child: CircularProgressIndicator())
           : _error != null && _currentPosition == null
               ? _buildErrorView()
               : RefreshIndicator(
-                  onRefresh: _loadData,
+                  key: _refreshIndicatorKey,
+                  onRefresh: () async {
+                    await _loadData();
+                    if (_currentPosition == null) {
+                      await _getCurrentLocation();
+                    } else {
+                      // Recalculate distances if position is already available
+                      _calculateSitesDistance();
+                    }
+                  },
                   child: SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.fromLTRB(4, 4, 4, 4),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         // Current Time Card
                         _buildTimeCard(colorScheme),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 2),
 
-                        // Location Status Card
-                        _buildLocationCard(colorScheme),
-                        const SizedBox(height: 16),
+                        // Combined Location & Assigned Sites Card
+                        _buildCombinedLocationAndSitesCard(colorScheme),
+                        const SizedBox(height: 2),
 
                         // Punch Buttons
                         _buildPunchButtons(colorScheme),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 2),
 
                         // Today's Attendance Log
                         _buildTodayLog(colorScheme),
@@ -500,13 +588,15 @@ class _GpsAttendanceScreenState extends State<GpsAttendanceScreen> {
             const SizedBox(height: 16),
             Text(
               'Location Error',
-              style: Theme.of(context).textTheme.titleLarge,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
             ),
             const SizedBox(height: 8),
             Text(
               _error ?? 'Unable to get location',
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey[600]),
+              style: TextStyle(color: Colors.grey[600], fontSize: 14),
             ),
             const SizedBox(height: 24),
             if (isPermanentlyDenied) ...[
@@ -517,8 +607,12 @@ class _GpsAttendanceScreenState extends State<GpsAttendanceScreen> {
                 icon: const Icon(Icons.settings),
                 label: const Text('Open Settings'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  backgroundColor: const Color(0xFF0B5B36),
                   foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
@@ -535,48 +629,129 @@ class _GpsAttendanceScreenState extends State<GpsAttendanceScreen> {
               },
               icon: const Icon(Icons.refresh),
               label: const Text('Retry'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  // Helper method to format distance
+  String _formatDistance(double distanceMeters) {
+    if (distanceMeters < 1000) {
+      return '${distanceMeters.toStringAsFixed(0)} m';
+    } else {
+      return '${(distanceMeters / 1000).toStringAsFixed(1)} km';
+    }
+  }
+
+  // Helper method to format time in 12-hour format
+  String _formatTime12Hour(DateTime dateTime) {
+    return DateFormat('hh:mm a').format(dateTime);
   }
 
   Widget _buildTimeCard(ColorScheme colorScheme) {
+    // Get theme provider for adaptive colors
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: true);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    // Create adaptive gradient colors based on theme and palette
+    Color primaryColor = colorScheme.primary;
+    Color primaryContainerColor = colorScheme.primaryContainer;
+    
+    // For dark theme, use slightly lighter variants for better contrast
+    if (isDark) {
+      primaryColor = Color.alphaBlend(
+        Colors.white.withOpacity(0.1),
+        colorScheme.primary,
+      );
+      primaryContainerColor = Color.alphaBlend(
+        Colors.white.withOpacity(0.15),
+        colorScheme.primaryContainer,
+      );
+    } else {
+      // For light theme, use slightly darker variants for depth
+      primaryColor = Color.alphaBlend(
+        Colors.black.withOpacity(0.1),
+        colorScheme.primary,
+      );
+      primaryContainerColor = colorScheme.primaryContainer;
+    }
+    
+    // Determine text color based on contrast
+    final textColor = _getContrastingTextColor(primaryColor);
+    
     return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      clipBehavior: Clip.antiAlias,
       child: Container(
-        padding: const EdgeInsets.all(24),
+        constraints: const BoxConstraints(
+          minHeight: 105,
+          maxHeight: 105,
+        ),
+        padding: const EdgeInsets.fromLTRB(2, 2, 2, 2),
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [colorScheme.primary, colorScheme.primaryContainer],
+            colors: [primaryColor, primaryContainerColor],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: isDark 
+                  ? Colors.black.withOpacity(0.3)
+                  : Colors.black.withOpacity(0.06),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+          ],
         ),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
-              DateFormat('EEEE, dd MMMM yyyy').format(DateTime.now()),
-              style: TextStyle(
-                color: colorScheme.onPrimary.withOpacity(0.8),
-                fontSize: 14,
+            Flexible(
+              child: Text(
+                DateFormat('EEEE, dd MMMM yyyy').format(DateTime.now()),
+                style: TextStyle(
+                  color: textColor.withOpacity(0.9),
+                  fontSize: 13,
+                  fontWeight: FontWeight.normal,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-            const SizedBox(height: 8),
-            StreamBuilder(
-              stream: Stream.periodic(const Duration(seconds: 1)),
-              builder: (context, snapshot) {
-                return Text(
-                  DateFormat('HH:mm:ss').format(DateTime.now()),
-                  style: TextStyle(
-                    color: colorScheme.onPrimary,
-                    fontSize: 48,
-                    fontWeight: FontWeight.bold,
-                    fontFamily: 'monospace',
-                  ),
-                );
-              },
+            const SizedBox(height: 6),
+            Flexible(
+              child: StreamBuilder(
+                stream: Stream.periodic(const Duration(seconds: 1)),
+                builder: (context, snapshot) {
+                  return Text(
+                    DateFormat('hh:mm:ss a').format(DateTime.now()),
+                    style: TextStyle(
+                      color: textColor,
+                      fontSize: 36,
+                      fontWeight: FontWeight.w600,
+                      fontFamily: 'monospace',
+                      letterSpacing: 0.5,
+                      height: 1.0,
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  );
+                },
+              ),
             ),
           ],
         ),
@@ -584,32 +759,42 @@ class _GpsAttendanceScreenState extends State<GpsAttendanceScreen> {
     );
   }
 
-  Widget _buildLocationCard(ColorScheme colorScheme) {
+  // Helper method to determine contrasting text color
+  Color _getContrastingTextColor(Color backgroundColor) {
+    // Calculate relative luminance
+    final luminance = backgroundColor.computeLuminance();
+    // Use white text for dark backgrounds, black for light backgrounds
+    return luminance > 0.5 ? Colors.black : Colors.white;
+  }
+
+  Widget _buildCombinedLocationAndSitesCard(ColorScheme colorScheme) {
+    final accuracy = _currentPosition?.accuracy ?? 0.0;
+    final accuracyColor = accuracy <= 20
+        ? const Color(0xFF16A34A) // Green for good accuracy
+        : accuracy <= 50
+            ? const Color(0xFFF59E0B) // Orange for medium
+            : Colors.red; // Red for poor
+
     return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      clipBehavior: Clip.antiAlias,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
+            // Location Status Section
             Row(
               children: [
-                Icon(
-                  _isLoadingLocation
-                      ? Icons.gps_not_fixed
-                      : _currentPosition != null
-                          ? Icons.gps_fixed
-                          : Icons.gps_off,
-                  color: _isLoadingLocation
-                      ? Colors.orange
-                      : _currentPosition != null
-                          ? Colors.green
-                          : Colors.red,
-                ),
+                const Icon(Icons.location_on, size: 20),
                 const SizedBox(width: 8),
                 Text(
-                  'Location Status',
+                  'Location & Sites',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
                       ),
                 ),
                 const Spacer(),
@@ -621,105 +806,548 @@ class _GpsAttendanceScreenState extends State<GpsAttendanceScreen> {
                   )
                 else
                   IconButton(
-                    icon: const Icon(Icons.refresh),
+                    icon: const Icon(Icons.refresh, size: 20),
                     onPressed: _getCurrentLocation,
                     tooltip: 'Refresh Location',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
                   ),
               ],
             ),
-            const Divider(),
+            const SizedBox(height: 10),
+            
+            // Location Details
             if (_currentPosition != null) ...[
-              _buildLocationRow(
-                'Coordinates',
-                '${_currentPosition!.latitude.toStringAsFixed(6)}, ${_currentPosition!.longitude.toStringAsFixed(6)}',
-              ),
-              _buildLocationRow(
-                'Accuracy',
-                '±${_currentPosition!.accuracy.toStringAsFixed(0)}m',
-              ),
-              if (_nearestSite != null) ...[
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: _isInsideGeofence
-                        ? Colors.green.withOpacity(0.1)
-                        : Colors.red.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: _isInsideGeofence ? Colors.green : Colors.red,
+              Row(
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: accuracyColor,
+                      shape: BoxShape.circle,
                     ),
                   ),
-                  child: Column(
+                  const SizedBox(width: 8),
+                  Text(
+                    'Accuracy: ±${accuracy.toStringAsFixed(0)} m',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '• GPS',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.8),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              if (_nearestSite != null) ...[
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: _isInsideGeofence
+                        ? const Color(0xFF16A34A).withOpacity(0.1)
+                        : const Color(0xFFF59E0B).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: _isInsideGeofence
+                          ? const Color(0xFF16A34A)
+                          : const Color(0xFFF59E0B),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
                     children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.location_on,
-                            color: _isInsideGeofence ? Colors.green : Colors.red,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  _nearestSite!.siteName,
-                                  style: const TextStyle(fontWeight: FontWeight.bold),
-                                ),
-                                Text(
-                                  '${_distanceFromSite?.toStringAsFixed(0)}m away',
-                                  style: TextStyle(
-                                    color: _isInsideGeofence ? Colors.green : Colors.red,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: _isInsideGeofence ? Colors.green : Colors.red,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              _isInsideGeofence ? 'Inside' : 'Outside',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
+                      Icon(
+                        Icons.location_on,
+                        color: _isInsideGeofence
+                            ? const Color(0xFF16A34A)
+                            : const Color(0xFFF59E0B),
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${_nearestSite!.siteName} • ${_formatDistance(_distanceFromSite ?? 0)} • ${_isInsideGeofence ? "Inside" : "Outside"}',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w500,
+                                fontSize: 14,
+                                color: Theme.of(context).colorScheme.onSurface,
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                      if (!_isInsideGeofence) ...[
-                        const SizedBox(height: 8),
-                        Text(
-                          'Move ${(_distanceFromSite! - _nearestSite!.geofenceRadiusMeters).toStringAsFixed(0)}m closer to mark attendance',
-                          style: const TextStyle(
-                            color: Colors.red,
-                            fontSize: 12,
-                          ),
+                            if (!_isInsideGeofence) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                'Move ${_formatDistance((_distanceFromSite! - _nearestSite!.geofenceRadiusMeters).clamp(0, double.infinity))} closer to mark attendance',
+                                style: TextStyle(
+                                  color: Colors.red[700],
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
-                      ],
+                      ),
                     ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  accuracy <= 20
+                      ? 'Good accuracy (±${accuracy.toStringAsFixed(0)} m)'
+                      : 'Low accuracy — move to open sky',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],
             ] else
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 16),
-                child: Center(
-                  child: Text('Waiting for location...'),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.gps_off,
+                      size: 20,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.6),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Waiting for location...',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
                 ),
               ),
+            
+            // Assigned Sites Section
+            if (_assignedSites.isNotEmpty) ...[
+              const Divider(height: 24),
+              Text(
+                'Assigned Sites',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+              ),
+              const SizedBox(height: 10),
+              if (_sitesWithDistance.isEmpty && _currentPosition == null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Center(
+                    child: Text(
+                      'Waiting for location to calculate distances...',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                )
+              else if (_sitesWithDistance.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Center(
+                    child: Text(
+                      'No assigned sites',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                )
+              else
+                ..._sitesWithDistance.map((siteData) {
+                  final site = siteData['site'] as Site;
+                  final distance = siteData['distance'] as double;
+                  final isInside = siteData['isInsideGeofence'] as bool;
+                  final isNearest = _nearestSite?.id == site.id;
+
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 6),
+                    constraints: const BoxConstraints(
+                      minHeight: 64,
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () {
+                          // TODO: Expand to show full address, map preview, and actions
+                        },
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.surface,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: isNearest
+                                  ? const Color(0xFF2563EB)
+                                  : isInside
+                                      ? const Color(0xFF16A34A).withOpacity(0.3)
+                                      : Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                              width: isNearest ? 2 : 1,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Theme.of(context).brightness == Brightness.dark
+                                    ? Colors.black.withOpacity(0.3)
+                                    : Colors.black.withOpacity(0.03),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Stack(
+                            children: [
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Container(
+                                    width: 36,
+                                    height: 36,
+                                    decoration: BoxDecoration(
+                                      color: isNearest
+                                          ? const Color(0xFF2563EB).withOpacity(0.1)
+                                          : isInside
+                                              ? const Color(0xFF16A34A).withOpacity(0.1)
+                                              : Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Icon(
+                                      isNearest ? Icons.near_me : Icons.location_on,
+                                      color: isNearest
+                                          ? const Color(0xFF2563EB)
+                                          : isInside
+                                              ? const Color(0xFF16A34A)
+                                              : Theme.of(context).colorScheme.onSurfaceVariant,
+                                      size: 18,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          site.siteName,
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 15,
+                                            color: Theme.of(context).colorScheme.onSurface,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          '${_formatDistance(distance)} away',
+                                          style: TextStyle(
+                                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                        if (site.address != null && site.address!.isNotEmpty) ...[
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            site.fullAddress,
+                                            style: TextStyle(
+                                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                              fontSize: 11,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              // Chips positioned at top right
+                              Positioned(
+                                top: 0,
+                                right: 0,
+                                child: Wrap(
+                                  spacing: 4,
+                                  direction: Axis.horizontal,
+                                  children: [
+                                    if (isNearest)
+                                      _buildGlassStatusChip(
+                                        'Closest',
+                                        const Color(0xFF2563EB),
+                                      ),
+                                    _buildGlassStatusChip(
+                                      isInside ? 'Inside' : 'Outside',
+                                      isInside ? const Color(0xFF16A34A) : const Color(0xFFF59E0B),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+            ] else if (!_isLoading) ...[
+              const Divider(height: 32),
+              Row(
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    color: Theme.of(context).colorScheme.primary,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'No sites assigned. Please contact your administrator.',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildStatusChip(String label, Color color) {
+    return Container(
+      constraints: const BoxConstraints(
+        minHeight: 20,
+        maxHeight: 24,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Center(
+        child: Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGlassStatusChip(String label, Color color) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      constraints: const BoxConstraints(
+        minHeight: 20,
+        maxHeight: 24,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(isDark ? 0.25 : 0.15),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: color.withOpacity(0.5),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.3 : 0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Center(
+        child: Text(
+          label,
+          style: TextStyle(
+            color: color,
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.5,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStickyPrimaryCTA() {
+    final nextPunch = _nextPunchType;
+    if (nextPunch == null) {
+      return const SizedBox.shrink(); // All punches completed
+    }
+
+    final isEnabled = _currentPosition != null &&
+        _isInsideGeofence &&
+        !_isLoading &&
+        _employeeId != null &&
+        _employeeId!.isNotEmpty;
+
+    String buttonText = _getPunchTypeLabel(nextPunch);
+    String? disabledReason;
+
+    if (_currentPosition == null) {
+      disabledReason = 'Waiting for location...';
+    } else if (!_isInsideGeofence) {
+      if (_nearestSite != null && _distanceFromSite != null) {
+        final distanceToMove = (_distanceFromSite! - _nearestSite!.geofenceRadiusMeters).clamp(0.0, double.infinity).toDouble();
+        disabledReason = 'Move ${_formatDistance(distanceToMove)} closer to site';
+      } else if (_assignedSites.isEmpty) {
+        disabledReason = 'No site assigned';
+      } else {
+        disabledReason = 'Must be inside site';
+      }
+    } else if (_employeeId == null || _employeeId!.isEmpty) {
+      disabledReason = 'Employee ID not found';
+    }
+
+    return Material(
+      elevation: 8,
+      borderRadius: BorderRadius.circular(12),
+      shadowColor: Colors.black.withOpacity(0.2),
+      child: Container(
+        height: 56,
+        decoration: BoxDecoration(
+          color: isEnabled ? const Color(0xFF0B5B36) : Colors.grey[400],
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: isEnabled
+                ? () {
+                    _showConfirmationDialog(nextPunch);
+                  }
+                : null,
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (_isLoading)
+                    const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  else
+                    Icon(
+                      _getPunchTypeIcon(nextPunch),
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          buttonText,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        if (disabledReason != null)
+                          Text(
+                            disabledReason!,
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.9),
+                              fontSize: 12,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showConfirmationDialog(String punchType) {
+    final siteName = _nearestSite?.siteName ?? 'Unknown Site';
+    final time = _formatTime12Hour(DateTime.now());
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Confirm ${_getPunchTypeLabel(punchType)}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Confirm ${_getPunchTypeLabel(punchType)} at $siteName?',
+              style: const TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Time: $time',
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey[600],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _markAttendance(punchType);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0B5B36),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Confirm'),
+          ),
+        ],
       ),
     );
   }
@@ -749,57 +1377,85 @@ class _GpsAttendanceScreenState extends State<GpsAttendanceScreen> {
 
   Widget _buildPunchButtons(ColorScheme colorScheme) {
     final nextPunch = _nextPunchType;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 360;
+    
+    // Calculate responsive spacing and aspect ratio
+    final spacing = isSmallScreen ? 8.0 : 10.0;
+    final aspectRatio = isSmallScreen ? 1.3 : 1.2; // Lower aspect ratio = taller buttons
 
     return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      clipBehavior: Clip.antiAlias,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               'Mark Attendance',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w600,
+                    fontSize: isSmallScreen ? 15 : 16,
                   ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             if (nextPunch == null)
               Container(
-                padding: const EdgeInsets.all(24),
+                padding: EdgeInsets.all(isSmallScreen ? 12 : 16),
                 decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.1),
+                  color: const Color(0xFF16A34A).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: const Color(0xFF16A34A).withOpacity(0.3),
+                  ),
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.check_circle, color: Colors.green, size: 32),
-                    SizedBox(width: 12),
-                    Text(
-                      'All punches completed for today!',
-                      style: TextStyle(
-                        color: Colors.green,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                    Icon(
+                      Icons.check_circle,
+                      color: const Color(0xFF16A34A),
+                      size: isSmallScreen ? 28 : 32,
+                    ),
+                    SizedBox(width: isSmallScreen ? 8 : 12),
+                    Flexible(
+                      child: Text(
+                        'All punches completed for today!',
+                        style: TextStyle(
+                          color: const Color(0xFF16A34A),
+                          fontWeight: FontWeight.w600,
+                          fontSize: isSmallScreen ? 14 : 16,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
                 ),
               )
             else
-              GridView.count(
-                crossAxisCount: 2,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                childAspectRatio: 1.5,
-                children: [
-                  _buildPunchButton('CHECK_IN', nextPunch == 'CHECK_IN'),
-                  _buildPunchButton('LUNCH_OUT', nextPunch == 'LUNCH_OUT'),
-                  _buildPunchButton('LUNCH_IN', nextPunch == 'LUNCH_IN'),
-                  _buildPunchButton('CHECK_OUT', nextPunch == 'CHECK_OUT'),
-                ],
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  return GridView.count(
+                    crossAxisCount: 2,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    mainAxisSpacing: spacing,
+                    crossAxisSpacing: spacing,
+                    childAspectRatio: aspectRatio,
+                    children: [
+                      _buildPunchButton('CHECK_IN', nextPunch == 'CHECK_IN', isSmallScreen),
+                      _buildPunchButton('LUNCH_OUT', nextPunch == 'LUNCH_OUT', isSmallScreen),
+                      _buildPunchButton('LUNCH_IN', nextPunch == 'LUNCH_IN', isSmallScreen),
+                      _buildPunchButton('CHECK_OUT', nextPunch == 'CHECK_OUT', isSmallScreen),
+                    ],
+                  );
+                },
               ),
           ],
         ),
@@ -807,19 +1463,46 @@ class _GpsAttendanceScreenState extends State<GpsAttendanceScreen> {
     );
   }
 
-  Widget _buildPunchButton(String punchType, bool isActive) {
+  Widget _buildPunchButton(String punchType, bool isActive, bool isSmallScreen) {
     final color = _getPunchTypeColor(punchType);
     final icon = _getPunchTypeIcon(punchType);
     final label = _getPunchTypeLabel(punchType);
     final isDone = _todayLogs.any((l) => l.punchType.toUpperCase() == punchType);
-    final isEnabled = !isDone && isActive && !_isLoading;
+    // Require employee to be inside geofence to enable punch buttons
+    final isEnabled = !isDone && 
+        isActive && 
+        !_isLoading && 
+        _currentPosition != null && 
+        _isInsideGeofence &&
+        _employeeId != null &&
+        _employeeId!.isNotEmpty;
+    
+    // Get the time for this punch type if it's already done
+    String? punchTime;
+    if (isDone) {
+      final log = _todayLogs.firstWhere(
+        (l) => l.punchType.toUpperCase() == punchType,
+        orElse: () => _todayLogs.first,
+      );
+      punchTime = _formatTime12Hour(log.punchTime);
+    }
+    
+    // Responsive sizes
+    final iconSize = isSmallScreen ? 26.0 : 32.0;
+    final fontSize = isSmallScreen ? 12.0 : 13.0;
+    final padding = isSmallScreen 
+        ? const EdgeInsets.symmetric(vertical: 12, horizontal: 4)
+        : const EdgeInsets.symmetric(vertical: 16, horizontal: 6);
 
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
     return Material(
       color: isDone
-          ? Colors.grey[200]
+          ? (isDark ? theme.colorScheme.surfaceVariant : Colors.grey[200])
           : isActive
-              ? color.withOpacity(0.1)
-              : Colors.grey[100],
+              ? color.withOpacity(isDark ? 0.2 : 0.1)
+              : (isDark ? theme.colorScheme.surfaceVariant.withOpacity(0.5) : Colors.grey[100]),
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         onTap: isEnabled
@@ -827,11 +1510,12 @@ class _GpsAttendanceScreenState extends State<GpsAttendanceScreen> {
                 // Check employee ID first
                 if (_employeeId == null || _employeeId!.isEmpty) {
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Employee ID not found. Please refresh the page.'),
-                        backgroundColor: Colors.red,
-                      ),
+                    Fluttertoast.showToast(
+                      msg: 'Employee ID not found. Please refresh the page.',
+                      toastLength: Toast.LENGTH_SHORT,
+                      gravity: ToastGravity.BOTTOM,
+                      backgroundColor: Colors.red,
+                      textColor: Colors.white,
                     );
                   }
                   // Try to reload employee ID
@@ -849,30 +1533,20 @@ class _GpsAttendanceScreenState extends State<GpsAttendanceScreen> {
                   
                   if (_currentPosition == null) {
                     if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: const Text('Location is being determined. Please wait or tap the refresh icon in Location Status.'),
-                          backgroundColor: Colors.orange,
-                          duration: const Duration(seconds: 3),
-                          action: SnackBarAction(
-                            label: 'Refresh',
-                            textColor: Colors.white,
-                            onPressed: () => _getCurrentLocation(),
-                          ),
-                        ),
+                      Fluttertoast.showToast(
+                        msg: 'Location is being determined. Please wait or tap the refresh icon in Location Status.',
+                        toastLength: Toast.LENGTH_LONG,
+                        gravity: ToastGravity.BOTTOM,
+                        backgroundColor: Colors.orange,
+                        textColor: Colors.white,
                       );
                     }
                     return;
                   }
                 }
                 
-                // If outside geofence, show confirmation dialog
-                if (_nearestSite != null && _distanceFromSite != null && 
-                    !_isInsideGeofence) {
-                  _showGeofenceWarningDialog(punchType);
-                } else {
-                  _markAttendance(punchType);
-                }
+                // Only allow marking if inside geofence
+                _markAttendance(punchType);
               }
             : null,
         borderRadius: BorderRadius.circular(12),
@@ -881,73 +1555,123 @@ class _GpsAttendanceScreenState extends State<GpsAttendanceScreen> {
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: isDone
-                  ? Colors.grey
+                  ? theme.colorScheme.outline
                   : isActive && isEnabled
                       ? color
-                      : Colors.grey[300]!,
+                      : theme.colorScheme.outline.withOpacity(0.5),
               width: isActive && !isDone && isEnabled ? 2 : 1,
             ),
-            color: !isEnabled && !isDone ? Colors.grey[50] : null,
+            color: !isEnabled && !isDone 
+                ? (isDark ? theme.colorScheme.surfaceVariant.withOpacity(0.3) : Colors.grey[50]) 
+                : null,
           ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (_isLoading && isActive && !isDone)
-                SizedBox(
-                  width: 32,
-                  height: 32,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(color),
+          child: Padding(
+            padding: padding,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_isLoading && isActive && !isDone)
+                  SizedBox(
+                    width: iconSize,
+                    height: iconSize,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(color),
+                    ),
+                  )
+                else
+                  Icon(
+                    isDone ? Icons.check_circle : icon,
+                    size: iconSize,
+                    color: isDone
+                        ? theme.colorScheme.onSurfaceVariant
+                        : isActive
+                            ? color
+                            : theme.colorScheme.onSurfaceVariant.withOpacity(0.6),
                   ),
-                )
-              else
-                Icon(
-                  isDone ? Icons.check_circle : icon,
-                  size: 32,
-                  color: isDone
-                      ? Colors.grey
-                      : isActive
-                          ? color
-                          : Colors.grey[400],
-                ),
-              const SizedBox(height: 8),
-              Text(
-                label,
-                style: TextStyle(
-                  fontWeight: isActive && !isDone ? FontWeight.bold : FontWeight.normal,
-                  color: isDone
-                      ? Colors.grey
-                      : isActive
-                          ? color
-                          : Colors.grey[600],
-                ),
-              ),
-              if (isDone)
-                Text(
-                  'Done',
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: Colors.grey[500],
-                  ),
-                )
-              else if (!isActive && _nextPunchType != null)
-                Text(
-                  'Not available',
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: Colors.grey[500],
-                  ),
-                )
-              else if (_currentPosition == null)
-                Text(
-                  'Waiting for location...',
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: Colors.orange[700],
+                SizedBox(height: isSmallScreen ? 6 : 8),
+                Flexible(
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      fontWeight: isActive && !isDone ? FontWeight.bold : FontWeight.normal,
+                      color: isDone
+                          ? theme.colorScheme.onSurfaceVariant
+                          : isActive
+                              ? color
+                              : theme.colorScheme.onSurfaceVariant,
+                      fontSize: fontSize,
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-            ],
+                if (isDone && punchTime != null) ...[
+                  SizedBox(height: isSmallScreen ? 3 : 4),
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isSmallScreen ? 6 : 8,
+                      vertical: isSmallScreen ? 3 : 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: color.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      punchTime,
+                      style: TextStyle(
+                        fontSize: isSmallScreen ? 10 : 12,
+                        fontWeight: FontWeight.bold,
+                        color: color,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ]
+                else if (!isActive && _nextPunchType != null)
+                  Padding(
+                    padding: EdgeInsets.only(top: isSmallScreen ? 3 : 4),
+                    child: Text(
+                      'Not available',
+                      style: TextStyle(
+                        fontSize: isSmallScreen ? 9 : 10,
+                        color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  )
+                else if (_currentPosition == null && !isDone)
+                  Padding(
+                    padding: EdgeInsets.only(top: isSmallScreen ? 3 : 4),
+                    child: Text(
+                      'Waiting...',
+                      style: TextStyle(
+                        fontSize: isSmallScreen ? 9 : 10,
+                        color: Colors.orange[700],
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  )
+                else if (!_isInsideGeofence && !isDone && isActive)
+                  Padding(
+                    padding: EdgeInsets.only(top: isSmallScreen ? 3 : 4),
+                    child: Text(
+                      'Move to site',
+                      style: TextStyle(
+                        fontSize: isSmallScreen ? 9 : 10,
+                        color: Colors.red[700],
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
@@ -956,19 +1680,22 @@ class _GpsAttendanceScreenState extends State<GpsAttendanceScreen> {
 
   Widget _buildTodayLog(ColorScheme colorScheme) {
     return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(12),
             child: Row(
               children: [
-                const Icon(Icons.history),
+                const Icon(Icons.history, size: 20),
                 const SizedBox(width: 8),
                 Text(
                   "Today's Log",
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
                       ),
                 ),
               ],
@@ -976,10 +1703,13 @@ class _GpsAttendanceScreenState extends State<GpsAttendanceScreen> {
           ),
           const Divider(height: 1),
           if (_todayLogs.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(24),
+            Padding(
+              padding: const EdgeInsets.all(16),
               child: Center(
-                child: Text('No attendance recorded yet'),
+                child: Text(
+                  'No attendance recorded yet',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                ),
               ),
             )
           else
@@ -994,24 +1724,35 @@ class _GpsAttendanceScreenState extends State<GpsAttendanceScreen> {
                 final icon = _getPunchTypeIcon(log.punchType);
 
                 return ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   leading: Container(
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
                       color: color.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Icon(icon, color: color),
+                    child: Icon(icon, color: color, size: 20),
                   ),
-                  title: Text(log.punchTypeLabel),
+                  title: Text(
+                    log.punchTypeLabel,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w500,
+                      fontSize: 14,
+                    ),
+                  ),
                   subtitle: log.siteName != null
-                      ? Text(log.siteName!, style: TextStyle(fontSize: 12, color: Colors.grey[600]))
+                      ? Text(
+                          log.siteName!,
+                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                        )
                       : null,
                   trailing: Text(
-                    DateFormat('HH:mm').format(log.punchTime),
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
+                    _formatTime12Hour(log.punchTime),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      color: color,
                     ),
                   ),
                 );

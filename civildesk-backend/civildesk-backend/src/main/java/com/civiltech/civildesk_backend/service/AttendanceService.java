@@ -167,6 +167,7 @@ public class AttendanceService {
         return mapToResponse(attendance);
     }
 
+    @Transactional(readOnly = true)
     public List<AttendanceResponse> getEmployeeAttendance(String employeeId, LocalDate startDate, LocalDate endDate) {
         Employee employee = employeeRepository.findByEmployeeIdAndDeletedFalse(employeeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found with ID: " + employeeId));

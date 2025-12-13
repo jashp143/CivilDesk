@@ -63,11 +63,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Widget _buildWelcomeSection(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final isMobile = _isMobile(context);
     
     return Container(
       margin: EdgeInsets.only(bottom: _getSpacing(context)),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(isMobile ? 16 : 24),
         gradient: LinearGradient(
           colors: isDark
               ? [
@@ -92,81 +93,49 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             : AppThemeShadows.getLightWelcomeShadows(),
       ),
       child: Padding(
-        padding: EdgeInsets.all(_getPadding(context) * 1.5),
-        child: Row(
+        padding: EdgeInsets.all(isMobile ? _getPadding(context) : _getPadding(context) * 1.5),
+        child: isMobile
+            ? _buildMobileWelcomeLayout(context, isDark)
+            : _buildDesktopWelcomeLayout(context, isDark),
+      ),
+    );
+  }
+
+  Widget _buildMobileWelcomeLayout(BuildContext context, bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isDark
-                              ? WelcomeColors.getDarkDateBadgeBackground()
-                              : WelcomeColors.getLightDateBadgeBackground(),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          _getFormattedDate(),
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                            color: isDark
-                                ? WelcomeColors.getDarkDateBadgeText()
-                                : WelcomeColors.getLightDateBadgeText(),
-                          ),
-                        ),
-                      ),
-                    ],
+            Flexible(
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? WelcomeColors.getDarkDateBadgeBackground()
+                      : WelcomeColors.getLightDateBadgeBackground(),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  _getFormattedDate(),
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
+                    color: isDark
+                        ? WelcomeColors.getDarkDateBadgeText()
+                        : WelcomeColors.getLightDateBadgeText(),
                   ),
-                  SizedBox(height: _getSpacing(context)),
-                  Text(
-                    'Welcome Back!',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: -0.8,
-                      height: 1.1,
-                      color: isDark
-                          ? WelcomeColors.getDarkGreetingText()
-                          : WelcomeColors.getLightGreetingText(),
-                    ),
-                  ),
-                  SizedBox(height: _getSpacing(context) / 2),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.trending_up,
-                        size: 16,
-                        color: isDark
-                            ? WelcomeColors.getDarkTrendingIcon()
-                            : WelcomeColors.getLightTrendingIcon(),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Manage your workforce efficiently with quick access to essential features.',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: isDark
-                              ? WelcomeColors.getDarkSubtitleText()
-                              : WelcomeColors.getLightSubtitleText(),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ),
-            const SizedBox(width: 16),
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: isDark
@@ -175,18 +144,159 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(12),
                 boxShadow: [AppThemeShadows.getIconShadow()],
               ),
               child: Icon(
                 Icons.dashboard_customize,
-                size: 24,
+                size: 20,
                 color: Colors.white,
               ),
             ),
           ],
         ),
-      ),
+        SizedBox(height: _getSpacing(context) * 0.75),
+        Text(
+          'Welcome Back!',
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            letterSpacing: -0.5,
+            height: 1.2,
+            color: isDark
+                ? WelcomeColors.getDarkGreetingText()
+                : WelcomeColors.getLightGreetingText(),
+          ),
+        ),
+        SizedBox(height: _getSpacing(context) * 0.5),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Icon(
+                Icons.trending_up,
+                size: 14,
+                color: isDark
+                    ? WelcomeColors.getDarkTrendingIcon()
+                    : WelcomeColors.getLightTrendingIcon(),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                'Manage your workforce efficiently with quick access to essential features.',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  height: 1.4,
+                  color: isDark
+                      ? WelcomeColors.getDarkSubtitleText()
+                      : WelcomeColors.getLightSubtitleText(),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDesktopWelcomeLayout(BuildContext context, bool isDark) {
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? WelcomeColors.getDarkDateBadgeBackground()
+                          : WelcomeColors.getLightDateBadgeBackground(),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      _getFormattedDate(),
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: isDark
+                            ? WelcomeColors.getDarkDateBadgeText()
+                            : WelcomeColors.getLightDateBadgeText(),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: _getSpacing(context)),
+              Text(
+                'Welcome Back!',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: -0.8,
+                  height: 1.1,
+                  color: isDark
+                      ? WelcomeColors.getDarkGreetingText()
+                      : WelcomeColors.getLightGreetingText(),
+                ),
+              ),
+              SizedBox(height: _getSpacing(context) / 2),
+              Row(
+                children: [
+                  Icon(
+                    Icons.trending_up,
+                    size: 16,
+                    color: isDark
+                        ? WelcomeColors.getDarkTrendingIcon()
+                        : WelcomeColors.getLightTrendingIcon(),
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      'Manage your workforce efficiently with quick access to essential features.',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: isDark
+                            ? WelcomeColors.getDarkSubtitleText()
+                            : WelcomeColors.getLightSubtitleText(),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 16),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: isDark
+                  ? WelcomeColors.getDarkIconGradient()
+                  : WelcomeColors.getLightIconGradient(),
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [AppThemeShadows.getIconShadow()],
+          ),
+          child: Icon(
+            Icons.dashboard_customize,
+            size: 24,
+            color: Colors.white,
+          ),
+        ),
+      ],
     );
   }
 

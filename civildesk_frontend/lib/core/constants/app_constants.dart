@@ -8,7 +8,7 @@ class AppConstants {
   static String get baseUrl {
     if (Platform.isAndroid) {
       // Android emulator uses 10.0.2.2 to access host machine's localhost
-      return 'http://10.0.2.2:8080/api';
+      return 'http://192.168.0.193:8080/api';
     } else if (Platform.isIOS) {
       // iOS simulator can use localhost
       return 'http://localhost:8080/api';

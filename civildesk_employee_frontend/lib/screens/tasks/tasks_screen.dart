@@ -115,11 +115,6 @@ class _TasksScreenState extends State<TasksScreen> {
           onPressed: _showFilterDialog,
           tooltip: 'Filter',
         ),
-        IconButton(
-          icon: const Icon(Icons.refresh),
-          onPressed: _refreshTasks,
-          tooltip: 'Refresh',
-        ),
       ],
       child: Column(
         children: [

@@ -14,7 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -54,6 +54,27 @@ public class GpsAttendanceService {
             throw new BadRequestException("Mock location detected. Please disable mock location and try again.");
         }
 
+        // Validate location timestamp freshness (must be within last 60 seconds)
+        // This prevents using stale/cached location data
+        if (request.getLocationTimestamp() != null) {
+            LocalDateTime now = LocalDateTime.now();
+            long secondsSinceLocationCapture = ChronoUnit.SECONDS.between(request.getLocationTimestamp(), now);
+            
+            if (secondsSinceLocationCapture < 0) {
+                throw new BadRequestException("Location timestamp is in the future. Please check your device time settings.");
+            }
+            
+            if (secondsSinceLocationCapture > 60) {
+                throw new BadRequestException(String.format(
+                    "Location data is too old (%d seconds). Please refresh your location and try again. Location must be captured within the last 60 seconds.",
+                    secondsSinceLocationCapture
+                ));
+            }
+        } else {
+            // If timestamp is not provided, log a warning but don't reject (for backward compatibility)
+            // In production, you might want to make this required
+        }
+
         // Find employee
         Employee employee = employeeRepository.findByEmployeeIdAndDeletedFalse(request.getEmployeeId())
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found: " + request.getEmployeeId()));
@@ -72,21 +93,22 @@ public class GpsAttendanceService {
                     .orElseThrow(() -> new ResourceNotFoundException("Site not found: " + request.getSiteId()));
         }
 
+        // Require that employee must be assigned to a site
+        if (site == null) {
+            throw new BadRequestException("You are not assigned to any site or you are outside all assigned sites. Please contact your administrator or move to an assigned site to mark attendance.");
+        }
+
         // Calculate distance from site
-        Double distanceFromSite = null;
-        boolean isInsideGeofence = false;
+        Double distanceFromSite = geofenceService.getDistanceFromSite(site, request.getLatitude(), request.getLongitude());
+        boolean isInsideGeofence = geofenceService.isInsideGeofence(site, request.getLatitude(), request.getLongitude());
         
-        if (site != null) {
-            distanceFromSite = geofenceService.getDistanceFromSite(site, request.getLatitude(), request.getLongitude());
-            isInsideGeofence = geofenceService.isInsideGeofence(site, request.getLatitude(), request.getLongitude());
-            
-            // Reject if outside geofence
-            if (!isInsideGeofence) {
-                throw new BadRequestException(String.format(
-                        "You are %.0f meters away from the site boundary. Please move closer to mark attendance.",
-                        distanceFromSite - (site.getGeofenceRadiusMeters() != null ? site.getGeofenceRadiusMeters() : 0)
-                ));
-            }
+        // Reject if outside geofence - attendance can only be marked inside the site
+        if (!isInsideGeofence) {
+            throw new BadRequestException(String.format(
+                    "You are %.0f meters away from the site boundary. You must be inside the site (within %d meters) to mark attendance. Please move closer to the site.",
+                    distanceFromSite - (site.getGeofenceRadiusMeters() != null ? site.getGeofenceRadiusMeters() : 0),
+                    site.getGeofenceRadiusMeters() != null ? site.getGeofenceRadiusMeters() : 0
+            ));
         }
 
         // Validate punch sequence
@@ -168,6 +190,18 @@ public class GpsAttendanceService {
         return gpsLogRepository.findAllPunchesForDateWithDetails(date).stream()
                 .map(GpsAttendanceResponse::fromEntity)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Get all attendance logs for a date, optionally filtered by employee (for map dashboard)
+     */
+    public List<GpsAttendanceResponse> getAllAttendanceForDate(LocalDate date, String employeeId) {
+        if (employeeId != null && !employeeId.isEmpty() && !employeeId.equals("all")) {
+            return gpsLogRepository.findAllPunchesForDateWithDetailsAndEmployee(date, employeeId).stream()
+                    .map(GpsAttendanceResponse::fromEntity)
+                    .collect(Collectors.toList());
+        }
+        return getAllAttendanceForDate(date);
     }
 
     /**

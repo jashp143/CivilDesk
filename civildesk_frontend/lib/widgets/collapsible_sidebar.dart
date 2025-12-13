@@ -91,20 +91,48 @@ class _CollapsibleSidebarState extends State<CollapsibleSidebar>
 
     if (isMobile) {
       // Mobile layout with drawer
+      final theme = Theme.of(context);
+      final colorScheme = theme.colorScheme;
+      
       return Scaffold(
         key: _scaffoldKey,
         appBar: AppBar(
-          // Use theme's AppBar colors (white bg/black text in light, black bg/white text in dark)
-          title: widget.title,
+          elevation: 0,
+          scrolledUnderElevation: 1,
+          surfaceTintColor: Colors.transparent,
+          backgroundColor: colorScheme.surface,
+          foregroundColor: colorScheme.onSurface,
+          titleSpacing: 16,
+          toolbarHeight: kToolbarHeight + 4,
+          title: DefaultTextStyle(
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+              letterSpacing: -0.5,
+              height: 1.2,
+              color: colorScheme.onSurface,
+            ) ?? TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+              letterSpacing: -0.5,
+              height: 1.2,
+              color: colorScheme.onSurface,
+            ),
+            child: widget.title ?? const SizedBox.shrink(),
+          ),
           actions: widget.actions,
           leading: widget.showBackButton
               ? IconButton(
-                  icon: const Icon(Icons.arrow_back),
+                  icon: const Icon(Icons.arrow_back_rounded),
+                  iconSize: 24,
+                  padding: const EdgeInsets.all(8),
                   onPressed: () => Navigator.of(context).pop(),
                   tooltip: 'Back',
                 )
               : IconButton(
-                  icon: const Icon(Icons.menu),
+                  icon: const Icon(Icons.menu_rounded),
+                  iconSize: 24,
+                  padding: const EdgeInsets.all(8),
                   onPressed: _openDrawer,
                   tooltip: 'Menu',
                 ),
@@ -324,52 +352,58 @@ class _CollapsibleSidebarState extends State<CollapsibleSidebar>
                     ? SystemUiOverlayStyle.dark
                     : SystemUiOverlayStyle.light,
                 child: Container(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.surface, // White in light, black in dark
+                  color: Theme.of(context).colorScheme.surface,
                   child: SafeArea(
                     bottom: false,
                     child: Container(
-                      height: kToolbarHeight,
+                      height: kToolbarHeight + 8,
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
                       decoration: BoxDecoration(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.surface, // White in light, black in dark
+                        color: Theme.of(context).colorScheme.surface,
                         border: Border(
                           bottom: BorderSide(
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.outline.withOpacity(0.2),
+                            color: Theme.of(context)
+                                .colorScheme
+                                .outline
+                                .withOpacity(0.12),
                             width: 1,
                           ),
                         ),
                       ),
                       child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          const SizedBox(width: 16),
                           if (widget.title != null)
                             Expanded(
                               child: DefaultTextStyle(
-                                style:
-                                    Theme.of(
-                                      context,
-                                    ).textTheme.titleLarge?.copyWith(
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleLarge
+                                    ?.copyWith(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: -0.5,
+                                      height: 1.2,
                                       color: Theme.of(context)
                                           .colorScheme
-                                          .onSurface, // Black in light, white in dark
-                                      fontWeight: FontWeight.bold,
+                                          .onSurface,
                                     ) ??
                                     TextStyle(
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.onSurface,
-                                      fontWeight: FontWeight.bold,
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: -0.5,
+                                      height: 1.2,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface,
                                     ),
                                 child: widget.title!,
                               ),
                             ),
-                          if (widget.actions != null) ...widget.actions!,
-                          const SizedBox(width: 8),
+                          if (widget.actions != null) ...[
+                            const SizedBox(width: 8),
+                            ...widget.actions!,
+                          ],
                         ],
                       ),
                     ),

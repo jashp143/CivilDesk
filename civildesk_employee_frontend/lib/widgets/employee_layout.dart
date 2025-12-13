@@ -148,6 +148,21 @@ class _EmployeeLayoutState extends State<EmployeeLayout> {
           }
         },
       ),
+      DrawerItem(
+        title: 'Settings',
+        icon: Icons.settings,
+        route: AppRoutes.settings,
+        onTap: () {
+          Navigator.pop(context); // Close drawer
+          if (widget.currentRoute != AppRoutes.settings) {
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              AppRoutes.settings,
+              (route) => false,
+            );
+          }
+        },
+      ),
     ];
   }
 

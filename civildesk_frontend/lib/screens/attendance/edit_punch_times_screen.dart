@@ -75,6 +75,10 @@ class _EditPunchTimesDialogState extends State<EditPunchTimesDialog>
     required DateTime? currentTime,
     required Function(DateTime) onTimeSelected,
   }) async {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final colorScheme = theme.colorScheme;
+    
     // First select date
     final DateTime? pickedDate = await showDatePicker(
       context: context,
@@ -84,12 +88,19 @@ class _EditPunchTimesDialogState extends State<EditPunchTimesDialog>
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
-              primary: Theme.of(context).primaryColor,
-              onPrimary: Colors.white,
-              surface: Colors.white,
-              onSurface: Colors.black87,
-            ),
+            colorScheme: isDark
+                ? ColorScheme.dark(
+                    primary: colorScheme.primary,
+                    onPrimary: colorScheme.onPrimary,
+                    surface: colorScheme.surface,
+                    onSurface: colorScheme.onSurface,
+                  )
+                : ColorScheme.light(
+                    primary: colorScheme.primary,
+                    onPrimary: colorScheme.onPrimary,
+                    surface: colorScheme.surface,
+                    onSurface: colorScheme.onSurface,
+                  ),
           ),
           child: child!,
         );
@@ -107,12 +118,19 @@ class _EditPunchTimesDialogState extends State<EditPunchTimesDialog>
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
-              primary: Theme.of(context).primaryColor,
-              onPrimary: Colors.white,
-              surface: Colors.white,
-              onSurface: Colors.black87,
-            ),
+            colorScheme: isDark
+                ? ColorScheme.dark(
+                    primary: colorScheme.primary,
+                    onPrimary: colorScheme.onPrimary,
+                    surface: colorScheme.surface,
+                    onSurface: colorScheme.onSurface,
+                  )
+                : ColorScheme.light(
+                    primary: colorScheme.primary,
+                    onPrimary: colorScheme.onPrimary,
+                    surface: colorScheme.surface,
+                    onSurface: colorScheme.onSurface,
+                  ),
           ),
           child: child!,
         );

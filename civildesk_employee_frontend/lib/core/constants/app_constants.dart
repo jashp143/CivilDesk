@@ -28,7 +28,8 @@ class AppConstants {
   // Storage Keys
   static const String tokenKey = 'auth_token';
   static const String userKey = 'user_data';
-  static const String themeKey = 'theme_mode';
+  static const String themeModeKey = 'theme_mode';
+  static const String colorPaletteKey = 'color_palette';
 
   // API Endpoints
   static const String loginEndpoint = '/auth/login/employee';

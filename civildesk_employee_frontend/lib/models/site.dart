@@ -72,6 +72,7 @@ class GpsAttendanceRequest {
   final String networkStatus;
   final DateTime? offlineTimestamp;
   final int? siteId;
+  final DateTime? locationTimestamp; // Timestamp when location was captured
 
   GpsAttendanceRequest({
     required this.employeeId,
@@ -89,6 +90,7 @@ class GpsAttendanceRequest {
     this.networkStatus = 'ONLINE',
     this.offlineTimestamp,
     this.siteId,
+    this.locationTimestamp,
   });
 
   Map<String, dynamic> toJson() {
@@ -108,6 +110,7 @@ class GpsAttendanceRequest {
       'networkStatus': networkStatus,
       if (offlineTimestamp != null) 'offlineTimestamp': offlineTimestamp!.toIso8601String(),
       if (siteId != null) 'siteId': siteId,
+      if (locationTimestamp != null) 'locationTimestamp': locationTimestamp!.toIso8601String(),
     };
   }
 }

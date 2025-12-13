@@ -20,6 +20,7 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
     
     List<Attendance> findByEmployeeId(Long employeeId);
     
+    @EntityGraph(attributePaths = {"employee"})
     List<Attendance> findByEmployeeIdAndDateBetween(Long employeeId, LocalDate startDate, LocalDate endDate);
     
     @Query("SELECT a FROM Attendance a WHERE a.employee.id = :employeeId AND a.date = :date")
@@ -36,7 +37,7 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
     @Query("SELECT COUNT(a) FROM Attendance a WHERE a.employee.id = :employeeId AND a.status = 'PRESENT' AND a.date BETWEEN :startDate AND :endDate")
     Long countPresentDays(@Param("employeeId") Long employeeId, @Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
     
-    @Query("SELECT a FROM Attendance a WHERE a.employee.employeeId = :employeeId AND a.date BETWEEN :startDate AND :endDate ORDER BY a.date ASC")
+    @Query("SELECT a FROM Attendance a LEFT JOIN FETCH a.employee WHERE a.employee.employeeId = :employeeId AND a.date BETWEEN :startDate AND :endDate ORDER BY a.date ASC")
     List<Attendance> findEmployeeAttendanceForAnalytics(@Param("employeeId") String employeeId, @Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
     
     @Query("SELECT COALESCE(SUM(a.workingHours), 0.0) FROM Attendance a WHERE a.employee.employeeId = :employeeId AND a.date BETWEEN :startDate AND :endDate")

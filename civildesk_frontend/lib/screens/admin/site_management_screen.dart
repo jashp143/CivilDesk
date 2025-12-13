@@ -20,8 +20,11 @@ class _SiteManagementScreenState extends State<SiteManagementScreen> {
   final SiteService _siteService = SiteService();
   final EmployeeService _employeeService = EmployeeService();
   List<Site> _sites = [];
+  List<Site> _filteredSites = [];
   bool _isLoading = true;
   String? _error;
+  String _searchQuery = '';
+  String? _statusFilter; // 'active', 'inactive', or null for all
 
   @override
   void initState() {
@@ -39,6 +42,7 @@ class _SiteManagementScreenState extends State<SiteManagementScreen> {
       final sites = await _siteService.getAllSites();
       setState(() {
         _sites = sites;
+        _applyFilters();
         _isLoading = false;
       });
     } catch (e) {
@@ -47,6 +51,70 @@ class _SiteManagementScreenState extends State<SiteManagementScreen> {
         _isLoading = false;
       });
     }
+  }
+
+  void _applyFilters() {
+    List<Site> filtered = List.from(_sites);
+
+    // Apply status filter
+    if (_statusFilter != null) {
+      filtered = filtered.where((site) {
+        if (_statusFilter == 'active') return site.isActive;
+        if (_statusFilter == 'inactive') return !site.isActive;
+        return true;
+      }).toList();
+    }
+
+    // Apply search filter
+    if (_searchQuery.isNotEmpty) {
+      final query = _searchQuery.toLowerCase();
+      filtered = filtered.where((site) {
+        return site.siteName.toLowerCase().contains(query) ||
+            site.siteCode.toLowerCase().contains(query) ||
+            (site.fullAddress.toLowerCase().contains(query));
+      }).toList();
+    }
+
+    setState(() {
+      _filteredSites = filtered;
+    });
+  }
+
+  Widget _buildFilterChip(String label, bool isSelected, VoidCallback onTap) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+    
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected 
+              ? (isDark 
+                  ? colorScheme.primary.withOpacity(0.2)
+                  : colorScheme.primaryContainer)
+              : colorScheme.surfaceVariant.withOpacity(0.5),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isSelected 
+                ? colorScheme.primary
+                : colorScheme.outline.withOpacity(0.5),
+            width: isSelected ? 1.5 : 1,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+            color: isSelected 
+                ? colorScheme.onPrimaryContainer
+                : colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ),
+    );
   }
 
   bool _isMobile(BuildContext context) {
@@ -58,23 +126,27 @@ class _SiteManagementScreenState extends State<SiteManagementScreen> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final isMobile = _isMobile(context);
-
+    
     return AdminLayout(
       currentRoute: '/admin/sites',
       title: Text(
         'Site Management',
         style: isMobile
             ? Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontSize: 16,
+                  fontSize: 18,
                   fontWeight: FontWeight.bold,
+                  color: colorScheme.onSurface,
                 ) ?? TextStyle(
-                  fontSize: 16,
+                  fontSize: 18,
                   fontWeight: FontWeight.bold,
+                  color: colorScheme.onSurface,
                 )
             : Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
+                color: colorScheme.onSurface,
               ) ?? TextStyle(
                 fontWeight: FontWeight.bold,
+                color: colorScheme.onSurface,
               ),
       ),
       actions: [
@@ -141,16 +213,23 @@ class _SiteManagementScreenState extends State<SiteManagementScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.location_off, size: 64, color: Colors.grey[400]),
+                  Icon(
+                    Icons.location_off,
+                    size: 64,
+                    color: colorScheme.onSurfaceVariant.withOpacity(0.6),
+                  ),
                   const SizedBox(height: 16),
                   Text(
                     'No sites found',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          color: Colors.grey[600],
+                          color: colorScheme.onSurfaceVariant,
                         ),
                   ),
                   const SizedBox(height: 8),
-                  const Text('Add a new construction site to get started'),
+                  Text(
+                    'Add a new construction site to get started',
+                    style: TextStyle(color: colorScheme.onSurfaceVariant.withOpacity(0.7)),
+                  ),
                   const SizedBox(height: 24),
                   ElevatedButton.icon(
                     onPressed: () => _showSiteDialog(),
@@ -165,6 +244,11 @@ class _SiteManagementScreenState extends State<SiteManagementScreen> {
       );
     }
 
+    // Ensure filtered sites is initialized
+    if (_filteredSites.isEmpty && _sites.isNotEmpty && _searchQuery.isEmpty && _statusFilter == null) {
+      _filteredSites = List.from(_sites);
+    }
+
     final isMobile = _isMobile(context);
     
     return RefreshIndicator(
@@ -173,14 +257,12 @@ class _SiteManagementScreenState extends State<SiteManagementScreen> {
         slivers: [
           // Stats Row
           SliverToBoxAdapter(
-            child: Container(
-              padding: EdgeInsets.all(isMobile ? 12 : 16),
-              decoration: BoxDecoration(
-                color: Theme.of(context).primaryColor.withOpacity(0.1),
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(16),
-                  bottomRight: Radius.circular(16),
-                ),
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                isMobile ? 12 : 16,
+                isMobile ? 12 : 16,
+                isMobile ? 12 : 16,
+                isMobile ? 8 : 12,
               ),
               child: Row(
                 children: [
@@ -193,7 +275,7 @@ class _SiteManagementScreenState extends State<SiteManagementScreen> {
                       isMobile: isMobile,
                     ),
                   ),
-                  SizedBox(width: isMobile ? 8 : 16),
+                  SizedBox(width: isMobile ? 6 : 8),
                   Expanded(
                     child: _buildStatCard(
                       'Active Sites',
@@ -203,7 +285,7 @@ class _SiteManagementScreenState extends State<SiteManagementScreen> {
                       isMobile: isMobile,
                     ),
                   ),
-                  SizedBox(width: isMobile ? 8 : 16),
+                  SizedBox(width: isMobile ? 6 : 8),
                   Expanded(
                     child: _buildStatCard(
                       'Total Employees',
@@ -218,96 +300,285 @@ class _SiteManagementScreenState extends State<SiteManagementScreen> {
             ),
           ),
           
-          // Sites List - Table for desktop/tablet, Cards for mobile
-          if (isMobile)
-          SliverPadding(
-            padding: EdgeInsets.all(isMobile ? 12 : 16),
-            sliver: SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  final site = _sites[index];
-                  return Padding(
-                    padding: EdgeInsets.only(bottom: isMobile ? 12 : 16),
-                    child: _buildSiteCard(site, colorScheme, isMobile: isMobile),
-                  );
-                },
-                childCount: _sites.length,
+          // Search and Filter Bar
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                isMobile ? 12 : 16,
+                0,
+                isMobile ? 12 : 16,
+                12,
+              ),
+              child: Column(
+                children: [
+                  TextField(
+                    style: TextStyle(color: colorScheme.onSurface),
+                    decoration: InputDecoration(
+                      hintText: 'Search sites...',
+                      hintStyle: TextStyle(color: colorScheme.onSurfaceVariant),
+                      prefixIcon: Icon(Icons.search, size: 20, color: colorScheme.onSurfaceVariant),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: colorScheme.outline.withOpacity(0.5)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: colorScheme.outline.withOpacity(0.5)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: colorScheme.primary, width: 2),
+                      ),
+                      filled: true,
+                      fillColor: colorScheme.surfaceVariant.withOpacity(0.3),
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: isMobile ? 12 : 14,
+                      ),
+                      isDense: true,
+                    ),
+                    onChanged: (value) {
+                      setState(() {
+                        _searchQuery = value;
+                        _applyFilters();
+                      });
+                    },
+                  ),
+                  if (isMobile) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        _buildFilterChip('All', _statusFilter == null, () {
+                          setState(() {
+                            _statusFilter = null;
+                            _applyFilters();
+                          });
+                        }),
+                        const SizedBox(width: 8),
+                        _buildFilterChip('Active', _statusFilter == 'active', () {
+                          setState(() {
+                            _statusFilter = 'active';
+                            _applyFilters();
+                          });
+                        }),
+                        const SizedBox(width: 8),
+                        _buildFilterChip('Inactive', _statusFilter == 'inactive', () {
+                          setState(() {
+                            _statusFilter = 'inactive';
+                            _applyFilters();
+                          });
+                        }),
+                      ],
+                    ),
+                  ] else
+                    Row(
+                      children: [
+                        const SizedBox(width: 12),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: colorScheme.surfaceVariant.withOpacity(0.3),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: colorScheme.outline.withOpacity(0.5)),
+                          ),
+                          child: PopupMenuButton<String>(
+                            initialValue: _statusFilter,
+                            icon: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.filter_list, size: 18, color: colorScheme.onSurfaceVariant),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    _statusFilter == null
+                                        ? 'All'
+                                        : _statusFilter == 'active'
+                                            ? 'Active'
+                                            : 'Inactive',
+                                    style: TextStyle(fontSize: 13, color: colorScheme.onSurfaceVariant),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Icon(Icons.arrow_drop_down, size: 18, color: colorScheme.onSurfaceVariant),
+                                ],
+                              ),
+                            ),
+                            padding: EdgeInsets.zero,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            onSelected: (value) {
+                              setState(() {
+                                _statusFilter = value == 'all' ? null : value;
+                                _applyFilters();
+                              });
+                            },
+                            itemBuilder: (context) => [
+                              const PopupMenuItem(value: 'all', child: Text('All Sites')),
+                              const PopupMenuItem(value: 'active', child: Text('Active Only')),
+                              const PopupMenuItem(value: 'inactive', child: Text('Inactive Only')),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
               ),
             ),
+          ),
+          
+          // Sites List - Table for desktop/tablet, Cards for mobile
+          if (_filteredSites.isEmpty && (_searchQuery.isNotEmpty || _statusFilter != null))
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Center(
+                  child: Column(
+                    children: [
+                      Icon(Icons.search_off, size: 64, color: colorScheme.onSurfaceVariant.withOpacity(0.6)),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No sites found',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Try adjusting your search or filter',
+                        style: TextStyle(color: colorScheme.onSurfaceVariant.withOpacity(0.7), fontSize: 14),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            )
+          else if (isMobile)
+            SliverPadding(
+              padding: EdgeInsets.fromLTRB(
+                isMobile ? 12 : 16,
+                0,
+                isMobile ? 12 : 16,
+                16,
+              ),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                    final site = _filteredSites[index];
+                    return Padding(
+                      padding: EdgeInsets.only(bottom: isMobile ? 12 : 16),
+                      child: _buildSiteCard(site, colorScheme, isMobile: isMobile),
+                    );
+                  },
+                  childCount: _filteredSites.length,
+                ),
+              ),
             )
           else
             SliverPadding(
-              padding: EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               sliver: SliverToBoxAdapter(
                 child: _buildSiteTable(colorScheme),
               ),
-          ),
+            ),
         ],
       ),
     );
   }
 
   Widget _buildStatCard(String label, String value, IconData icon, Color color, {bool isMobile = false}) {
-    return Card(
-      elevation: 2,
-      child: Padding(
-        padding: EdgeInsets.all(isMobile ? 10 : 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: color, size: isMobile ? 20 : 28),
-            SizedBox(height: isMobile ? 6 : 8),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: isMobile ? 18 : 24,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+    
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: isMobile ? 10 : 12,
+        vertical: isMobile ? 10 : 12,
+      ),
+      decoration: BoxDecoration(
+        color: isDark 
+            ? color.withOpacity(0.12)
+            : color.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(10),
+        border: isDark 
+            ? Border.all(color: colorScheme.outline.withOpacity(0.15), width: 1)
+            : null,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: isMobile ? 18 : 20),
+          SizedBox(width: isMobile ? 8 : 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: isMobile ? 18 : 22,
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: isMobile ? 10 : 11,
+                    color: colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
-            SizedBox(height: isMobile ? 2 : 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: isMobile ? 11 : 12,
-                color: Colors.grey[600],
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildSiteCard(Site site, ColorScheme colorScheme, {bool isMobile = false}) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
     return Card(
-      elevation: 2,
+      elevation: 0,
+      color: colorScheme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: isDark 
+              ? colorScheme.outline.withOpacity(0.2)
+              : colorScheme.outline.withOpacity(0.1),
+          width: 1,
+        ),
+      ),
       child: InkWell(
         onTap: () {
           _showSiteDetailDialog(site);
         },
         borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: EdgeInsets.all(isMobile ? 12 : 16),
+          padding: EdgeInsets.all(isMobile ? 16 : 20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Header Row
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: isMobile ? 40 : 48,
-                    height: isMobile ? 40 : 48,
-                    decoration: BoxDecoration(
-                      color: site.isActive ? Colors.green.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      Icons.location_on,
-                      color: site.isActive ? Colors.green : Colors.grey,
-                      size: isMobile ? 20 : 24,
-                    ),
+                  Icon(
+                    Icons.location_on,
+                    color: site.isActive 
+                        ? (isDark ? Colors.green[400] : Colors.green[600])
+                        : colorScheme.onSurfaceVariant,
+                    size: isMobile ? 22 : 24,
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -317,27 +588,38 @@ class _SiteManagementScreenState extends State<SiteManagementScreen> {
                         Text(
                           site.siteName,
                           style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: isMobile ? 15 : 16,
+                            fontWeight: FontWeight.w600,
+                            fontSize: isMobile ? 16 : 18,
+                            color: colorScheme.onSurface,
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 8),
                         Container(
                           padding: EdgeInsets.symmetric(
-                            horizontal: isMobile ? 6 : 8,
-                            vertical: isMobile ? 2 : 4,
+                            horizontal: isMobile ? 8 : 10,
+                            vertical: isMobile ? 4 : 5,
                           ),
                           decoration: BoxDecoration(
-                            color: site.isActive ? Colors.green.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
+                            color: site.isActive 
+                                ? (isDark 
+                                    ? Colors.green.withOpacity(0.2)
+                                    : Colors.green[50])
+                                : (isDark
+                                    ? colorScheme.surfaceVariant
+                                    : Colors.grey[100]),
+                            borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
                             site.isActive ? 'Active' : 'Inactive',
                             style: TextStyle(
-                              fontSize: isMobile ? 10 : 12,
-                              color: site.isActive ? Colors.green : Colors.grey,
+                              fontSize: isMobile ? 11 : 12,
+                              color: site.isActive 
+                                  ? (isDark 
+                                      ? Colors.green[300]
+                                      : Colors.green[700])
+                                  : colorScheme.onSurfaceVariant,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -345,78 +627,109 @@ class _SiteManagementScreenState extends State<SiteManagementScreen> {
                       ],
                     ),
                   ),
-                  PopupMenuButton<String>(
-                    icon: const Icon(Icons.more_vert),
-                    onSelected: (value) {
-                      switch (value) {
-                        case 'edit':
-                          _showSiteDialog(site: site);
-                          break;
-                        case 'employees':
-                          _showEmployeeAssignmentDialog(site);
-                          break;
-                        case 'delete':
-                          _confirmDelete(site);
-                          break;
-                      }
-                    },
-                    itemBuilder: (context) => [
-                      const PopupMenuItem(
-                        value: 'edit',
-                        child: Row(
-                          children: [
-                            Icon(Icons.edit, size: 20),
-                            SizedBox(width: 12),
-                            Text('Edit Site'),
-                          ],
-                        ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4, right: 4),
+                    child: PopupMenuButton<String>(
+                      icon: Icon(Icons.more_vert, size: 20, color: colorScheme.onSurfaceVariant),
+                      padding: EdgeInsets.zero,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                      const PopupMenuItem(
-                        value: 'employees',
-                        child: Row(
-                          children: [
-                            Icon(Icons.people_outline, size: 20),
-                            SizedBox(width: 12),
-                            Text('Manage Employees'),
-                          ],
+                      onSelected: (value) {
+                        switch (value) {
+                          case 'edit':
+                            _showSiteDialog(site: site);
+                            break;
+                          case 'employees':
+                            _showEmployeeAssignmentDialog(site);
+                            break;
+                          case 'delete':
+                            _confirmDelete(site);
+                            break;
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(
+                          value: 'edit',
+                          child: Row(
+                            children: [
+                              Icon(Icons.edit, size: 20),
+                              SizedBox(width: 12),
+                              Text('Edit Site'),
+                            ],
+                          ),
                         ),
-                      ),
-                      const PopupMenuDivider(),
-                      const PopupMenuItem(
-                        value: 'delete',
-                        child: Row(
-                          children: [
-                            Icon(Icons.delete, color: Colors.red, size: 20),
-                            SizedBox(width: 12),
-                            Text('Delete Site', style: TextStyle(color: Colors.red)),
-                          ],
+                        const PopupMenuItem(
+                          value: 'employees',
+                          child: Row(
+                            children: [
+                              Icon(Icons.people_outline, size: 20),
+                              SizedBox(width: 12),
+                              Text('Manage Employees'),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                        const PopupMenuDivider(),
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              Icon(Icons.delete, color: Colors.red, size: 20),
+                              SizedBox(width: 12),
+                              Text('Delete Site', style: TextStyle(color: Colors.red)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
               
-              const SizedBox(height: 12),
-              const Divider(height: 1),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               
-              // Site Details
+              // Site Code
               if (site.siteCode.isNotEmpty) ...[
-                _buildInfoRow(Icons.qr_code, 'Code', site.siteCode, isMobile: isMobile),
-                const SizedBox(height: 8),
+                Text(
+                  'Code: ${site.siteCode}',
+                  style: TextStyle(
+                    fontSize: isMobile ? 13 : 14,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 12),
               ],
+              
+              // Address (formatted)
               if (site.fullAddress.isNotEmpty) ...[
-                _buildInfoRow(Icons.location_city, 'Address', site.fullAddress, isMobile: isMobile, maxLines: 2),
-                const SizedBox(height: 8),
+                Text(
+                  'Address:',
+                  style: TextStyle(
+                    fontSize: isMobile ? 12 : 13,
+                    color: colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _formatAddress(site),
+                  style: TextStyle(
+                    fontSize: isMobile ? 13 : 14,
+                    color: colorScheme.onSurface,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 16),
               ],
+              
+              // Footer Stats
               Row(
                 children: [
                   Expanded(
                     child: _buildInfoChip(
                       Icons.people,
                       '${site.assignedEmployeeCount ?? 0}',
-                      'employees',
+                      'employee${(site.assignedEmployeeCount ?? 0) != 1 ? 's' : ''}',
                       isMobile: isMobile,
                     ),
                   ),
@@ -431,7 +744,6 @@ class _SiteManagementScreenState extends State<SiteManagementScreen> {
                   ),
                 ],
               ),
-              
             ],
           ),
         ),
@@ -439,92 +751,106 @@ class _SiteManagementScreenState extends State<SiteManagementScreen> {
     );
   }
 
+  String _formatAddress(Site site) {
+    List<String> parts = [];
+    if (site.address != null && site.address!.isNotEmpty) {
+      parts.add(site.address!);
+    }
+    if (site.city != null && site.city!.isNotEmpty) {
+      parts.add(site.city!);
+    }
+    if (site.state != null && site.state!.isNotEmpty) {
+      parts.add(site.state!);
+    }
+    if (site.pincode != null && site.pincode!.isNotEmpty) {
+      parts.add(site.pincode!);
+    }
+    
+    // Format as multi-line if we have multiple parts
+    if (parts.length > 2) {
+      // First line: address
+      // Second line: city, state pincode
+      String firstLine = parts[0];
+      String secondLine = parts.length > 1 
+          ? parts.sublist(1).join(', ')
+          : '';
+      return '$firstLine,\n$secondLine';
+    }
+    return parts.join(', ');
+  }
+
   Widget _buildSiteTable(ColorScheme colorScheme) {
     return LayoutBuilder(
       builder: (context, constraints) {
         // Calculate minimum table width based on content
-        // Actions column (140) + other columns need at least 1000px
-        final minTableWidth = 1100.0;
+        // Actions column (170) + other columns need at least 1000px
+        final minTableWidth = 1140.0;
         final tableWidth = constraints.maxWidth > minTableWidth 
             ? constraints.maxWidth - 32 
             : minTableWidth;
         
+        final theme = Theme.of(context);
+        final isDark = theme.brightness == Brightness.dark;
+        
         return Card(
-          elevation: 2,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Table Header
-              Container(
-                decoration: BoxDecoration(
-                  color: colorScheme.surfaceVariant.withOpacity(0.3),
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(12),
-                    topRight: Radius.circular(12),
+          elevation: isDark ? 0 : 2,
+          color: colorScheme.surface,
+          shape: isDark 
+              ? RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(
+                    color: colorScheme.outline.withOpacity(0.2),
+                    width: 1,
                   ),
-                  border: Border(
-                    bottom: BorderSide(
-                      color: colorScheme.outline.withOpacity(0.2),
-                      width: 2,
-                    ),
-                  ),
-                ),
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: SizedBox(
-                    width: tableWidth,
-                    child: Table(
-                      columnWidths: const {
-                        0: FlexColumnWidth(2),
-                        1: FlexColumnWidth(1.5),
-                        2: FlexColumnWidth(2),
-                        3: FlexColumnWidth(1),
-                        4: FlexColumnWidth(1),
-                        5: FixedColumnWidth(140), // Actions column needs fixed width for 3 icons
-                      },
-                      children: [
-                        TableRow(
-                          children: [
-                            _buildTableHeaderCell('Site Name', colorScheme),
-                            _buildTableHeaderCell('Code', colorScheme),
-                            _buildTableHeaderCell('Address', colorScheme),
-                            _buildTableHeaderCell('Employees', colorScheme),
-                            _buildTableHeaderCell('Radius', colorScheme),
-                            _buildTableHeaderCell('Actions', colorScheme),
-                          ],
+                )
+              : null,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.5,
+            ),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: SizedBox(
+                  width: tableWidth,
+                  child: Table(
+                    columnWidths: const {
+                      0: FlexColumnWidth(2),
+                      1: FlexColumnWidth(1.5),
+                      2: FlexColumnWidth(2),
+                      3: FlexColumnWidth(1),
+                      4: FlexColumnWidth(1),
+                      5: FixedColumnWidth(170), // Actions column needs fixed width for 3 icons
+                    },
+                    children: [
+                      // Header Row
+                      TableRow(
+                        decoration: BoxDecoration(
+                          color: colorScheme.surfaceVariant.withOpacity(0.3),
+                          border: Border(
+                            bottom: BorderSide(
+                              color: colorScheme.outline.withOpacity(0.2),
+                              width: 2,
+                            ),
+                          ),
                         ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              // Table Body - Scrollable both directions
-              ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxHeight: MediaQuery.of(context).size.height * 0.5,
-                ),
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    child: SizedBox(
-                      width: tableWidth,
-                      child: Table(
-                        columnWidths: const {
-                          0: FlexColumnWidth(2),
-                          1: FlexColumnWidth(1.5),
-                          2: FlexColumnWidth(2),
-                          3: FlexColumnWidth(1),
-                          4: FlexColumnWidth(1),
-                          5: FlexColumnWidth(1),
-                        },
-                        children: _sites.map((site) => _buildTableRow(site, colorScheme)).toList(),
+                        children: [
+                          _buildTableHeaderCell('Site Name', colorScheme),
+                          _buildTableHeaderCell('Code', colorScheme),
+                          _buildTableHeaderCell('Address', colorScheme),
+                          _buildTableHeaderCell('Employees', colorScheme),
+                          _buildTableHeaderCell('Radius', colorScheme),
+                          _buildTableHeaderCell('Actions', colorScheme),
+                        ],
                       ),
-                    ),
+                      // Data Rows
+                      ..._filteredSites.map((site) => _buildTableRow(site, colorScheme)).toList(),
+                    ],
                   ),
                 ),
               ),
-            ],
+            ),
           ),
         );
       },
@@ -546,6 +872,9 @@ class _SiteManagementScreenState extends State<SiteManagementScreen> {
   }
 
   TableRow _buildTableRow(Site site, ColorScheme colorScheme) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
     return TableRow(
       decoration: BoxDecoration(
         border: Border(
@@ -568,13 +897,17 @@ class _SiteManagementScreenState extends State<SiteManagementScreen> {
                       height: 40,
                       decoration: BoxDecoration(
                         color: site.isActive
-                            ? Colors.green.withOpacity(0.1)
-                            : Colors.grey.withOpacity(0.1),
+                            ? (isDark 
+                                ? Colors.green.withOpacity(0.2)
+                                : Colors.green.withOpacity(0.1))
+                            : colorScheme.surfaceVariant.withOpacity(0.5),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Icon(
                         Icons.location_on,
-                        color: site.isActive ? Colors.green : Colors.grey,
+                        color: site.isActive 
+                            ? (isDark ? Colors.green[400] : Colors.green[600])
+                            : colorScheme.onSurfaceVariant,
                         size: 20,
                       ),
                     ),
@@ -600,15 +933,19 @@ class _SiteManagementScreenState extends State<SiteManagementScreen> {
                             ),
                             decoration: BoxDecoration(
                               color: site.isActive
-                                  ? Colors.green.withOpacity(0.1)
-                                  : Colors.grey.withOpacity(0.1),
+                                  ? (isDark 
+                                      ? Colors.green.withOpacity(0.2)
+                                      : Colors.green.withOpacity(0.1))
+                                  : colorScheme.surfaceVariant.withOpacity(0.5),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
                               site.isActive ? 'Active' : 'Inactive',
                               style: TextStyle(
                                 fontSize: 10,
-                                color: site.isActive ? Colors.green : Colors.grey,
+                                color: site.isActive 
+                                    ? (isDark ? Colors.green[300] : Colors.green[700])
+                                    : colorScheme.onSurfaceVariant,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -685,7 +1022,7 @@ class _SiteManagementScreenState extends State<SiteManagementScreen> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.start,
@@ -696,30 +1033,36 @@ class _SiteManagementScreenState extends State<SiteManagementScreen> {
                     tooltip: 'Edit',
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(
-                      minWidth: 32,
-                      minHeight: 32,
+                      minWidth: 36,
+                      minHeight: 36,
+                      maxWidth: 36,
+                      maxHeight: 36,
                     ),
                   ),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 2),
                   IconButton(
                     icon: const Icon(Icons.people, size: 18),
                     onPressed: () => _showEmployeeAssignmentDialog(site),
                     tooltip: 'Manage Employees',
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(
-                      minWidth: 32,
-                      minHeight: 32,
+                      minWidth: 36,
+                      minHeight: 36,
+                      maxWidth: 36,
+                      maxHeight: 36,
                     ),
                   ),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 2),
                   IconButton(
                     icon: const Icon(Icons.delete, size: 18, color: Colors.red),
                     onPressed: () => _confirmDelete(site),
                     tooltip: 'Delete',
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(
-                      minWidth: 32,
-                      minHeight: 32,
+                      minWidth: 36,
+                      minHeight: 36,
+                      maxWidth: 36,
+                      maxHeight: 36,
                     ),
                   ),
                 ],
@@ -729,76 +1072,47 @@ class _SiteManagementScreenState extends State<SiteManagementScreen> {
     );
   }
 
-  Widget _buildInfoRow(IconData icon, String label, String value, {bool isMobile = false, int maxLines = 1}) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: isMobile ? 16 : 18, color: Colors.grey[600]),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: isMobile ? 10 : 11,
-                  color: Colors.grey[500],
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: isMobile ? 13 : 14,
-                  color: Colors.grey[800],
-                ),
-                maxLines: maxLines,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
 
   Widget _buildInfoChip(IconData icon, String value, String label, {bool isMobile = false}) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    
     return Container(
-      padding: EdgeInsets.all(isMobile ? 8 : 10),
+      padding: EdgeInsets.symmetric(
+        horizontal: isMobile ? 10 : 12,
+        vertical: isMobile ? 8 : 10,
+      ),
       decoration: BoxDecoration(
-        color: Colors.grey[50],
+        color: colorScheme.surfaceVariant.withOpacity(0.5),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey[200]!),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: isMobile ? 14 : 16, color: Colors.grey[600]),
+          Icon(icon, size: isMobile ? 16 : 18, color: colorScheme.onSurfaceVariant),
           const SizedBox(width: 6),
           Flexible(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: isMobile ? 12 : 13,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey[800],
-                  ),
-                  overflow: TextOverflow.ellipsis,
+            child: RichText(
+              text: TextSpan(
+                style: TextStyle(
+                  fontSize: isMobile ? 13 : 14,
+                  color: colorScheme.onSurface,
+                  fontWeight: FontWeight.w600,
                 ),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: isMobile ? 9 : 10,
-                    color: Colors.grey[600],
+                children: [
+                  TextSpan(text: value),
+                  TextSpan(
+                    text: ' $label',
+                    style: TextStyle(
+                      fontSize: isMobile ? 11 : 12,
+                      fontWeight: FontWeight.normal,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
                   ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+                ],
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],

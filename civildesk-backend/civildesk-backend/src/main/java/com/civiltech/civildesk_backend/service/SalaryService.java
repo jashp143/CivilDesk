@@ -3,6 +3,7 @@ package com.civiltech.civildesk_backend.service;
 import com.civiltech.civildesk_backend.dto.SalaryCalculationRequest;
 import com.civiltech.civildesk_backend.dto.SalaryCalculationResponse;
 import com.civiltech.civildesk_backend.dto.SalarySlipResponse;
+import com.civiltech.civildesk_backend.exception.BadRequestException;
 import com.civiltech.civildesk_backend.exception.ResourceNotFoundException;
 import com.civiltech.civildesk_backend.model.Employee;
 import com.civiltech.civildesk_backend.model.SalarySlip;
@@ -45,6 +46,11 @@ public class SalaryService {
     public SalarySlipResponse getSalarySlipById(Long id) {
         SalarySlip salarySlip = salarySlipRepository.findByIdWithEmployee(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Salary slip not found with ID: " + id));
+        
+        if (Boolean.TRUE.equals(salarySlip.getDeleted())) {
+            throw new ResourceNotFoundException("Salary slip not found with ID: " + id);
+        }
+        
         return mapToResponse(salarySlip);
     }
 
@@ -57,6 +63,11 @@ public class SalaryService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         String.format("Salary slip not found for employee %s for %d/%d", employeeId, month, year)));
         
+        if (Boolean.TRUE.equals(salarySlip.getDeleted())) {
+            throw new ResourceNotFoundException(
+                    String.format("Salary slip not found for employee %s for %d/%d", employeeId, month, year));
+        }
+        
         return mapToResponse(salarySlip);
     }
 
@@ -64,6 +75,7 @@ public class SalaryService {
     public List<SalarySlipResponse> getEmployeeSalarySlips(String employeeId) {
         List<SalarySlip> salarySlips = salarySlipRepository.findByEmployeeEmployeeId(employeeId);
         return salarySlips.stream()
+                .filter(slip -> !Boolean.TRUE.equals(slip.getDeleted()))
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
@@ -76,8 +88,9 @@ public class SalaryService {
     public List<SalarySlipResponse> getMySalarySlips(String employeeId, Integer year, Integer month, String status) {
         List<SalarySlip> salarySlips = salarySlipRepository.findByEmployeeEmployeeId(employeeId);
         
-        // Filter by status (only show FINALIZED and PAID slips to employees)
+        // Filter out deleted records and by status (only show FINALIZED and PAID slips to employees)
         salarySlips = salarySlips.stream()
+                .filter(slip -> !Boolean.TRUE.equals(slip.getDeleted()))
                 .filter(slip -> slip.getStatus() == SalarySlip.SalarySlipStatus.FINALIZED || 
                                slip.getStatus() == SalarySlip.SalarySlipStatus.PAID)
                 .collect(Collectors.toList());
@@ -130,6 +143,7 @@ public class SalaryService {
             salarySlips = salarySlipRepository.findAllWithEmployee();
         }
         return salarySlips.stream()
+                .filter(slip -> !Boolean.TRUE.equals(slip.getDeleted()))
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
@@ -160,6 +174,16 @@ public class SalaryService {
     public void deleteSalarySlip(Long id) {
         SalarySlip salarySlip = salarySlipRepository.findByIdWithEmployee(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Salary slip not found with ID: " + id));
+        
+        // Check if already deleted
+        if (Boolean.TRUE.equals(salarySlip.getDeleted())) {
+            throw new BadRequestException("Salary slip is already deleted");
+        }
+        
+        // Only allow deletion of DRAFT salary slips
+        if (salarySlip.getStatus() != SalarySlip.SalarySlipStatus.DRAFT) {
+            throw new BadRequestException("Only DRAFT salary slips can be deleted. Current status: " + salarySlip.getStatus());
+        }
         
         salarySlip.setDeleted(true);
         salarySlipRepository.save(salarySlip);

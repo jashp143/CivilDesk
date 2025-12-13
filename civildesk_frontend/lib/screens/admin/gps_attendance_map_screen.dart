@@ -5,7 +5,9 @@ import 'package:flutter/rendering.dart';
 import 'package:intl/intl.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../models/site.dart';
+import '../../models/employee.dart';
 import '../../core/services/site_service.dart';
+import '../../core/services/employee_service.dart';
 import '../../widgets/admin_layout.dart';
 
 class GpsAttendanceMapScreen extends StatefulWidget {
@@ -17,21 +19,27 @@ class GpsAttendanceMapScreen extends StatefulWidget {
 
 class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
   final SiteService _siteService = SiteService();
+  final EmployeeService _employeeService = EmployeeService();
   GoogleMapController? _mapController;
   List<GpsAttendanceLog> _attendanceLogs = [];
   List<Site> _sites = [];
+  List<Employee> _employees = [];
   bool _isLoading = true;
   String? _error;
   String? _mapError;
   DateTime _selectedDate = DateTime.now();
   String? _selectedSiteFilter;
   String? _selectedPunchTypeFilter;
+  String? _selectedEmployeeFilter;
+  bool _isFiltersExpanded = true;
   BitmapDescriptor? _customSiteMarker;
-  bool _isLegendExpanded = false;
+  final PageController _statsPageController = PageController();
+  int _currentStatsPage = 0;
   
   @override
   void dispose() {
     _mapController?.dispose();
+    _statsPageController.dispose();
     super.dispose();
   }
 
@@ -58,12 +66,25 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
     });
 
     try {
-      final sites = await _siteService.getAllSites();
-      final logs = await _siteService.getMapDashboardData(_selectedDate);
+      final results = await Future.wait([
+        _siteService.getAllSites(),
+        _siteService.getMapDashboardData(
+          _selectedDate,
+          employeeId: _selectedEmployeeFilter != null && _selectedEmployeeFilter != 'all'
+              ? _selectedEmployeeFilter
+              : null,
+        ),
+        _employeeService.getAllEmployees(page: 0, size: 1000),
+      ]);
+      
+      final sites = results[0] as List<Site>;
+      final logs = results[1] as List<GpsAttendanceLog>;
+      final employeeResponse = results[2] as EmployeeListResponse;
       
       setState(() {
         _sites = sites;
         _attendanceLogs = logs;
+        _employees = employeeResponse.content;
         _isLoading = false;
       });
     } catch (e) {
@@ -81,6 +102,10 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
       }
       if (_selectedPunchTypeFilter != null && _selectedPunchTypeFilter != 'all') {
         if (log.punchType.toUpperCase() != _selectedPunchTypeFilter) return false;
+      }
+      // Employee filtering is done on backend, but keep frontend filter as fallback
+      if (_selectedEmployeeFilter != null && _selectedEmployeeFilter != 'all') {
+        if (log.employeeId != _selectedEmployeeFilter) return false;
       }
       return true;
     }).toList();
@@ -209,7 +234,10 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
     
     return AdminLayout(
       currentRoute: '/admin/gps-attendance-map',
-      title: const Text('GPS Attendance Dashboard'),
+      title: Text(
+        'GPS Attendance Dashboard',
+        style: TextStyle(color: colorScheme.onSurface),
+      ),
       child: _isLoading && _attendanceLogs.isEmpty
           ? const Center(child: CircularProgressIndicator())
           : _error != null && _attendanceLogs.isEmpty
@@ -237,6 +265,8 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
 
   Widget _buildContent(ColorScheme colorScheme) {
     final isMobile = _isMobile(context);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     
     if (isMobile) {
       return SingleChildScrollView(
@@ -244,26 +274,18 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
         child: Column(
           children: [
             // Filters Bar
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: colorScheme.surface,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: _buildMobileFilters(),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 0, 8, 8),
+              child: _buildCollapsibleMobileFilters(colorScheme),
             ),
+            const SizedBox(height: 12),
 
             // Summary Stats
-            Container(
-              padding: const EdgeInsets.all(12),
-              child: _buildMobileSummaryStats(),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: _buildMobileSummaryStats(colorScheme),
             ),
+            const SizedBox(height: 12),
 
             // Main Content - Map and List
             _buildMobileMainContent(colorScheme),
@@ -276,25 +298,18 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
         children: [
           // Filters Bar
           Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: colorScheme.surface,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: _buildDesktopFilters(),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            child: _buildCollapsibleDesktopFilters(colorScheme),
           ),
+          const SizedBox(height: 12),
+
 
           // Summary Stats
-          Container(
-            padding: const EdgeInsets.all(16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             child: _buildDesktopSummaryStats(),
           ),
+          const SizedBox(height: 12),
 
           // Main Content - Map and List
           Expanded(
@@ -305,272 +320,940 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
     }
   }
 
-  Widget _buildMobileFilters() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // Date Picker
-        InkWell(
-          onTap: _selectDate,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey[300]!),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.calendar_today, size: 20),
-                const SizedBox(width: 8),
-                Text(DateFormat('dd MMM yyyy').format(_selectedDate)),
-                const Spacer(),
-                const Icon(Icons.arrow_drop_down),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-
-        // Site Filter
-        DropdownButtonFormField<String>(
-          value: _selectedSiteFilter,
-          decoration: const InputDecoration(
-            labelText: 'Filter by Site',
-            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            border: OutlineInputBorder(),
-          ),
-          items: [
-            const DropdownMenuItem(value: 'all', child: Text('All Sites')),
-            ..._sites.map((site) => DropdownMenuItem(
-                  value: site.id.toString(),
-                  child: Text(site.siteName),
-                )),
-          ],
-          onChanged: (value) {
-            setState(() => _selectedSiteFilter = value);
-          },
-        ),
-        const SizedBox(height: 12),
-
-        // Punch Type Filter
-        DropdownButtonFormField<String>(
-          value: _selectedPunchTypeFilter,
-          decoration: const InputDecoration(
-            labelText: 'Filter by Punch',
-            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            border: OutlineInputBorder(),
-          ),
-          items: const [
-            DropdownMenuItem(value: 'all', child: Text('All Punches')),
-            DropdownMenuItem(value: 'CHECK_IN', child: Text('Check In')),
-            DropdownMenuItem(value: 'LUNCH_OUT', child: Text('Lunch Out')),
-            DropdownMenuItem(value: 'LUNCH_IN', child: Text('Lunch In')),
-            DropdownMenuItem(value: 'CHECK_OUT', child: Text('Check Out')),
-          ],
-          onChanged: (value) {
-            setState(() => _selectedPunchTypeFilter = value);
-          },
-        ),
-        const SizedBox(height: 12),
-
-        // Legend - Mobile version
-        _buildMobileLegend(),
-      ],
-    );
-  }
-
-  Widget _buildDesktopFilters() {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Row(
-      children: [
-        // Date Picker
-        InkWell(
-          onTap: _selectDate,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey[300]!),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.calendar_today, size: 20),
-                const SizedBox(width: 8),
-                Flexible(
-                  child: Text(
-                    DateFormat('dd MMM yyyy').format(_selectedDate),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                const Icon(Icons.arrow_drop_down),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-
-        // Site Filter
-        Flexible(
-          flex: 1,
-          child: SizedBox(
-            width: 180,
-            child: DropdownButtonFormField<String>(
-              value: _selectedSiteFilter,
-              decoration: const InputDecoration(
-                labelText: 'Filter by Site',
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                isDense: true,
-              ),
-              items: [
-                const DropdownMenuItem(value: 'all', child: Text('All Sites')),
-                ..._sites.map((site) => DropdownMenuItem(
-                      value: site.id.toString(),
-                      child: Text(
-                        site.siteName,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    )),
-              ],
-              onChanged: (value) {
-                setState(() => _selectedSiteFilter = value);
-              },
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-
-        // Punch Type Filter
-        Flexible(
-          flex: 1,
-          child: SizedBox(
-            width: 160,
-            child: DropdownButtonFormField<String>(
-              value: _selectedPunchTypeFilter,
-              decoration: const InputDecoration(
-                labelText: 'Filter by Punch',
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                isDense: true,
-              ),
-              items: const [
-                DropdownMenuItem(value: 'all', child: Text('All Punches')),
-                DropdownMenuItem(value: 'CHECK_IN', child: Text('Check In')),
-                DropdownMenuItem(value: 'LUNCH_OUT', child: Text('Lunch Out')),
-                DropdownMenuItem(value: 'LUNCH_IN', child: Text('Lunch In')),
-                DropdownMenuItem(value: 'CHECK_OUT', child: Text('Check Out')),
-              ],
-              onChanged: (value) {
-                setState(() => _selectedPunchTypeFilter = value);
-              },
-            ),
-          ),
-        ),
-
-        // Legend - Compact version (already handled in map view, so remove from filters)
-      ],
-    );
-  }
-
-  Widget _buildMobileSummaryStats() {
-    return SizedBox(
-      height: 120,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 4),
+  Widget _buildCollapsibleMobileFilters(ColorScheme colorScheme) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
+    return Card(
+      elevation: isDark ? 0 : 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: isDark
+            ? BorderSide(
+                color: colorScheme.outline.withOpacity(0.2),
+                width: 1,
+              )
+            : BorderSide.none,
+      ),
+      color: isDark
+          ? colorScheme.surfaceVariant.withOpacity(0.3)
+          : colorScheme.surface,
+      child: Column(
         children: [
-          _buildSummaryCard('Total Punches', _filteredLogs.length, Colors.blue, isMobile: true),
-          const SizedBox(width: 12),
-          _buildSummaryCard(
-            'Check Ins',
-            _filteredLogs.where((l) => l.punchType.toUpperCase() == 'CHECK_IN').length,
-            const Color(0xFF4CAF50),
-            isMobile: true,
+          // Filter Header with Toggle
+          InkWell(
+            onTap: () {
+              setState(() {
+                _isFiltersExpanded = !_isFiltersExpanded;
+              });
+            },
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(12),
+              topRight: Radius.circular(12),
+            ),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.filter_list,
+                    size: 20,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Filters',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: colorScheme.onSurface,
+                    ),
+                  ),
+                  const Spacer(),
+                  AnimatedRotation(
+                    turns: _isFiltersExpanded ? 0.5 : 0,
+                    duration: const Duration(milliseconds: 200),
+                    child: Icon(
+                      Icons.keyboard_arrow_down,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-          const SizedBox(width: 12),
-          _buildSummaryCard(
-            'Lunch Out',
-            _filteredLogs.where((l) => l.punchType.toUpperCase() == 'LUNCH_OUT').length,
-            const Color(0xFFFF9800),
-            isMobile: true,
-          ),
-          const SizedBox(width: 12),
-          _buildSummaryCard(
-            'Lunch In',
-            _filteredLogs.where((l) => l.punchType.toUpperCase() == 'LUNCH_IN').length,
-            const Color(0xFF2196F3),
-            isMobile: true,
-          ),
-          const SizedBox(width: 12),
-          _buildSummaryCard(
-            'Check Outs',
-            _filteredLogs.where((l) => l.punchType.toUpperCase() == 'CHECK_OUT').length,
-            const Color(0xFFF44336),
-            isMobile: true,
+          // Collapsible Filter Content
+          AnimatedCrossFade(
+            firstChild: const SizedBox.shrink(),
+            secondChild: _buildMobileFilters(colorScheme),
+            crossFadeState: _isFiltersExpanded
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
+            duration: const Duration(milliseconds: 300),
+            sizeCurve: Curves.easeInOut,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildDesktopSummaryStats() {
+  Widget _buildMobileFilters(ColorScheme colorScheme) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Date Picker
+          InkWell(
+            onTap: _selectDate,
+            borderRadius: BorderRadius.circular(10),
+            child: Container(
+              height: 44,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: isDark 
+                      ? colorScheme.outline.withOpacity(0.2)
+                      : colorScheme.outline.withOpacity(0.3),
+                ),
+                borderRadius: BorderRadius.circular(10),
+                color: colorScheme.surfaceVariant.withOpacity(0.3),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.calendar_today,
+                    size: 16,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      DateFormat('dd MMM yyyy').format(_selectedDate),
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: colorScheme.onSurface,
+                      ),
+                    ),
+                  ),
+                  Icon(
+                    Icons.arrow_drop_down,
+                    size: 20,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // Site Filter
+          DropdownButtonFormField<String>(
+            value: _selectedSiteFilter,
+            decoration: InputDecoration(
+              prefixIcon: Icon(
+                Icons.business,
+                size: 16,
+                color: colorScheme.onSurfaceVariant,
+              ),
+              hintText: 'Filter by Site',
+              hintStyle: TextStyle(
+                fontSize: 14,
+                color: colorScheme.onSurfaceVariant,
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+              isDense: true,
+              filled: true,
+              fillColor: colorScheme.surfaceVariant.withOpacity(0.3),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(
+                  color: isDark 
+                      ? colorScheme.outline.withOpacity(0.2)
+                      : colorScheme.outline.withOpacity(0.3),
+                ),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(
+                  color: isDark 
+                      ? colorScheme.outline.withOpacity(0.2)
+                      : colorScheme.outline.withOpacity(0.3),
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(
+                  color: colorScheme.primary,
+                  width: 1.5,
+                ),
+              ),
+              constraints: const BoxConstraints(minHeight: 44),
+            ),
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: colorScheme.onSurface,
+            ),
+            items: [
+              DropdownMenuItem(
+                value: 'all',
+                child: Text(
+                  'All Sites',
+                  style: TextStyle(color: colorScheme.onSurface),
+                ),
+              ),
+              ..._sites.map((site) => DropdownMenuItem(
+                    value: site.id.toString(),
+                    child: Text(
+                      site.siteName,
+                      style: TextStyle(color: colorScheme.onSurface),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  )),
+            ],
+            onChanged: (value) {
+              setState(() => _selectedSiteFilter = value);
+              // Update map camera to fit filtered bounds
+              Future.delayed(const Duration(milliseconds: 100), () {
+                if (mounted && _mapController != null) {
+                  _fitBounds();
+                }
+              });
+            },
+          ),
+          const SizedBox(height: 10),
+
+          // Employee Filter
+          DropdownButtonFormField<String>(
+            value: _selectedEmployeeFilter,
+            decoration: InputDecoration(
+              prefixIcon: Icon(
+                Icons.person,
+                size: 16,
+                color: colorScheme.onSurfaceVariant,
+              ),
+              hintText: 'Filter by Employee',
+              hintStyle: TextStyle(
+                fontSize: 14,
+                color: colorScheme.onSurfaceVariant,
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+              isDense: true,
+              filled: true,
+              fillColor: colorScheme.surfaceVariant.withOpacity(0.3),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(
+                  color: isDark 
+                      ? colorScheme.outline.withOpacity(0.2)
+                      : colorScheme.outline.withOpacity(0.3),
+                ),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(
+                  color: isDark 
+                      ? colorScheme.outline.withOpacity(0.2)
+                      : colorScheme.outline.withOpacity(0.3),
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(
+                  color: colorScheme.primary,
+                  width: 1.5,
+                ),
+              ),
+              constraints: const BoxConstraints(minHeight: 44),
+            ),
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: colorScheme.onSurface,
+            ),
+            items: [
+              DropdownMenuItem(
+                value: 'all',
+                child: Text(
+                  'All Employees',
+                  style: TextStyle(color: colorScheme.onSurface),
+                ),
+              ),
+              ..._employees.map((employee) => DropdownMenuItem(
+                    value: employee.employeeId,
+                    child: Text(
+                      '${employee.firstName} ${employee.lastName}',
+                      style: TextStyle(color: colorScheme.onSurface),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  )),
+            ],
+            onChanged: (value) {
+              setState(() => _selectedEmployeeFilter = value);
+              // Update map camera to fit filtered bounds
+              Future.delayed(const Duration(milliseconds: 100), () {
+                if (mounted && _mapController != null) {
+                  _fitBounds();
+                }
+              });
+            },
+          ),
+          const SizedBox(height: 10),
+
+          // Punch Type Filter
+          DropdownButtonFormField<String>(
+            value: _selectedPunchTypeFilter,
+            decoration: InputDecoration(
+              prefixIcon: Icon(
+                Icons.access_time,
+                size: 16,
+                color: colorScheme.onSurfaceVariant,
+              ),
+              hintText: 'Filter by Punch',
+              hintStyle: TextStyle(
+                fontSize: 14,
+                color: colorScheme.onSurfaceVariant,
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+              isDense: true,
+              filled: true,
+              fillColor: colorScheme.surfaceVariant.withOpacity(0.3),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(
+                  color: isDark 
+                      ? colorScheme.outline.withOpacity(0.2)
+                      : colorScheme.outline.withOpacity(0.3),
+                ),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(
+                  color: isDark 
+                      ? colorScheme.outline.withOpacity(0.2)
+                      : colorScheme.outline.withOpacity(0.3),
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(
+                  color: colorScheme.primary,
+                  width: 1.5,
+                ),
+              ),
+              constraints: const BoxConstraints(minHeight: 44),
+            ),
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: colorScheme.onSurface,
+            ),
+            items: const [
+              DropdownMenuItem(value: 'all', child: Text('All Punches')),
+              DropdownMenuItem(value: 'CHECK_IN', child: Text('Check In')),
+              DropdownMenuItem(value: 'LUNCH_OUT', child: Text('Lunch Out')),
+              DropdownMenuItem(value: 'LUNCH_IN', child: Text('Lunch In')),
+              DropdownMenuItem(value: 'CHECK_OUT', child: Text('Check Out')),
+            ],
+            onChanged: (value) {
+              setState(() => _selectedPunchTypeFilter = value);
+              // Update map camera to fit filtered bounds
+              Future.delayed(const Duration(milliseconds: 100), () {
+                if (mounted && _mapController != null) {
+                  _fitBounds();
+                }
+              });
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+
+  Widget _buildCollapsibleDesktopFilters(ColorScheme colorScheme) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
+    return Column(
+      children: [
+        // Filter Header with Toggle
+        InkWell(
+          onTap: () {
+            setState(() {
+              _isFiltersExpanded = !_isFiltersExpanded;
+            });
+          },
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            decoration: BoxDecoration(
+              color: isDark
+                  ? colorScheme.surfaceVariant.withOpacity(0.3)
+                  : colorScheme.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border(
+                bottom: BorderSide(
+                  color: colorScheme.outline.withOpacity(0.1),
+                  width: 1,
+                ),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.filter_list,
+                  size: 20,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Filters',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: colorScheme.onSurface,
+                  ),
+                ),
+                const Spacer(),
+                AnimatedRotation(
+                  turns: _isFiltersExpanded ? 0.5 : 0,
+                  duration: const Duration(milliseconds: 200),
+                  child: Icon(
+                    Icons.keyboard_arrow_down,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        // Collapsible Filter Content
+        AnimatedCrossFade(
+          firstChild: const SizedBox.shrink(),
+          secondChild: Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: _buildDesktopFilters(colorScheme),
+          ),
+          crossFadeState: _isFiltersExpanded
+              ? CrossFadeState.showSecond
+              : CrossFadeState.showFirst,
+          duration: const Duration(milliseconds: 300),
+          sizeCurve: Curves.easeInOut,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDesktopFilters(ColorScheme colorScheme) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
     return Row(
       children: [
-        _buildSummaryCard('Total Punches', _filteredLogs.length, Colors.blue),
-        const SizedBox(width: 16),
-        _buildSummaryCard(
-          'Check Ins',
-          _filteredLogs.where((l) => l.punchType.toUpperCase() == 'CHECK_IN').length,
-          const Color(0xFF4CAF50),
+        // Date Picker
+        InkWell(
+          onTap: _selectDate,
+          child: Container(
+            height: 40,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: isDark 
+                    ? colorScheme.outline.withOpacity(0.3)
+                    : colorScheme.outline.withOpacity(0.5),
+              ),
+              borderRadius: BorderRadius.circular(12),
+              color: colorScheme.surfaceVariant.withOpacity(0.3),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.calendar_today,
+                  size: 16,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  DateFormat('dd MMM yyyy').format(_selectedDate),
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Icon(
+                  Icons.arrow_drop_down,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ],
+            ),
+          ),
         ),
-        const SizedBox(width: 16),
-        _buildSummaryCard(
-          'Lunch Out',
-          _filteredLogs.where((l) => l.punchType.toUpperCase() == 'LUNCH_OUT').length,
-          const Color(0xFFFF9800),
+        const SizedBox(width: 12),
+
+        // Site Filter
+        Flexible(
+          flex: 1,
+          child: DropdownButtonFormField<String>(
+            value: _selectedSiteFilter,
+            decoration: InputDecoration(
+              labelText: 'Filter by Site',
+              labelStyle: TextStyle(
+                fontSize: 13,
+                color: colorScheme.onSurfaceVariant,
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+              isDense: true,
+              filled: true,
+              fillColor: colorScheme.surfaceVariant.withOpacity(0.3),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                  color: isDark 
+                      ? colorScheme.outline.withOpacity(0.3)
+                      : colorScheme.outline.withOpacity(0.5),
+                ),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                  color: isDark 
+                      ? colorScheme.outline.withOpacity(0.3)
+                      : colorScheme.outline.withOpacity(0.5),
+                ),
+              ),
+              constraints: const BoxConstraints(minHeight: 40),
+            ),
+            style: TextStyle(
+              fontSize: 14,
+              color: colorScheme.onSurface,
+            ),
+            items: [
+              DropdownMenuItem(value: 'all', child: Text('All Sites')),
+              ..._sites.map((site) => DropdownMenuItem(
+                    value: site.id.toString(),
+                    child: Text(
+                      site.siteName,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  )),
+            ],
+            onChanged: (value) {
+              setState(() => _selectedSiteFilter = value);
+              // Update map camera to fit filtered bounds
+              Future.delayed(const Duration(milliseconds: 100), () {
+                if (mounted && _mapController != null) {
+                  _fitBounds();
+                }
+              });
+            },
+          ),
         ),
-        const SizedBox(width: 16),
-        _buildSummaryCard(
-          'Lunch In',
-          _filteredLogs.where((l) => l.punchType.toUpperCase() == 'LUNCH_IN').length,
-          const Color(0xFF2196F3),
+        const SizedBox(width: 12),
+
+        // Employee Filter
+        Flexible(
+          flex: 1,
+          child: DropdownButtonFormField<String>(
+            value: _selectedEmployeeFilter,
+            decoration: InputDecoration(
+              labelText: 'Filter by Employee',
+              labelStyle: TextStyle(
+                fontSize: 13,
+                color: colorScheme.onSurfaceVariant,
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+              isDense: true,
+              filled: true,
+              fillColor: colorScheme.surfaceVariant.withOpacity(0.3),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                  color: isDark 
+                      ? colorScheme.outline.withOpacity(0.3)
+                      : colorScheme.outline.withOpacity(0.5),
+                ),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                  color: isDark 
+                      ? colorScheme.outline.withOpacity(0.3)
+                      : colorScheme.outline.withOpacity(0.5),
+                ),
+              ),
+              constraints: const BoxConstraints(minHeight: 40),
+            ),
+            style: TextStyle(
+              fontSize: 14,
+              color: colorScheme.onSurface,
+            ),
+            items: [
+              DropdownMenuItem(
+                value: 'all',
+                child: Text(
+                  'All Employees',
+                  style: TextStyle(color: colorScheme.onSurface),
+                ),
+              ),
+              ..._employees.map((employee) => DropdownMenuItem(
+                    value: employee.employeeId,
+                    child: Text(
+                      '${employee.firstName} ${employee.lastName}',
+                      style: TextStyle(color: colorScheme.onSurface),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  )),
+            ],
+            onChanged: (value) {
+              setState(() => _selectedEmployeeFilter = value);
+              // Update map camera to fit filtered bounds
+              Future.delayed(const Duration(milliseconds: 100), () {
+                if (mounted && _mapController != null) {
+                  _fitBounds();
+                }
+              });
+            },
+          ),
         ),
-        const SizedBox(width: 16),
-        _buildSummaryCard(
-          'Check Outs',
-          _filteredLogs.where((l) => l.punchType.toUpperCase() == 'CHECK_OUT').length,
-          const Color(0xFFF44336),
+        const SizedBox(width: 12),
+
+        // Punch Type Filter
+        Flexible(
+          flex: 1,
+          child: DropdownButtonFormField<String>(
+            value: _selectedPunchTypeFilter,
+            decoration: InputDecoration(
+              labelText: 'Filter by Punch',
+              labelStyle: TextStyle(
+                fontSize: 13,
+                color: colorScheme.onSurfaceVariant,
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+              isDense: true,
+              filled: true,
+              fillColor: colorScheme.surfaceVariant.withOpacity(0.3),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                  color: isDark 
+                      ? colorScheme.outline.withOpacity(0.3)
+                      : colorScheme.outline.withOpacity(0.5),
+                ),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                  color: isDark 
+                      ? colorScheme.outline.withOpacity(0.3)
+                      : colorScheme.outline.withOpacity(0.5),
+                ),
+              ),
+              constraints: const BoxConstraints(minHeight: 40),
+            ),
+            style: TextStyle(
+              fontSize: 14,
+              color: colorScheme.onSurface,
+            ),
+            items: const [
+              DropdownMenuItem(value: 'all', child: Text('All Punches')),
+              DropdownMenuItem(value: 'CHECK_IN', child: Text('Check In')),
+              DropdownMenuItem(value: 'LUNCH_OUT', child: Text('Lunch Out')),
+              DropdownMenuItem(value: 'LUNCH_IN', child: Text('Lunch In')),
+              DropdownMenuItem(value: 'CHECK_OUT', child: Text('Check Out')),
+            ],
+            onChanged: (value) {
+              setState(() => _selectedPunchTypeFilter = value);
+              // Update map camera to fit filtered bounds
+              Future.delayed(const Duration(milliseconds: 100), () {
+                if (mounted && _mapController != null) {
+                  _fitBounds();
+                }
+              });
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+
+  Widget _buildMobileSummaryStats(ColorScheme colorScheme) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
+    final stats = [
+      {
+        'label': 'Total Punches',
+        'count': _filteredLogs.length,
+        'color': Colors.blue,
+      },
+      {
+        'label': 'Check Ins',
+        'count': _filteredLogs.where((l) => l.punchType.toUpperCase() == 'CHECK_IN').length,
+        'color': const Color(0xFF4CAF50),
+      },
+      {
+        'label': 'Lunch Out',
+        'count': _filteredLogs.where((l) => l.punchType.toUpperCase() == 'LUNCH_OUT').length,
+        'color': const Color(0xFFFF9800),
+      },
+      {
+        'label': 'Lunch In',
+        'count': _filteredLogs.where((l) => l.punchType.toUpperCase() == 'LUNCH_IN').length,
+        'color': const Color(0xFF2196F3),
+      },
+      {
+        'label': 'Check Outs',
+        'count': _filteredLogs.where((l) => l.punchType.toUpperCase() == 'CHECK_OUT').length,
+        'color': const Color(0xFFF44336),
+      },
+    ];
+
+    return Column(
+      children: [
+        SizedBox(
+          height: 100,
+          child: PageView.builder(
+            controller: _statsPageController,
+            itemCount: stats.length,
+            onPageChanged: (index) {
+              setState(() {
+                _currentStatsPage = index;
+              });
+            },
+            itemBuilder: (context, index) {
+              final stat = stats[index];
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: _buildSummaryCard(
+                  stat['label'] as String,
+                  stat['count'] as int,
+                  stat['color'] as Color,
+                  colorScheme,
+                  isMobile: true,
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(
+            stats.length,
+            (index) => AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: _currentStatsPage == index ? 24 : 8,
+              height: 8,
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(4),
+                color: _currentStatsPage == index
+                    ? colorScheme.primary
+                    : colorScheme.onSurfaceVariant.withOpacity(0.3),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDesktopSummaryStats() {
+    final colorScheme = Theme.of(context).colorScheme;
+    
+    final stats = [
+      {
+        'label': 'Total Punches',
+        'count': _filteredLogs.length,
+        'color': Colors.blue,
+      },
+      {
+        'label': 'Check Ins',
+        'count': _filteredLogs.where((l) => l.punchType.toUpperCase() == 'CHECK_IN').length,
+        'color': const Color(0xFF4CAF50),
+      },
+      {
+        'label': 'Lunch Out',
+        'count': _filteredLogs.where((l) => l.punchType.toUpperCase() == 'LUNCH_OUT').length,
+        'color': const Color(0xFFFF9800),
+      },
+      {
+        'label': 'Lunch In',
+        'count': _filteredLogs.where((l) => l.punchType.toUpperCase() == 'LUNCH_IN').length,
+        'color': const Color(0xFF2196F3),
+      },
+      {
+        'label': 'Check Outs',
+        'count': _filteredLogs.where((l) => l.punchType.toUpperCase() == 'CHECK_OUT').length,
+        'color': const Color(0xFFF44336),
+      },
+    ];
+
+    return Column(
+      children: [
+        SizedBox(
+          height: 100,
+          child: PageView.builder(
+            controller: _statsPageController,
+            itemCount: stats.length,
+            itemBuilder: (context, index) {
+              final stat = stats[index];
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: _buildSummaryCard(
+                  stat['label'] as String,
+                  stat['count'] as int,
+                  stat['color'] as Color,
+                  colorScheme,
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(
+            stats.length,
+            (index) => Container(
+              width: 8,
+              height: 8,
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: colorScheme.onSurfaceVariant.withOpacity(0.3),
+              ),
+            ),
+          ),
         ),
       ],
     );
   }
 
   Widget _buildMobileMainContent(ColorScheme colorScheme) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
     return Column(
       children: [
         // Map View
         Container(
           height: 300,
-          margin: const EdgeInsets.all(12),
+          margin: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
-            color: Colors.grey[200],
+            color: colorScheme.surfaceVariant.withOpacity(0.3),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey[300]!),
+            border: Border.all(
+              color: colorScheme.outline.withOpacity(0.2),
+              width: 1,
+            ),
           ),
           clipBehavior: Clip.antiAlias,
-          child: _buildMapView(),
+          child: Stack(
+            children: [
+              _buildMapView(),
+              // Map Title (top-left)
+              Positioned(
+                top: 12,
+                left: 12,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: colorScheme.surface.withOpacity(0.9),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    'Punch Locations on Map',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: colorScheme.onSurface,
+                    ),
+                  ),
+                ),
+              ),
+              // Map Controls (top-right)
+              Positioned(
+                top: 12,
+                right: 12,
+                child: Column(
+                  children: [
+                    _buildMapControlButton(
+                      Icons.add,
+                      () {
+                        _mapController?.animateCamera(
+                          CameraUpdate.zoomIn(),
+                        );
+                      },
+                      colorScheme,
+                    ),
+                    const SizedBox(height: 8),
+                    _buildMapControlButton(
+                      Icons.remove,
+                      () {
+                        _mapController?.animateCamera(
+                          CameraUpdate.zoomOut(),
+                        );
+                      },
+                      colorScheme,
+                    ),
+                    const SizedBox(height: 8),
+                    _buildMapControlButton(
+                      Icons.my_location,
+                      () {
+                        _fitBounds();
+                      },
+                      colorScheme,
+                    ),
+                  ],
+                ),
+              ),
+              // Full Screen Button (bottom-left)
+              Positioned(
+                bottom: 12,
+                left: 12,
+                child: _buildMapControlButton(
+                  Icons.fullscreen,
+                  _showFullScreenMap,
+                  colorScheme,
+                ),
+              ),
+            ],
+          ),
         ),
+        const SizedBox(height: 12),
 
         // Attendance List
         Card(
-          margin: const EdgeInsets.all(12),
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          elevation: isDark ? 0 : 1,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: isDark
+                ? BorderSide(
+                    color: colorScheme.outline.withOpacity(0.2),
+                    width: 1,
+                  )
+                : BorderSide.none,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: colorScheme.primaryContainer.withOpacity(0.3),
+                  color: isDark
+                      ? colorScheme.surfaceVariant.withOpacity(0.3)
+                      : colorScheme.surfaceVariant.withOpacity(0.5),
                   borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(12),
                     topRight: Radius.circular(12),
@@ -578,11 +1261,19 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.list_alt, size: 20),
+                    Icon(
+                      Icons.list_alt,
+                      size: 18,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       'Attendance Log (${_filteredLogs.length})',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                        color: colorScheme.onSurface,
+                      ),
                     ),
                   ],
                 ),
@@ -594,20 +1285,46 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.inbox, size: 48, color: Colors.grey[400]),
-                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                color: colorScheme.surfaceVariant.withOpacity(0.3),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.inbox_outlined,
+                                size: 48,
+                                color: colorScheme.onSurfaceVariant.withOpacity(0.5),
+                              ),
+                            ),
+                            const SizedBox(height: 20),
                             Text(
-                              'No attendance records',
-                              style: TextStyle(color: Colors.grey[600]),
+                              'No Attendance Logs',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                                color: colorScheme.onSurface,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 32),
+                              child: Text(
+                                'No logs found for the selected filters. Try adjusting your filters or select a different date.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+                                ),
+                              ),
                             ),
                           ],
                         ),
                       )
-                    : ListView.separated(
+                    : ListView.builder(
                         physics: const AlwaysScrollableScrollPhysics(),
-                        padding: const EdgeInsets.all(8),
+                        padding: const EdgeInsets.symmetric(vertical: 8),
                         itemCount: _filteredLogs.length,
-                        separatorBuilder: (_, __) => const Divider(height: 1),
                         itemBuilder: (context, index) {
                           final log = _filteredLogs[index];
                           return _buildAttendanceLogTile(log);
@@ -628,29 +1345,119 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
         Expanded(
           flex: 6,
           child: Container(
-            margin: const EdgeInsets.all(16),
+            margin: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
-              color: Colors.grey[200],
+              color: colorScheme.surfaceVariant.withOpacity(0.3),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey[300]!),
+              border: Border.all(
+                color: colorScheme.outline.withOpacity(0.2),
+                width: 1,
+              ),
             ),
             clipBehavior: Clip.antiAlias,
-            child: _buildMapView(),
+            child: Stack(
+              children: [
+                _buildMapView(),
+                // Map Title (top-left)
+                Positioned(
+                  top: 12,
+                  left: 12,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: colorScheme.surface.withOpacity(0.9),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      'Punch Locations on Map',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: colorScheme.onSurface,
+                      ),
+                    ),
+                  ),
+                ),
+                // Map Controls (top-right)
+                Positioned(
+                  top: 12,
+                  right: 12,
+                  child: Column(
+                    children: [
+                      _buildMapControlButton(
+                        Icons.add,
+                        () {
+                          _mapController?.animateCamera(
+                            CameraUpdate.zoomIn(),
+                          );
+                        },
+                        colorScheme,
+                      ),
+                      const SizedBox(height: 8),
+                      _buildMapControlButton(
+                        Icons.remove,
+                        () {
+                          _mapController?.animateCamera(
+                            CameraUpdate.zoomOut(),
+                          );
+                        },
+                        colorScheme,
+                      ),
+                      const SizedBox(height: 8),
+                      _buildMapControlButton(
+                        Icons.my_location,
+                        () {
+                          _fitBounds();
+                        },
+                        colorScheme,
+                      ),
+                    ],
+                  ),
+                ),
+                // Full Screen Button (bottom-left)
+                Positioned(
+                  bottom: 12,
+                  left: 12,
+                  child: _buildMapControlButton(
+                    Icons.fullscreen,
+                    _showFullScreenMap,
+                    colorScheme,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
+        const SizedBox(height: 12),
 
         // Attendance List - Below Map (40% of available space)
         Expanded(
           flex: 4,
-          child: Card(
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: colorScheme.primaryContainer.withOpacity(0.3),
+          child: Builder(
+            builder: (context) {
+              final theme = Theme.of(context);
+              final isDark = theme.brightness == Brightness.dark;
+              return Card(
+                margin: const EdgeInsets.symmetric(horizontal: 16),
+                elevation: isDark ? 0 : 1,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: isDark
+                      ? BorderSide(
+                          color: colorScheme.outline.withOpacity(0.2),
+                          width: 1,
+                        )
+                      : BorderSide.none,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? colorScheme.surfaceVariant.withOpacity(0.3)
+                            : colorScheme.surfaceVariant.withOpacity(0.5),
                     borderRadius: const BorderRadius.only(
                       topLeft: Radius.circular(12),
                       topRight: Radius.circular(12),
@@ -658,78 +1465,129 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.list_alt),
+                      Icon(
+                        Icons.list_alt,
+                        size: 18,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
                       const SizedBox(width: 8),
                       Text(
                         'Attendance Log (${_filteredLogs.length})',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                          color: colorScheme.onSurface,
+                        ),
                       ),
                     ],
-                  ),
-                ),
-                Expanded(
-                  child: _filteredLogs.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.inbox, size: 48, color: Colors.grey[400]),
-                              const SizedBox(height: 8),
-                              Text(
-                                'No attendance records',
-                                style: TextStyle(color: Colors.grey[600]),
+                      ),
+                    ),
+                    Expanded(
+                      child: _filteredLogs.isEmpty
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.inbox,
+                                    size: 48,
+                                    color: colorScheme.onSurfaceVariant.withOpacity(0.5),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    'No punch records for today.',
+                                    style: TextStyle(
+                                      color: colorScheme.onSurfaceVariant,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
-                        )
-                      : ListView.separated(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          padding: const EdgeInsets.all(8),
-                          itemCount: _filteredLogs.length,
-                          separatorBuilder: (_, __) => const Divider(height: 1),
-                          itemBuilder: (context, index) {
-                            final log = _filteredLogs[index];
-                            return _buildAttendanceLogTile(log);
-                          },
-                        ),
+                            )
+                          : ListView.separated(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              padding: const EdgeInsets.all(8),
+                              itemCount: _filteredLogs.length,
+                              separatorBuilder: (_, __) => const Divider(height: 1),
+                              itemBuilder: (context, index) {
+                                final log = _filteredLogs[index];
+                                return _buildAttendanceLogTile(log);
+                              },
+                            ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              );
+            },
           ),
         ),
       ],
     );
   }
 
-  Widget _buildMobileLegend() {
-    return Wrap(
-      spacing: 12,
-      runSpacing: 8,
-      children: [
-        _buildLegendItem('Check In', const Color(0xFF4CAF50)),
-        _buildLegendItem('Lunch Out', const Color(0xFFFF9800)),
-        _buildLegendItem('Lunch In', const Color(0xFF2196F3)),
-        _buildLegendItem('Check Out', const Color(0xFFF44336)),
-      ],
+  Widget _buildMapControlButton(IconData icon, VoidCallback onPressed, ColorScheme colorScheme) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: colorScheme.surface.withOpacity(0.9),
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: colorScheme.outline.withOpacity(0.2),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(20),
+          child: Icon(
+            icon,
+            size: 20,
+            color: colorScheme.onSurface,
+          ),
+        ),
+      ),
     );
   }
 
-  Widget _buildSummaryCard(String label, int count, Color color, {bool isMobile = false}) {
+  Widget _buildSummaryCard(String label, int count, Color color, ColorScheme colorScheme, {bool isMobile = false}) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
     final card = Container(
-      padding: EdgeInsets.all(isMobile ? 12 : 16),
-      width: isMobile ? 100 : null,
+      padding: EdgeInsets.all(isMobile ? 14 : 16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        color: isDark 
+            ? color.withOpacity(0.15)
+            : color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: isDark
+            ? Border.all(
+                color: colorScheme.outline.withOpacity(0.2),
+                width: 1,
+              )
+            : null,
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Text(
             count.toString(),
             style: TextStyle(
-              fontSize: isMobile ? 24 : 28,
+              fontSize: isMobile ? 20 : 22,
               fontWeight: FontWeight.bold,
               color: color,
             ),
@@ -739,8 +1597,9 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
             label,
             textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: isMobile ? 11 : 12,
-              color: color.withOpacity(0.8),
+              fontSize: isMobile ? 12 : 13,
+              color: colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w500,
             ),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
@@ -749,126 +1608,223 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
       ),
     );
 
-    if (isMobile) {
-      return card;
-    } else {
-      return Expanded(child: card);
-    }
+    return card;
   }
 
-  Widget _buildLegend() {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _buildLegendItem('Check In', const Color(0xFF4CAF50)),
-        const SizedBox(width: 16),
-        _buildLegendItem('Lunch Out', const Color(0xFFFF9800)),
-        const SizedBox(width: 16),
-        _buildLegendItem('Lunch In', const Color(0xFF2196F3)),
-        const SizedBox(width: 16),
-        _buildLegendItem('Check Out', const Color(0xFFF44336)),
-      ],
-    );
-  }
 
-  Widget _buildLegendItem(String label, Color color) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 14,
-          height: 14,
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-          ),
-        ),
-        const SizedBox(width: 6),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: _isMobile(context) ? 11 : 12,
-          ),
-        ),
-      ],
-    );
-  }
 
-  Widget _buildCompactLegend() {
+  Widget _buildAttendanceLogTile(GpsAttendanceLog log) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final isMobile = _isMobile(context);
+    final punchColor = Color(log.punchTypeColor);
+    
     return Card(
-      child: _isLegendExpanded
-          ? ConstrainedBox(
-              constraints: BoxConstraints(
-                maxWidth: isMobile ? 200 : 220,
+      margin: EdgeInsets.symmetric(
+        horizontal: isMobile ? 8 : 12,
+        vertical: 6,
+      ),
+      elevation: isDark ? 0 : 1,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: isDark
+            ? BorderSide(
+                color: colorScheme.outline.withOpacity(0.1),
+                width: 1,
+              )
+            : BorderSide.none,
+      ),
+      child: InkWell(
+        onTap: () => _showLogDetails(log),
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: EdgeInsets.all(isMobile ? 12 : 16),
+          child: Row(
+            children: [
+              // Punch Type Icon
+              Container(
+                width: isMobile ? 48 : 56,
+                height: isMobile ? 48 : 56,
+                decoration: BoxDecoration(
+                  color: punchColor.withOpacity(isDark ? 0.2 : 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: punchColor.withOpacity(0.3),
+                    width: 1.5,
+                  ),
+                ),
+                child: Icon(
+                  _getPunchTypeIcon(log.punchType),
+                  color: punchColor,
+                  size: isMobile ? 24 : 28,
+                ),
               ),
-              child: Padding(
-                padding: EdgeInsets.all(isMobile ? 8 : 10),
+              const SizedBox(width: 12),
+              
+              // Main Content
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    // Employee Name
                     Row(
                       children: [
-                        Icon(
-                          Icons.info_outline,
-                          size: isMobile ? 16 : 18,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                        const SizedBox(width: 6),
                         Expanded(
                           child: Text(
-                            'Legend',
+                            log.employeeName ?? log.employeeId,
                             style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: isMobile ? 12 : 13,
+                              fontWeight: FontWeight.w600,
+                              fontSize: isMobile ? 15 : 16,
+                              color: colorScheme.onSurface,
                             ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
                           ),
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.close, size: 18),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                          onPressed: () {
-                            setState(() {
-                              _isLegendExpanded = false;
-                            });
-                          },
-                          tooltip: 'Hide Legend',
-                        ),
+                        // Status Badges
+                        if (!log.isInsideGeofence)
+                          Container(
+                            margin: const EdgeInsets.only(left: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.red.withOpacity(isDark ? 0.2 : 0.1),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: Colors.red.withOpacity(0.3),
+                                width: 1,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.location_off,
+                                  size: 12,
+                                  color: Colors.red,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Outside',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.red,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        if (log.isMockLocation)
+                          Container(
+                            margin: const EdgeInsets.only(left: 6),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.withOpacity(isDark ? 0.2 : 0.1),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: Colors.orange.withOpacity(0.3),
+                                width: 1,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.warning_amber_rounded,
+                                  size: 12,
+                                  color: Colors.orange,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Mock',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.orange,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                       ],
                     ),
-                    SizedBox(height: isMobile ? 6 : 8),
-                    _buildLegendItem('Check In', Colors.green),
-                    SizedBox(height: isMobile ? 3 : 4),
-                    _buildLegendItem('Lunch Out', Colors.orange),
-                    SizedBox(height: isMobile ? 3 : 4),
-                    _buildLegendItem('Lunch In', Colors.blue),
-                    SizedBox(height: isMobile ? 3 : 4),
-                    _buildLegendItem('Check Out', Colors.red),
-                    SizedBox(height: isMobile ? 6 : 8),
-                    const Divider(height: 1),
-                    SizedBox(height: isMobile ? 6 : 8),
+                    const SizedBox(height: 6),
+                    
+                    // Punch Type & Site
                     Row(
-                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Container(
-                          width: isMobile ? 12 : 14,
-                          height: isMobile ? 12 : 14,
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: Colors.grey,
-                              width: isMobile ? 1.5 : 2,
+                            color: punchColor.withOpacity(isDark ? 0.15 : 0.1),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            log.punchTypeLabel,
+                            style: TextStyle(
+                              color: punchColor,
+                              fontSize: isMobile ? 11 : 12,
+                              fontWeight: FontWeight.w600,
                             ),
-                            color: Colors.transparent,
                           ),
                         ),
-                        const SizedBox(width: 6),
+                        if (log.siteName != null) ...[
+                          const SizedBox(width: 8),
+                          Icon(
+                            Icons.business,
+                            size: 14,
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              log.siteName!,
+                              style: TextStyle(
+                                fontSize: isMobile ? 12 : 13,
+                                color: colorScheme.onSurfaceVariant,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    
+                    // Distance & Time
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        if (log.distanceFromSite != null) ...[
+                          Icon(
+                            Icons.straighten,
+                            size: 14,
+                            color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${log.distanceFromSite!.toStringAsFixed(0)}m',
+                            style: TextStyle(
+                              fontSize: isMobile ? 11 : 12,
+                              color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                        ],
+                        Icon(
+                          Icons.access_time,
+                          size: 14,
+                          color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+                        ),
+                        const SizedBox(width: 4),
                         Text(
-                          'Site Boundary',
+                          DateFormat('HH:mm:ss').format(log.punchTime),
                           style: TextStyle(
-                            fontSize: isMobile ? 10 : 11,
+                            fontSize: isMobile ? 11 : 12,
+                            color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ],
@@ -876,118 +1832,44 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
                   ],
                 ),
               ),
-            )
-          : IconButton(
-              icon: Icon(
-                Icons.info_outline,
-                size: isMobile ? 20 : 24,
-                color: Theme.of(context).colorScheme.primary,
+              
+              // Time Badge
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceVariant.withOpacity(0.5),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: colorScheme.outline.withOpacity(0.1),
+                    width: 1,
+                  ),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      DateFormat('HH:mm').format(log.punchTime),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: isMobile ? 16 : 18,
+                        color: colorScheme.onSurface,
+                      ),
+                    ),
+                    Text(
+                      DateFormat('dd MMM').format(log.punchTime),
+                      style: TextStyle(
+                        fontSize: isMobile ? 9 : 10,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              onPressed: () {
-                setState(() {
-                  _isLegendExpanded = true;
-                });
-              },
-              tooltip: 'Show Legend',
-              style: IconButton.styleFrom(
-                backgroundColor: Colors.white,
-                padding: EdgeInsets.all(isMobile ? 8 : 10),
-              ),
-            ),
-    );
-  }
-
-  Widget _buildAttendanceLogTile(GpsAttendanceLog log) {
-    final isMobile = _isMobile(context);
-    return ListTile(
-      contentPadding: EdgeInsets.symmetric(
-        horizontal: isMobile ? 8 : 12,
-        vertical: isMobile ? 6 : 4,
-      ),
-      dense: isMobile,
-      leading: Container(
-        width: isMobile ? 36 : 40,
-        height: isMobile ? 36 : 40,
-        decoration: BoxDecoration(
-          color: Color(log.punchTypeColor).withOpacity(0.2),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Icon(
-          _getPunchTypeIcon(log.punchType),
-          color: Color(log.punchTypeColor),
-          size: isMobile ? 18 : 20,
-        ),
-      ),
-      title: Text(
-        log.employeeName ?? log.employeeId,
-        style: TextStyle(
-          fontWeight: FontWeight.w600,
-          fontSize: isMobile ? 13 : 14,
-        ),
-        overflow: TextOverflow.ellipsis,
-        maxLines: 1,
-      ),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            log.punchTypeLabel,
-            style: TextStyle(
-              color: Color(log.punchTypeColor),
-              fontSize: isMobile ? 11 : 12,
-              fontWeight: FontWeight.w500,
-            ),
+            ],
           ),
-          if (log.siteName != null)
-            Text(
-              log.siteName!,
-              style: TextStyle(
-                fontSize: isMobile ? 10 : 11,
-                color: Colors.grey[600],
-              ),
-              overflow: TextOverflow.ellipsis,
-              maxLines: 1,
-            ),
-          if (log.distanceFromSite != null)
-            Text(
-              '${log.distanceFromSite!.toStringAsFixed(0)}m from site',
-              style: TextStyle(
-                fontSize: isMobile ? 9 : 10,
-                color: Colors.grey[500],
-              ),
-            ),
-        ],
+        ),
       ),
-      trailing: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            DateFormat('HH:mm').format(log.punchTime),
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: isMobile ? 13 : 14,
-            ),
-          ),
-          if (!log.isInsideGeofence)
-            Container(
-              margin: const EdgeInsets.only(top: 4),
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: const Text(
-                'Outside',
-                style: TextStyle(fontSize: 9, color: Colors.red),
-              ),
-            ),
-        ],
-      ),
-      isThreeLine: !isMobile,
-      onTap: () => _showLogDetails(log),
     );
   }
 
@@ -1021,54 +1903,318 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
   }
 
   void _showLogDetails(GpsAttendanceLog log) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final punchColor = Color(log.punchTypeColor);
+    
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(log.punchTypeLabel),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Row(
           children: [
-            _buildDetailRow('Employee', log.employeeName ?? log.employeeId),
-            _buildDetailRow('Time', DateFormat('HH:mm:ss').format(log.punchTime)),
-            _buildDetailRow('Site', log.siteName ?? 'Not specified'),
-            _buildDetailRow('Coordinates', '${log.latitude.toStringAsFixed(6)}, ${log.longitude.toStringAsFixed(6)}'),
-            if (log.distanceFromSite != null)
-              _buildDetailRow('Distance', '${log.distanceFromSite!.toStringAsFixed(0)} meters'),
-            _buildDetailRow('Inside Geofence', log.isInsideGeofence ? 'Yes' : 'No'),
-            _buildDetailRow('Mock Location', log.isMockLocation ? 'Yes' : 'No'),
-            if (log.deviceName != null)
-              _buildDetailRow('Device', log.deviceName!),
-            _buildDetailRow('Network', log.networkStatus ?? 'Unknown'),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: punchColor.withOpacity(isDark ? 0.2 : 0.15),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                _getPunchTypeIcon(log.punchType),
+                color: punchColor,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    log.punchTypeLabel,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      color: colorScheme.onSurface,
+                    ),
+                  ),
+                  Text(
+                    DateFormat('dd MMM yyyy, HH:mm:ss').format(log.punchTime),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Status Badges
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _buildStatusChip(
+                    'Inside Geofence',
+                    log.isInsideGeofence,
+                    Icons.check_circle,
+                    Colors.green,
+                    colorScheme,
+                    isDark,
+                  ),
+                  _buildStatusChip(
+                    'Mock Location',
+                    log.isMockLocation,
+                    Icons.warning_amber_rounded,
+                    Colors.orange,
+                    colorScheme,
+                    isDark,
+                  ),
+                  if (log.networkStatus != null)
+                    _buildStatusChip(
+                      'Network: ${log.networkStatus}',
+                      true,
+                      Icons.signal_cellular_alt,
+                      Colors.blue,
+                      colorScheme,
+                      isDark,
+                    ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              
+              // Employee Info
+              _buildDetailSection(
+                'Employee Information',
+                Icons.person,
+                [
+                  _buildDetailRow(
+                    Icons.badge,
+                    'Employee',
+                    log.employeeName ?? log.employeeId,
+                    colorScheme,
+                  ),
+                  if (log.employeeId != (log.employeeName ?? log.employeeId))
+                    _buildDetailRow(
+                      Icons.tag,
+                      'Employee ID',
+                      log.employeeId,
+                      colorScheme,
+                    ),
+                ],
+                colorScheme,
+              ),
+              
+              const SizedBox(height: 16),
+              
+              // Location Info
+              _buildDetailSection(
+                'Location Information',
+                Icons.location_on,
+                [
+                  _buildDetailRow(
+                    Icons.business,
+                    'Site',
+                    log.siteName ?? 'Not specified',
+                    colorScheme,
+                  ),
+                  if (log.siteCode != null)
+                    _buildDetailRow(
+                      Icons.qr_code,
+                      'Site Code',
+                      log.siteCode!,
+                      colorScheme,
+                    ),
+                  if (log.distanceFromSite != null)
+                    _buildDetailRow(
+                      Icons.straighten,
+                      'Distance from Site',
+                      '${log.distanceFromSite!.toStringAsFixed(0)} meters',
+                      colorScheme,
+                    ),
+                  _buildDetailRow(
+                    Icons.my_location,
+                    'Coordinates',
+                    '${log.latitude.toStringAsFixed(6)}, ${log.longitude.toStringAsFixed(6)}',
+                    colorScheme,
+                  ),
+                  if (log.accuracyMeters != null)
+                    _buildDetailRow(
+                      Icons.gps_fixed,
+                      'Accuracy',
+                      '${log.accuracyMeters!.toStringAsFixed(0)} meters',
+                      colorScheme,
+                    ),
+                ],
+                colorScheme,
+              ),
+              
+              if (log.deviceName != null || log.deviceId != null) ...[
+                const SizedBox(height: 16),
+                _buildDetailSection(
+                  'Device Information',
+                  Icons.phone_android,
+                  [
+                    if (log.deviceName != null)
+                      _buildDetailRow(
+                        Icons.devices,
+                        'Device Name',
+                        log.deviceName!,
+                        colorScheme,
+                      ),
+                    if (log.deviceId != null)
+                      _buildDetailRow(
+                        Icons.fingerprint,
+                        'Device ID',
+                        log.deviceId!,
+                        colorScheme,
+                      ),
+                  ],
+                  colorScheme,
+                ),
+              ],
+            ],
+          ),
+        ),
         actions: [
-          TextButton(
+          TextButton.icon(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
+            icon: const Icon(Icons.close),
+            label: const Text('Close'),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildDetailRow(String label, String value) {
+  Widget _buildStatusChip(
+    String label,
+    bool isActive,
+    IconData icon,
+    Color color,
+    ColorScheme colorScheme,
+    bool isDark,
+  ) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: isActive
+            ? color.withOpacity(isDark ? 0.2 : 0.1)
+            : colorScheme.surfaceVariant.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: isActive
+              ? color.withOpacity(0.3)
+              : colorScheme.outline.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 14,
+            color: isActive ? color : colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: isActive ? color : colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailSection(
+    String title,
+    IconData icon,
+    List<Widget> children,
+    ColorScheme colorScheme,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              icon,
+              size: 18,
+              color: colorScheme.primary,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: colorScheme.onSurface,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: colorScheme.surfaceVariant.withOpacity(0.3),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            children: children,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDetailRow(IconData icon, String label, String value, ColorScheme colorScheme) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Icon(
+            icon,
+            size: 16,
+            color: colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(width: 8),
           SizedBox(
             width: 120,
             child: Text(
-              '$label:',
-              style: TextStyle(color: Colors.grey[600]),
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                color: colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(fontWeight: FontWeight.w500),
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: colorScheme.onSurface,
+              ),
             ),
           ),
         ],
@@ -1084,15 +2230,24 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
 
     // Show error state
     if (_error != null) {
+      final colorScheme = Theme.of(context).colorScheme;
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
+            Icon(
+              Icons.error_outline,
+              size: 64,
+              color: colorScheme.error,
+            ),
             const SizedBox(height: 16),
             Text(
               'Error Loading Data',
-              style: TextStyle(color: Colors.grey[800], fontSize: 18, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: colorScheme.onSurface,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 8),
             Padding(
@@ -1100,7 +2255,7 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
               child: Text(
                 _error!,
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey[600]),
+                style: TextStyle(color: colorScheme.onSurfaceVariant),
               ),
             ),
             const SizedBox(height: 16),
@@ -1115,20 +2270,30 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
     }
 
     if (_filteredLogs.isEmpty && _sites.isEmpty) {
+      final colorScheme = Theme.of(context).colorScheme;
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.map, size: 64, color: Colors.grey[500]),
+            Icon(
+              Icons.map,
+              size: 64,
+              color: colorScheme.onSurfaceVariant.withOpacity(0.6),
+            ),
             const SizedBox(height: 16),
             Text(
               'No Data Available',
-              style: TextStyle(color: Colors.grey[600], fontSize: 18),
+              style: TextStyle(
+                color: colorScheme.onSurfaceVariant,
+                fontSize: 18,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
               'No attendance logs or sites found for the selected date',
-              style: TextStyle(color: Colors.grey[500]),
+              style: TextStyle(
+                color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+              ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -1178,7 +2343,7 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
           circles: _buildCircles(),
           mapType: MapType.normal,
           myLocationButtonEnabled: false,
-          zoomControlsEnabled: true,
+          zoomControlsEnabled: false,
           // Add error handling
           onTap: (LatLng position) {
             // Map is responding, clear errors
@@ -1193,16 +2358,24 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
         if (_mapError != null)
           Positioned.fill(
             child: Container(
-              color: Colors.white.withOpacity(0.9),
+              color: Theme.of(context).colorScheme.surface.withOpacity(0.9),
               child: Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
+                    Icon(
+                      Icons.error_outline,
+                      size: 64,
+                      color: Theme.of(context).colorScheme.error,
+                    ),
                     const SizedBox(height: 16),
                     Text(
                       'Map Error',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey[800]),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Padding(
@@ -1210,7 +2383,9 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
                       child: Text(
                         _mapError!,
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.grey[600]),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -1228,25 +2403,15 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
               ),
             ),
           ),
-        // Full Screen Button
+        // Full Screen Button (bottom-left)
         Positioned(
-          top: 16,
-          left: 16,
-          child: FloatingActionButton(
-            mini: _isMobile(context),
-            onPressed: _showFullScreenMap,
-            tooltip: 'Full Screen',
-            child: Icon(
-              Icons.fullscreen,
-              size: _isMobile(context) ? 20 : 24,
-            ),
+          bottom: 12,
+          left: 12,
+          child: _buildMapControlButton(
+            Icons.fullscreen,
+            _showFullScreenMap,
+            Theme.of(context).colorScheme,
           ),
-        ),
-        // Legend - Compact with info icon
-        Positioned(
-          top: 16,
-          right: 16,
-          child: _buildCompactLegend(),
         ),
       ],
     );
@@ -1275,8 +2440,12 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
       );
     }
 
-    // Add site markers
-    for (final site in _sites) {
+    // Add site markers (filtered if site filter is active)
+    final sitesToShow = _selectedSiteFilter != null && _selectedSiteFilter != 'all'
+        ? _sites.where((site) => site.id.toString() == _selectedSiteFilter).toList()
+        : _sites;
+    
+    for (final site in sitesToShow) {
       markers.add(
         Marker(
           markerId: MarkerId('site_${site.id}'),
@@ -1298,7 +2467,12 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
   Set<Circle> _buildCircles() {
     final circles = <Circle>{};
     
-    for (final site in _sites) {
+    // Filter sites based on selected site filter
+    final sitesToShow = _selectedSiteFilter != null && _selectedSiteFilter != 'all'
+        ? _sites.where((site) => site.id.toString() == _selectedSiteFilter).toList()
+        : _sites;
+    
+    for (final site in sitesToShow) {
       circles.add(
         Circle(
           circleId: CircleId('site_${site.id}'),
@@ -1332,40 +2506,98 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
   }
 
   void _fitBounds() {
-    if (_mapController == null || _filteredLogs.isEmpty) return;
+    if (_mapController == null) return;
 
-    try {
-      double minLat = _filteredLogs.first.latitude;
-      double maxLat = _filteredLogs.first.latitude;
-      double minLng = _filteredLogs.first.longitude;
-      double maxLng = _filteredLogs.first.longitude;
+    // Get filtered sites based on site filter
+    final sitesToShow = _selectedSiteFilter != null && _selectedSiteFilter != 'all'
+        ? _sites.where((site) => site.id.toString() == _selectedSiteFilter).toList()
+        : _sites;
 
-      for (final log in _filteredLogs) {
-        minLat = minLat < log.latitude ? minLat : log.latitude;
-        maxLat = maxLat > log.latitude ? maxLat : log.latitude;
-        minLng = minLng < log.longitude ? minLng : log.longitude;
-        maxLng = maxLng > log.longitude ? maxLng : log.longitude;
-      }
+    // If we have filtered logs, use them; otherwise use filtered sites
+    if (_filteredLogs.isNotEmpty) {
+      try {
+        double minLat = _filteredLogs.first.latitude;
+        double maxLat = _filteredLogs.first.latitude;
+        double minLng = _filteredLogs.first.longitude;
+        double maxLng = _filteredLogs.first.longitude;
 
-      // Add padding
-      final latPadding = (maxLat - minLat) * 0.1;
-      final lngPadding = (maxLng - minLng) * 0.1;
+        for (final log in _filteredLogs) {
+          minLat = minLat < log.latitude ? minLat : log.latitude;
+          maxLat = maxLat > log.latitude ? maxLat : log.latitude;
+          minLng = minLng < log.longitude ? minLng : log.longitude;
+          maxLng = maxLng > log.longitude ? maxLng : log.longitude;
+        }
 
-      _mapController!.animateCamera(
-        CameraUpdate.newLatLngBounds(
-          LatLngBounds(
-            southwest: LatLng(minLat - latPadding, minLng - lngPadding),
-            northeast: LatLng(maxLat + latPadding, maxLng + lngPadding),
+        // Also include filtered sites in bounds calculation
+        for (final site in sitesToShow) {
+          minLat = minLat < site.latitude ? minLat : site.latitude;
+          maxLat = maxLat > site.latitude ? maxLat : site.latitude;
+          minLng = minLng < site.longitude ? minLng : site.longitude;
+          maxLng = maxLng > site.longitude ? maxLng : site.longitude;
+        }
+
+        // Add padding
+        final latPadding = (maxLat - minLat) * 0.1;
+        final lngPadding = (maxLng - minLng) * 0.1;
+
+        _mapController!.animateCamera(
+          CameraUpdate.newLatLngBounds(
+            LatLngBounds(
+              southwest: LatLng(minLat - latPadding, minLng - lngPadding),
+              northeast: LatLng(maxLat + latPadding, maxLng + lngPadding),
+            ),
+            100.0, // padding
           ),
-          100.0, // padding
-        ),
-      );
-    } catch (e) {
-      // If bounds calculation fails, just center on first log
-      if (_filteredLogs.isNotEmpty) {
+        );
+      } catch (e) {
+        // If bounds calculation fails, try to center on first log or site
+        if (_filteredLogs.isNotEmpty) {
+          _mapController!.animateCamera(
+            CameraUpdate.newLatLng(
+              LatLng(_filteredLogs.first.latitude, _filteredLogs.first.longitude),
+            ),
+          );
+        } else if (sitesToShow.isNotEmpty) {
+          _mapController!.animateCamera(
+            CameraUpdate.newLatLng(
+              LatLng(sitesToShow.first.latitude, sitesToShow.first.longitude),
+            ),
+          );
+        }
+      }
+    } else if (sitesToShow.isNotEmpty) {
+      // If no filtered logs but we have filtered sites, center on the first site
+      try {
+        double minLat = sitesToShow.first.latitude;
+        double maxLat = sitesToShow.first.latitude;
+        double minLng = sitesToShow.first.longitude;
+        double maxLng = sitesToShow.first.longitude;
+
+        for (final site in sitesToShow) {
+          minLat = minLat < site.latitude ? minLat : site.latitude;
+          maxLat = maxLat > site.latitude ? maxLat : site.latitude;
+          minLng = minLng < site.longitude ? minLng : site.longitude;
+          maxLng = maxLng > site.longitude ? maxLng : site.longitude;
+        }
+
+        // Add padding
+        final latPadding = (maxLat - minLat) * 0.1;
+        final lngPadding = (maxLng - minLng) * 0.1;
+
+        _mapController!.animateCamera(
+          CameraUpdate.newLatLngBounds(
+            LatLngBounds(
+              southwest: LatLng(minLat - latPadding, minLng - lngPadding),
+              northeast: LatLng(maxLat + latPadding, maxLng + lngPadding),
+            ),
+            100.0, // padding
+          ),
+        );
+      } catch (e) {
+        // If bounds calculation fails, just center on first site
         _mapController!.animateCamera(
           CameraUpdate.newLatLng(
-            LatLng(_filteredLogs.first.latitude, _filteredLogs.first.longitude),
+            LatLng(sitesToShow.first.latitude, sitesToShow.first.longitude),
           ),
         );
       }
@@ -1407,7 +2639,13 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
           MaterialPageRoute(
             builder: (context) => _FullScreenMapView(
               attendanceLogs: _filteredLogs,
+              allAttendanceLogs: _attendanceLogs,
               sites: _sites,
+              employees: _employees,
+              selectedDate: _selectedDate,
+              selectedSiteFilter: _selectedSiteFilter,
+              selectedEmployeeFilter: _selectedEmployeeFilter,
+              selectedPunchTypeFilter: _selectedPunchTypeFilter,
               initialCameraPosition: CameraPosition(
                 target: center,
                 zoom: initialZoom,
@@ -1415,6 +2653,19 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
               onMarkerTap: _showLogDetails,
               getMarkerHueForPunchType: _getMarkerHueForPunchType,
               customSiteMarker: _customSiteMarker,
+              onDateChanged: (date) {
+                setState(() => _selectedDate = date);
+                _loadData();
+              },
+              onSiteFilterChanged: (siteId) {
+                setState(() => _selectedSiteFilter = siteId);
+              },
+              onEmployeeFilterChanged: (employeeId) {
+                setState(() => _selectedEmployeeFilter = employeeId);
+              },
+              onPunchTypeFilterChanged: (punchType) {
+                setState(() => _selectedPunchTypeFilter = punchType);
+              },
             ),
             fullscreenDialog: true,
           ),
@@ -1445,7 +2696,13 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
       MaterialPageRoute(
         builder: (context) => _FullScreenMapView(
           attendanceLogs: _filteredLogs,
+          allAttendanceLogs: _attendanceLogs,
           sites: _sites,
+          employees: _employees,
+          selectedDate: _selectedDate,
+          selectedSiteFilter: _selectedSiteFilter,
+          selectedEmployeeFilter: _selectedEmployeeFilter,
+          selectedPunchTypeFilter: _selectedPunchTypeFilter,
           initialCameraPosition: CameraPosition(
             target: initialPosition!,
             zoom: _filteredLogs.isEmpty ? 10.0 : 14.0,
@@ -1453,6 +2710,19 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
           onMarkerTap: _showLogDetails,
           getMarkerHueForPunchType: _getMarkerHueForPunchType,
           customSiteMarker: _customSiteMarker,
+          onDateChanged: (date) {
+            setState(() => _selectedDate = date);
+            _loadData();
+          },
+          onSiteFilterChanged: (siteId) {
+            setState(() => _selectedSiteFilter = siteId);
+          },
+          onEmployeeFilterChanged: (employeeId) {
+            setState(() => _selectedEmployeeFilter = employeeId);
+          },
+          onPunchTypeFilterChanged: (punchType) {
+            setState(() => _selectedPunchTypeFilter = punchType);
+          },
         ),
         fullscreenDialog: true,
       ),
@@ -1463,19 +2733,39 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
 // Full Screen Map View Widget
 class _FullScreenMapView extends StatefulWidget {
   final List<GpsAttendanceLog> attendanceLogs;
+  final List<GpsAttendanceLog> allAttendanceLogs;
   final List<Site> sites;
+  final List<Employee> employees;
+  final DateTime selectedDate;
+  final String? selectedSiteFilter;
+  final String? selectedEmployeeFilter;
+  final String? selectedPunchTypeFilter;
   final CameraPosition? initialCameraPosition;
   final Function(GpsAttendanceLog) onMarkerTap;
   final double Function(String) getMarkerHueForPunchType;
   final BitmapDescriptor? customSiteMarker;
+  final Function(DateTime) onDateChanged;
+  final Function(String?) onSiteFilterChanged;
+  final Function(String?) onEmployeeFilterChanged;
+  final Function(String?) onPunchTypeFilterChanged;
 
   const _FullScreenMapView({
     required this.attendanceLogs,
+    required this.allAttendanceLogs,
     required this.sites,
+    required this.employees,
+    required this.selectedDate,
+    this.selectedSiteFilter,
+    this.selectedEmployeeFilter,
+    this.selectedPunchTypeFilter,
     this.initialCameraPosition,
     required this.onMarkerTap,
     required this.getMarkerHueForPunchType,
     this.customSiteMarker,
+    required this.onDateChanged,
+    required this.onSiteFilterChanged,
+    required this.onEmployeeFilterChanged,
+    required this.onPunchTypeFilterChanged,
   });
 
   @override
@@ -1484,7 +2774,20 @@ class _FullScreenMapView extends StatefulWidget {
 
 class _FullScreenMapViewState extends State<_FullScreenMapView> {
   GoogleMapController? _fullScreenMapController;
-  bool _isLegendExpanded = false;
+  bool _showFilters = true;
+  late String? _selectedSiteFilter;
+  late String? _selectedEmployeeFilter;
+  late String? _selectedPunchTypeFilter;
+  late DateTime _selectedDate;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedSiteFilter = widget.selectedSiteFilter;
+    _selectedEmployeeFilter = widget.selectedEmployeeFilter;
+    _selectedPunchTypeFilter = widget.selectedPunchTypeFilter;
+    _selectedDate = widget.selectedDate;
+  }
 
   @override
   void dispose() {
@@ -1492,11 +2795,42 @@ class _FullScreenMapViewState extends State<_FullScreenMapView> {
     super.dispose();
   }
 
+  List<GpsAttendanceLog> get _filteredLogs {
+    return widget.allAttendanceLogs.where((log) {
+      if (_selectedSiteFilter != null && _selectedSiteFilter != 'all') {
+        if (log.siteId.toString() != _selectedSiteFilter) return false;
+      }
+      if (_selectedPunchTypeFilter != null && _selectedPunchTypeFilter != 'all') {
+        if (log.punchType.toUpperCase() != _selectedPunchTypeFilter) return false;
+      }
+      if (_selectedEmployeeFilter != null && _selectedEmployeeFilter != 'all') {
+        if (log.employeeId != _selectedEmployeeFilter) return false;
+      }
+      return true;
+    }).toList();
+  }
+
+  Future<void> _selectDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    if (picked != null && picked != _selectedDate) {
+      setState(() {
+        _selectedDate = picked;
+      });
+      widget.onDateChanged(picked);
+    }
+  }
+
   Set<Marker> _buildMarkers() {
     final markers = <Marker>{};
+    final filteredLogs = _filteredLogs;
     
-    for (int i = 0; i < widget.attendanceLogs.length; i++) {
-      final log = widget.attendanceLogs[i];
+    for (int i = 0; i < filteredLogs.length; i++) {
+      final log = filteredLogs[i];
       
       markers.add(
         Marker(
@@ -1514,8 +2848,12 @@ class _FullScreenMapViewState extends State<_FullScreenMapView> {
       );
     }
 
-    // Add site markers
-    for (final site in widget.sites) {
+    // Add site markers (filtered if site filter is active)
+    final sitesToShow = _selectedSiteFilter != null && _selectedSiteFilter != 'all'
+        ? widget.sites.where((site) => site.id.toString() == _selectedSiteFilter).toList()
+        : widget.sites;
+    
+    for (final site in sitesToShow) {
       markers.add(
         Marker(
           markerId: MarkerId('site_${site.id}'),
@@ -1537,7 +2875,12 @@ class _FullScreenMapViewState extends State<_FullScreenMapView> {
   Set<Circle> _buildCircles() {
     final circles = <Circle>{};
     
-    for (final site in widget.sites) {
+    // Filter sites based on selected site filter
+    final sitesToShow = _selectedSiteFilter != null && _selectedSiteFilter != 'all'
+        ? widget.sites.where((site) => site.id.toString() == _selectedSiteFilter).toList()
+        : widget.sites;
+    
+    for (final site in sitesToShow) {
       circles.add(
         Circle(
           circleId: CircleId('site_${site.id}'),
@@ -1554,156 +2897,411 @@ class _FullScreenMapViewState extends State<_FullScreenMapView> {
   }
 
   void _fitBounds() {
-    if (_fullScreenMapController == null || widget.attendanceLogs.isEmpty) return;
+    if (_fullScreenMapController == null) return;
 
-    try {
-      double minLat = widget.attendanceLogs.first.latitude;
-      double maxLat = widget.attendanceLogs.first.latitude;
-      double minLng = widget.attendanceLogs.first.longitude;
-      double maxLng = widget.attendanceLogs.first.longitude;
+    // Get filtered sites based on site filter
+    final sitesToShow = _selectedSiteFilter != null && _selectedSiteFilter != 'all'
+        ? widget.sites.where((site) => site.id.toString() == _selectedSiteFilter).toList()
+        : widget.sites;
 
-      for (final log in widget.attendanceLogs) {
-        minLat = minLat < log.latitude ? minLat : log.latitude;
-        maxLat = maxLat > log.latitude ? maxLat : log.latitude;
-        minLng = minLng < log.longitude ? minLng : log.longitude;
-        maxLng = maxLng > log.longitude ? maxLng : log.longitude;
-      }
+    // If we have filtered logs, use them; otherwise use filtered sites
+    final filteredLogs = _filteredLogs;
+    if (filteredLogs.isNotEmpty) {
+      try {
+        double minLat = filteredLogs.first.latitude;
+        double maxLat = filteredLogs.first.latitude;
+        double minLng = filteredLogs.first.longitude;
+        double maxLng = filteredLogs.first.longitude;
 
-      // Add padding
-      final latPadding = (maxLat - minLat) * 0.1;
-      final lngPadding = (maxLng - minLng) * 0.1;
+        for (final log in filteredLogs) {
+          minLat = minLat < log.latitude ? minLat : log.latitude;
+          maxLat = maxLat > log.latitude ? maxLat : log.latitude;
+          minLng = minLng < log.longitude ? minLng : log.longitude;
+          maxLng = maxLng > log.longitude ? maxLng : log.longitude;
+        }
 
-      _fullScreenMapController!.animateCamera(
-        CameraUpdate.newLatLngBounds(
-          LatLngBounds(
-            southwest: LatLng(minLat - latPadding, minLng - lngPadding),
-            northeast: LatLng(maxLat + latPadding, maxLng + lngPadding),
+        // Also include filtered sites in bounds calculation
+        for (final site in sitesToShow) {
+          minLat = minLat < site.latitude ? minLat : site.latitude;
+          maxLat = maxLat > site.latitude ? maxLat : site.latitude;
+          minLng = minLng < site.longitude ? minLng : site.longitude;
+          maxLng = maxLng > site.longitude ? maxLng : site.longitude;
+        }
+
+        // Add padding
+        final latPadding = (maxLat - minLat) * 0.1;
+        final lngPadding = (maxLng - minLng) * 0.1;
+
+        _fullScreenMapController!.animateCamera(
+          CameraUpdate.newLatLngBounds(
+            LatLngBounds(
+              southwest: LatLng(minLat - latPadding, minLng - lngPadding),
+              northeast: LatLng(maxLat + latPadding, maxLng + lngPadding),
+            ),
+            100.0, // padding
           ),
-          100.0, // padding
-        ),
-      );
-    } catch (e) {
-      // If bounds calculation fails, just center on first log
-      if (widget.attendanceLogs.isNotEmpty) {
+        );
+      } catch (e) {
+        // If bounds calculation fails, try to center on first log or site
+        if (filteredLogs.isNotEmpty) {
+          _fullScreenMapController!.animateCamera(
+            CameraUpdate.newLatLng(
+              LatLng(filteredLogs.first.latitude, filteredLogs.first.longitude),
+            ),
+          );
+        } else if (sitesToShow.isNotEmpty) {
+          _fullScreenMapController!.animateCamera(
+            CameraUpdate.newLatLng(
+              LatLng(sitesToShow.first.latitude, sitesToShow.first.longitude),
+            ),
+          );
+        }
+      }
+    } else if (sitesToShow.isNotEmpty) {
+      // If no filtered logs but we have filtered sites, center on the first site
+      try {
+        double minLat = sitesToShow.first.latitude;
+        double maxLat = sitesToShow.first.latitude;
+        double minLng = sitesToShow.first.longitude;
+        double maxLng = sitesToShow.first.longitude;
+
+        for (final site in sitesToShow) {
+          minLat = minLat < site.latitude ? minLat : site.latitude;
+          maxLat = maxLat > site.latitude ? maxLat : site.latitude;
+          minLng = minLng < site.longitude ? minLng : site.longitude;
+          maxLng = maxLng > site.longitude ? maxLng : site.longitude;
+        }
+
+        // Add padding
+        final latPadding = (maxLat - minLat) * 0.1;
+        final lngPadding = (maxLng - minLng) * 0.1;
+
+        _fullScreenMapController!.animateCamera(
+          CameraUpdate.newLatLngBounds(
+            LatLngBounds(
+              southwest: LatLng(minLat - latPadding, minLng - lngPadding),
+              northeast: LatLng(maxLat + latPadding, maxLng + lngPadding),
+            ),
+            100.0, // padding
+          ),
+        );
+      } catch (e) {
+        // If bounds calculation fails, just center on first site
         _fullScreenMapController!.animateCamera(
           CameraUpdate.newLatLng(
-            LatLng(widget.attendanceLogs.first.latitude, widget.attendanceLogs.first.longitude),
+            LatLng(sitesToShow.first.latitude, sitesToShow.first.longitude),
           ),
         );
       }
     }
   }
 
-  Widget _buildLegendItem(String label, Color color) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 16,
-            height: 16,
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
+  Widget _buildFilters(ColorScheme colorScheme) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Card(
+      elevation: isDark ? 0 : 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: isDark
+            ? BorderSide(
+                color: colorScheme.outline.withOpacity(0.2),
+                width: 1,
+              )
+            : BorderSide.none,
+      ),
+      color: isDark
+          ? colorScheme.surfaceVariant.withOpacity(0.3)
+          : colorScheme.surface,
+      margin: const EdgeInsets.all(16),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Date Picker
+            InkWell(
+              onTap: _selectDate,
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                height: 44,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: isDark 
+                        ? colorScheme.outline.withOpacity(0.2)
+                        : colorScheme.outline.withOpacity(0.3),
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                  color: colorScheme.surfaceVariant.withOpacity(0.3),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.calendar_today,
+                      size: 16,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        DateFormat('dd MMM yyyy').format(_selectedDate),
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: colorScheme.onSurface,
+                        ),
+                      ),
+                    ),
+                    Icon(
+                      Icons.arrow_drop_down,
+                      size: 20,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ),
-          const SizedBox(width: 8),
-          Text(label, style: const TextStyle(fontSize: 12)),
-        ],
+            const SizedBox(height: 10),
+
+            // Site Filter
+            DropdownButtonFormField<String>(
+              value: _selectedSiteFilter,
+              decoration: InputDecoration(
+                prefixIcon: Icon(
+                  Icons.business,
+                  size: 16,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+                hintText: 'Filter by Site',
+                hintStyle: TextStyle(
+                  fontSize: 14,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                isDense: true,
+                filled: true,
+                fillColor: colorScheme.surfaceVariant.withOpacity(0.3),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(
+                    color: isDark 
+                        ? colorScheme.outline.withOpacity(0.2)
+                        : colorScheme.outline.withOpacity(0.3),
+                  ),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(
+                    color: isDark 
+                        ? colorScheme.outline.withOpacity(0.2)
+                        : colorScheme.outline.withOpacity(0.3),
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(
+                    color: colorScheme.primary,
+                    width: 1.5,
+                  ),
+                ),
+                constraints: const BoxConstraints(minHeight: 44),
+              ),
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: colorScheme.onSurface,
+              ),
+              items: [
+                DropdownMenuItem(
+                  value: 'all',
+                  child: Text(
+                    'All Sites',
+                    style: TextStyle(color: colorScheme.onSurface),
+                  ),
+                ),
+                ...widget.sites.map((site) => DropdownMenuItem(
+                      value: site.id.toString(),
+                      child: Text(
+                        site.siteName,
+                        style: TextStyle(color: colorScheme.onSurface),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    )),
+              ],
+              onChanged: (value) {
+                setState(() {
+                  _selectedSiteFilter = value;
+                });
+                widget.onSiteFilterChanged(value);
+                // Refresh markers after filter change
+                Future.delayed(const Duration(milliseconds: 100), () {
+                  if (mounted && _fullScreenMapController != null) {
+                    _fitBounds();
+                  }
+                });
+              },
+            ),
+            const SizedBox(height: 10),
+
+            // Employee Filter
+            DropdownButtonFormField<String>(
+              value: _selectedEmployeeFilter,
+              decoration: InputDecoration(
+                prefixIcon: Icon(
+                  Icons.person,
+                  size: 16,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+                hintText: 'Filter by Employee',
+                hintStyle: TextStyle(
+                  fontSize: 14,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                isDense: true,
+                filled: true,
+                fillColor: colorScheme.surfaceVariant.withOpacity(0.3),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(
+                    color: isDark 
+                        ? colorScheme.outline.withOpacity(0.2)
+                        : colorScheme.outline.withOpacity(0.3),
+                  ),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(
+                    color: isDark 
+                        ? colorScheme.outline.withOpacity(0.2)
+                        : colorScheme.outline.withOpacity(0.3),
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(
+                    color: colorScheme.primary,
+                    width: 1.5,
+                  ),
+                ),
+                constraints: const BoxConstraints(minHeight: 44),
+              ),
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: colorScheme.onSurface,
+              ),
+              items: [
+                DropdownMenuItem(
+                  value: 'all',
+                  child: Text(
+                    'All Employees',
+                    style: TextStyle(color: colorScheme.onSurface),
+                  ),
+                ),
+                ...widget.employees.map((employee) => DropdownMenuItem(
+                      value: employee.employeeId,
+                      child: Text(
+                        '${employee.firstName} ${employee.lastName}',
+                        style: TextStyle(color: colorScheme.onSurface),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    )),
+              ],
+              onChanged: (value) {
+                widget.onEmployeeFilterChanged(value);
+                setState(() {});
+                // Refresh markers after filter change
+                Future.delayed(const Duration(milliseconds: 100), () {
+                  if (mounted && _fullScreenMapController != null) {
+                    _fitBounds();
+                  }
+                });
+              },
+            ),
+            const SizedBox(height: 10),
+
+            // Punch Type Filter
+            DropdownButtonFormField<String>(
+              value: _selectedPunchTypeFilter,
+              decoration: InputDecoration(
+                prefixIcon: Icon(
+                  Icons.access_time,
+                  size: 16,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+                hintText: 'Filter by Punch',
+                hintStyle: TextStyle(
+                  fontSize: 14,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                isDense: true,
+                filled: true,
+                fillColor: colorScheme.surfaceVariant.withOpacity(0.3),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(
+                    color: isDark 
+                        ? colorScheme.outline.withOpacity(0.2)
+                        : colorScheme.outline.withOpacity(0.3),
+                  ),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(
+                    color: isDark 
+                        ? colorScheme.outline.withOpacity(0.2)
+                        : colorScheme.outline.withOpacity(0.3),
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(
+                    color: colorScheme.primary,
+                    width: 1.5,
+                  ),
+                ),
+                constraints: const BoxConstraints(minHeight: 44),
+              ),
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: colorScheme.onSurface,
+              ),
+              items: const [
+                DropdownMenuItem(value: 'all', child: Text('All Punches')),
+                DropdownMenuItem(value: 'CHECK_IN', child: Text('Check In')),
+                DropdownMenuItem(value: 'LUNCH_OUT', child: Text('Lunch Out')),
+                DropdownMenuItem(value: 'LUNCH_IN', child: Text('Lunch In')),
+                DropdownMenuItem(value: 'CHECK_OUT', child: Text('Check Out')),
+              ],
+              onChanged: (value) {
+                setState(() {
+                  _selectedPunchTypeFilter = value;
+                });
+                widget.onPunchTypeFilterChanged(value);
+                // Refresh markers after filter change
+                Future.delayed(const Duration(milliseconds: 100), () {
+                  if (mounted && _fullScreenMapController != null) {
+                    _fitBounds();
+                  }
+                });
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildFullScreenLegend() {
-    return Card(
-      color: Colors.white,
-      child: _isLegendExpanded
-          ? Padding(
-              padding: const EdgeInsets.all(10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.info_outline,
-                        size: 18,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Legend',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                          color: Colors.grey[900],
-                        ),
-                      ),
-                      const Spacer(),
-                      IconButton(
-                        icon: Icon(Icons.close, size: 18, color: Colors.grey[700]),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                        onPressed: () {
-                          setState(() {
-                            _isLegendExpanded = false;
-                          });
-                        },
-                        tooltip: 'Hide Legend',
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  _buildLegendItem('Check In', Colors.green),
-                  _buildLegendItem('Lunch Out', Colors.orange),
-                  _buildLegendItem('Lunch In', Colors.blue),
-                  _buildLegendItem('Check Out', Colors.red),
-                  const SizedBox(height: 8),
-                  Divider(color: Colors.grey[300]),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Container(
-                        width: 14,
-                        height: 14,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.grey, width: 2),
-                          color: Colors.transparent,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text('Site Boundary', style: TextStyle(fontSize: 12, color: Colors.grey[800])),
-                    ],
-                  ),
-                ],
-              ),
-            )
-          : IconButton(
-              icon: Icon(
-                Icons.info_outline,
-                size: 24,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              onPressed: () {
-                setState(() {
-                  _isLegendExpanded = true;
-                });
-              },
-              tooltip: 'Show Legend',
-              style: IconButton.styleFrom(
-                backgroundColor: Colors.white,
-                padding: const EdgeInsets.all(10),
-              ),
-            ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     // Calculate initial camera position if not provided
     LatLng initialPosition;
     double initialZoom = 14.0;
@@ -1711,15 +3309,18 @@ class _FullScreenMapViewState extends State<_FullScreenMapView> {
     if (widget.initialCameraPosition != null) {
       initialPosition = widget.initialCameraPosition!.target;
       initialZoom = widget.initialCameraPosition!.zoom;
-    } else if (widget.attendanceLogs.isNotEmpty) {
-      final firstLog = widget.attendanceLogs.first;
-      initialPosition = LatLng(firstLog.latitude, firstLog.longitude);
-    } else if (widget.sites.isNotEmpty) {
-      final firstSite = widget.sites.first;
-      initialPosition = LatLng(firstSite.latitude, firstSite.longitude);
     } else {
-      initialPosition = const LatLng(20.5937, 78.9629);
-      initialZoom = 10.0;
+      final filteredLogs = _filteredLogs;
+      if (filteredLogs.isNotEmpty) {
+        final firstLog = filteredLogs.first;
+        initialPosition = LatLng(firstLog.latitude, firstLog.longitude);
+      } else if (widget.sites.isNotEmpty) {
+        final firstSite = widget.sites.first;
+        initialPosition = LatLng(firstSite.latitude, firstSite.longitude);
+      } else {
+        initialPosition = const LatLng(20.5937, 78.9629);
+        initialZoom = 10.0;
+      }
     }
 
     return Scaffold(
@@ -1732,6 +3333,15 @@ class _FullScreenMapViewState extends State<_FullScreenMapView> {
           style: TextStyle(color: Colors.white),
         ),
         actions: [
+          IconButton(
+            icon: Icon(_showFilters ? Icons.filter_alt : Icons.filter_alt_outlined),
+            tooltip: _showFilters ? 'Hide Filters' : 'Show Filters',
+            onPressed: () {
+              setState(() {
+                _showFilters = !_showFilters;
+              });
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.fit_screen),
             tooltip: 'Fit Bounds',
@@ -1748,24 +3358,28 @@ class _FullScreenMapViewState extends State<_FullScreenMapView> {
             ),
             onMapCreated: (GoogleMapController controller) {
               _fullScreenMapController = controller;
-              _fitBounds();
+              // Delay fit bounds to ensure markers are built
+              Future.delayed(const Duration(milliseconds: 500), () {
+                _fitBounds();
+              });
             },
             markers: _buildMarkers(),
             circles: _buildCircles(),
             mapType: MapType.normal,
             myLocationButtonEnabled: false,
-            zoomControlsEnabled: true,
+            zoomControlsEnabled: false,
             zoomGesturesEnabled: true,
             scrollGesturesEnabled: true,
             tiltGesturesEnabled: true,
             rotateGesturesEnabled: true,
           ),
-          // Legend - Compact with info icon
-          Positioned(
-            top: 16,
-            right: 16,
-            child: _buildFullScreenLegend(),
-          ),
+          if (_showFilters)
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: _buildFilters(colorScheme),
+            ),
         ],
       ),
     );

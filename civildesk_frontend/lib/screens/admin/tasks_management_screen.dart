@@ -191,11 +191,6 @@ class _TasksManagementScreenState extends State<TasksManagementScreen> {
                 onPressed: _showFilterDialog,
                 tooltip: 'Filter',
               ),
-              IconButton(
-                icon: const Icon(Icons.refresh),
-                onPressed: _refreshTasks,
-                tooltip: 'Refresh',
-              ),
             ]
           : [
               FilledButton.icon(
@@ -208,11 +203,6 @@ class _TasksManagementScreenState extends State<TasksManagementScreen> {
                 icon: const Icon(Icons.filter_list),
                 onPressed: _showFilterDialog,
                 tooltip: 'Filter',
-              ),
-              IconButton(
-                icon: const Icon(Icons.refresh),
-                onPressed: _refreshTasks,
-                tooltip: 'Refresh',
               ),
             ],
       child: Stack(
