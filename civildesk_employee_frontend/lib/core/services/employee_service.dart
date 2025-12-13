@@ -23,4 +23,40 @@ class EmployeeService {
       throw Exception('Network error: ${e.message}');
     }
   }
+
+  // Get current employee details (uses /me endpoint for better security)
+  Future<Map<String, dynamic>> getCurrentEmployeeDetails() async {
+    try {
+      final response = await _apiService.get('/employees/me');
+
+      if (response.data['success'] && response.data['data'] != null) {
+        return response.data['data'] as Map<String, dynamic>;
+      } else {
+        throw Exception(response.data['message'] ?? 'Failed to fetch employee details');
+      }
+    } on DioException catch (e) {
+      if (e.response != null && e.response?.data != null) {
+        throw Exception(e.response?.data['message'] ?? 'Failed to fetch employee details');
+      }
+      throw Exception('Network error: ${e.message}');
+    }
+  }
+
+  // Get employee details by user ID (fallback method)
+  Future<Map<String, dynamic>> getEmployeeDetailsByUserId(int userId) async {
+    try {
+      final response = await _apiService.get('/employees/user/$userId');
+
+      if (response.data['success'] && response.data['data'] != null) {
+        return response.data['data'] as Map<String, dynamic>;
+      } else {
+        throw Exception(response.data['message'] ?? 'Failed to fetch employee details');
+      }
+    } on DioException catch (e) {
+      if (e.response != null && e.response?.data != null) {
+        throw Exception(e.response?.data['message'] ?? 'Failed to fetch employee details');
+      }
+      throw Exception('Network error: ${e.message}');
+    }
+  }
 }

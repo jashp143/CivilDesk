@@ -4,6 +4,7 @@ import com.civiltech.civildesk_backend.dto.ApiResponse;
 import com.civiltech.civildesk_backend.dto.EmployeeRequest;
 import com.civiltech.civildesk_backend.dto.EmployeeResponse;
 import com.civiltech.civildesk_backend.model.Employee;
+import com.civiltech.civildesk_backend.security.SecurityUtils;
 import com.civiltech.civildesk_backend.service.EmployeeService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -61,6 +62,18 @@ public class EmployeeController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<EmployeeResponse>> getEmployeeByUserId(
             @PathVariable Long userId) {
+        EmployeeResponse response = employeeService.getEmployeeByUserId(userId);
+        return ResponseEntity.ok(ApiResponse.success("Employee retrieved successfully", response));
+    }
+
+    @GetMapping("/me")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<EmployeeResponse>> getCurrentEmployee() {
+        Long userId = SecurityUtils.getCurrentUserId();
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error("User not authenticated", HttpStatus.UNAUTHORIZED.value()));
+        }
         EmployeeResponse response = employeeService.getEmployeeByUserId(userId);
         return ResponseEntity.ok(ApiResponse.success("Employee retrieved successfully", response));
     }

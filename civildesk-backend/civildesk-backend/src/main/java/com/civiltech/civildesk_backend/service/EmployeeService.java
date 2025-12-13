@@ -170,8 +170,13 @@ public class EmployeeService {
 
     @Transactional(readOnly = true)
     public EmployeeResponse getEmployeeByUserId(Long userId) {
-        Employee employee = employeeRepository.findByUserIdAndDeletedFalse(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with user ID: " + userId));
+        Long nonNullUserId = Objects.requireNonNull(userId, "User ID cannot be null");
+        Employee employee = employeeRepository.findByUserIdAndDeletedFalse(nonNullUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with user ID: " + nonNullUserId));
+
+        // Ensure entity is fully initialized (not a proxy) before mapping
+        // This prevents LazyInitializationException when entity is retrieved
+        Hibernate.initialize(employee);
 
         return mapToResponse(employee);
     }

@@ -66,8 +66,13 @@ class _CollapsibleSidebarState extends State<CollapsibleSidebar>
         AnimatedBuilder(
           animation: _expandAnimation,
           builder: (context, child) {
+            // Interpolate width between collapsed (70) and expanded (150)
+            final collapsedWidth = 70.0;
+            final expandedWidth = 150.0;
+            final currentWidth = collapsedWidth + (expandedWidth - collapsedWidth) * _expandAnimation.value;
+            
             return Container(
-              width: _isExpanded ? 250 : 70,
+              width: currentWidth,
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surface,
                 boxShadow: [
@@ -207,6 +212,9 @@ class _SidebarMenuItem extends StatelessWidget {
     return AnimatedBuilder(
       animation: animation,
       builder: (context, child) {
+        // Use animation value to show/hide text smoothly
+        final showText = animation.value > 0.5;
+        
         return InkWell(
           onTap: item.onTap,
           child: Container(
@@ -233,18 +241,21 @@ class _SidebarMenuItem extends StatelessWidget {
                       : Theme.of(context).iconTheme.color,
                   size: 24,
                 ),
-                if (isExpanded) ...[
-                  const SizedBox(width: 16),
+                if (showText) ...[
+                  SizedBox(width: 16 * animation.value),
                   Expanded(
-                    child: Text(
-                      item.title,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: isActive
-                                ? Theme.of(context).colorScheme.primary
-                                : null,
-                            fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-                          ),
-                      overflow: TextOverflow.ellipsis,
+                    child: Opacity(
+                      opacity: animation.value,
+                      child: Text(
+                        item.title,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: isActive
+                                  ? Theme.of(context).colorScheme.primary
+                                  : null,
+                              fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                            ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ),
                 ],

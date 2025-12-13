@@ -172,13 +172,24 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.existingLeave != null ? 'Edit Leave' : 'Apply for Leave'),
         elevation: 0,
+        backgroundColor: colorScheme.primary,
+        foregroundColor: colorScheme.onPrimary,
+        iconTheme: IconThemeData(color: colorScheme.onPrimary),
       ),
+      backgroundColor: colorScheme.surface,
       body: _loadingEmployees
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(
+              child: CircularProgressIndicator(
+                color: colorScheme.primary,
+              ),
+            )
           : SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Form(
@@ -186,27 +197,27 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildLeaveTypeDropdown(),
+                    _buildLeaveTypeDropdown(theme, colorScheme),
                     const SizedBox(height: 16),
-                    _buildDateRange(),
+                    _buildDateRange(theme, colorScheme),
                     const SizedBox(height: 16),
-                    _buildHalfDaySwitch(),
+                    _buildHalfDaySwitch(theme, colorScheme),
                     if (_isHalfDay) ...[
                       const SizedBox(height: 16),
-                      _buildHalfDayPeriodDropdown(),
+                      _buildHalfDayPeriodDropdown(theme, colorScheme),
                     ],
                     const SizedBox(height: 16),
-                    _buildContactNumberField(),
+                    _buildContactNumberField(theme, colorScheme),
                     const SizedBox(height: 16),
-                    _buildHandoverEmployeesDropdown(),
+                    _buildHandoverEmployeesDropdown(theme, colorScheme),
                     const SizedBox(height: 16),
-                    _buildReasonField(),
+                    _buildReasonField(theme, colorScheme),
                     if (_selectedLeaveType == LeaveType.MEDICAL_LEAVE) ...[
                       const SizedBox(height: 16),
-                      _buildMedicalCertificateUpload(),
+                      _buildMedicalCertificateUpload(theme, colorScheme),
                     ],
                     const SizedBox(height: 32),
-                    _buildSubmitButton(),
+                    _buildSubmitButton(theme, colorScheme),
                   ],
                 ),
               ),
@@ -214,14 +225,38 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
     );
   }
 
-  Widget _buildLeaveTypeDropdown() {
+  Widget _buildLeaveTypeDropdown(ThemeData theme, ColorScheme colorScheme) {
     return DropdownButtonFormField<LeaveType>(
       value: _selectedLeaveType,
       decoration: InputDecoration(
         labelText: 'Leave Type *',
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-        prefixIcon: const Icon(Icons.category),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: colorScheme.outline.withOpacity(0.3),
+          ),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: colorScheme.outline.withOpacity(0.3),
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: colorScheme.primary,
+            width: 2,
+          ),
+        ),
+        prefixIcon: Icon(Icons.category_rounded, color: colorScheme.primary),
+        filled: true,
+        fillColor: colorScheme.surface,
       ),
+      dropdownColor: colorScheme.surface,
+      style: theme.textTheme.bodyLarge?.copyWith(
+            color: colorScheme.onSurface,
+          ),
       items: LeaveType.values.map((type) {
         return DropdownMenuItem(
           value: type,
@@ -235,7 +270,7 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
     );
   }
 
-  Widget _buildDateRange() {
+  Widget _buildDateRange(ThemeData theme, ColorScheme colorScheme) {
     return Row(
       children: [
         Expanded(
@@ -246,6 +281,14 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
                 initialDate: _startDate ?? DateTime.now(),
                 firstDate: DateTime.now(),
                 lastDate: DateTime.now().add(const Duration(days: 365)),
+                builder: (context, child) {
+                  return Theme(
+                    data: Theme.of(context).copyWith(
+                      colorScheme: colorScheme,
+                    ),
+                    child: child!,
+                  );
+                },
               );
               if (date != null) {
                 setState(() {
@@ -260,8 +303,28 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
             child: InputDecorator(
               decoration: InputDecoration(
                 labelText: 'Start Date *',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                prefixIcon: const Icon(Icons.calendar_today),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(
+                    color: colorScheme.outline.withOpacity(0.3),
+                  ),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(
+                    color: colorScheme.outline.withOpacity(0.3),
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(
+                    color: colorScheme.primary,
+                    width: 2,
+                  ),
+                ),
+                prefixIcon: Icon(Icons.calendar_today_rounded, color: colorScheme.primary),
+                filled: true,
+                fillColor: colorScheme.surface,
                 errorText: _startDate == null && _formKey.currentState?.validate() == false
                     ? 'Required'
                     : null,
@@ -270,9 +333,11 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
                 _startDate != null
                     ? DateFormat('dd MMM yyyy').format(_startDate!)
                     : 'Select date',
-                style: TextStyle(
-                  color: _startDate != null ? null : Colors.grey,
-                ),
+                style: theme.textTheme.bodyLarge?.copyWith(
+                      color: _startDate != null
+                          ? colorScheme.onSurface
+                          : colorScheme.onSurfaceVariant,
+                    ),
               ),
             ),
           ),
@@ -286,6 +351,14 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
                 initialDate: _endDate ?? _startDate ?? DateTime.now(),
                 firstDate: _startDate ?? DateTime.now(),
                 lastDate: DateTime.now().add(const Duration(days: 365)),
+                builder: (context, child) {
+                  return Theme(
+                    data: Theme.of(context).copyWith(
+                      colorScheme: colorScheme,
+                    ),
+                    child: child!,
+                  );
+                },
               );
               if (date != null) {
                 setState(() => _endDate = date);
@@ -294,8 +367,28 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
             child: InputDecorator(
               decoration: InputDecoration(
                 labelText: 'End Date *',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                prefixIcon: const Icon(Icons.calendar_today),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(
+                    color: colorScheme.outline.withOpacity(0.3),
+                  ),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(
+                    color: colorScheme.outline.withOpacity(0.3),
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(
+                    color: colorScheme.primary,
+                    width: 2,
+                  ),
+                ),
+                prefixIcon: Icon(Icons.calendar_today_rounded, color: colorScheme.primary),
+                filled: true,
+                fillColor: colorScheme.surface,
                 errorText: _endDate == null && _formKey.currentState?.validate() == false
                     ? 'Required'
                     : null,
@@ -304,9 +397,11 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
                 _endDate != null
                     ? DateFormat('dd MMM yyyy').format(_endDate!)
                     : 'Select date',
-                style: TextStyle(
-                  color: _endDate != null ? null : Colors.grey,
-                ),
+                style: theme.textTheme.bodyLarge?.copyWith(
+                      color: _endDate != null
+                          ? colorScheme.onSurface
+                          : colorScheme.onSurfaceVariant,
+                    ),
               ),
             ),
           ),
@@ -315,31 +410,76 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
     );
   }
 
-  Widget _buildHalfDaySwitch() {
-    return SwitchListTile(
-      title: const Text('Half Day Leave'),
-      subtitle: const Text('Check this if applying for half day'),
-      value: _isHalfDay,
-      onChanged: (value) {
-        setState(() {
-          _isHalfDay = value;
-          if (value) {
-            // Set end date same as start date for half day
-            _endDate = _startDate;
-          }
-        });
-      },
+  Widget _buildHalfDaySwitch(ThemeData theme, ColorScheme colorScheme) {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: colorScheme.outline.withOpacity(0.12),
+          width: 1,
+        ),
+      ),
+      child: SwitchListTile(
+        title: Text(
+          'Half Day Leave',
+          style: theme.textTheme.bodyLarge?.copyWith(
+                color: colorScheme.onSurface,
+              ),
+        ),
+        subtitle: Text(
+          'Check this if applying for half day',
+          style: theme.textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+        ),
+        value: _isHalfDay,
+        activeColor: colorScheme.primary,
+        onChanged: (value) {
+          setState(() {
+            _isHalfDay = value;
+            if (value) {
+              // Set end date same as start date for half day
+              _endDate = _startDate;
+            }
+          });
+        },
+      ),
     );
   }
 
-  Widget _buildHalfDayPeriodDropdown() {
+  Widget _buildHalfDayPeriodDropdown(ThemeData theme, ColorScheme colorScheme) {
     return DropdownButtonFormField<HalfDayPeriod>(
       value: _halfDayPeriod,
       decoration: InputDecoration(
         labelText: 'Half Day Period *',
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-        prefixIcon: const Icon(Icons.access_time),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: colorScheme.outline.withOpacity(0.3),
+          ),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: colorScheme.outline.withOpacity(0.3),
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: colorScheme.primary,
+            width: 2,
+          ),
+        ),
+        prefixIcon: Icon(Icons.access_time_rounded, color: colorScheme.primary),
+        filled: true,
+        fillColor: colorScheme.surface,
       ),
+      dropdownColor: colorScheme.surface,
+      style: theme.textTheme.bodyLarge?.copyWith(
+            color: colorScheme.onSurface,
+          ),
       items: HalfDayPeriod.values.map((period) {
         return DropdownMenuItem(
           value: period,
@@ -355,15 +495,38 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
     );
   }
 
-  Widget _buildContactNumberField() {
+  Widget _buildContactNumberField(ThemeData theme, ColorScheme colorScheme) {
     return TextFormField(
       controller: _contactController,
       decoration: InputDecoration(
         labelText: 'Contact Number During Leave *',
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-        prefixIcon: const Icon(Icons.phone),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: colorScheme.outline.withOpacity(0.3),
+          ),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: colorScheme.outline.withOpacity(0.3),
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: colorScheme.primary,
+            width: 2,
+          ),
+        ),
+        prefixIcon: Icon(Icons.phone_rounded, color: colorScheme.primary),
         hintText: 'Enter contact number',
+        filled: true,
+        fillColor: colorScheme.surface,
       ),
+      style: theme.textTheme.bodyLarge?.copyWith(
+            color: colorScheme.onSurface,
+          ),
       keyboardType: TextInputType.phone,
       validator: (value) {
         if (value == null || value.trim().isEmpty) {
@@ -374,29 +537,52 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
     );
   }
 
-  Widget _buildHandoverEmployeesDropdown() {
+  Widget _buildHandoverEmployeesDropdown(ThemeData theme, ColorScheme colorScheme) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'Hand Over Responsibility To',
-          style: Theme.of(context).textTheme.titleMedium,
+          style: theme.textTheme.titleMedium?.copyWith(
+                color: colorScheme.onSurface,
+                fontWeight: FontWeight.w600,
+              ),
         ),
         const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey.shade300),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: ListTile(
-            leading: const Icon(Icons.people),
-            title: Text(
-              _selectedEmployeeIds.isEmpty
-                  ? 'Select employees'
-                  : '${_selectedEmployeeIds.length} employee(s) selected',
+        InkWell(
+          onTap: () => _showEmployeeSelectionDialog(),
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: colorScheme.outline.withOpacity(0.3),
+              ),
+              borderRadius: BorderRadius.circular(12),
+              color: colorScheme.surface,
             ),
-            trailing: const Icon(Icons.arrow_drop_down),
-            onTap: () => _showEmployeeSelectionDialog(),
+            child: Row(
+              children: [
+                Icon(Icons.people_rounded, color: colorScheme.primary),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    _selectedEmployeeIds.isEmpty
+                        ? 'Select employees (Optional)'
+                        : '${_selectedEmployeeIds.length} employee(s) selected',
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                          color: _selectedEmployeeIds.isEmpty
+                              ? colorScheme.onSurfaceVariant
+                              : colorScheme.onSurface,
+                        ),
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_drop_down_rounded,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ],
+            ),
           ),
         ),
       ],
@@ -404,6 +590,9 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
   }
 
   void _showEmployeeSelectionDialog() {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    
     showDialog(
       context: context,
       builder: (context) {
@@ -411,33 +600,63 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              title: const Text('Select Employees'),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              title: Row(
+                children: [
+                  Icon(Icons.people_rounded, color: colorScheme.primary),
+                  const SizedBox(width: 12),
+                  const Text('Select Employees'),
+                ],
+              ),
               content: SizedBox(
                 width: double.maxFinite,
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: _employees.length,
-                  itemBuilder: (context, index) {
-                    final employee = _employees[index];
-                    final isSelected = tempSelected.contains(employee.id);
-                    return CheckboxListTile(
-                      title: Text(employee.fullName),
-                      subtitle: Text(
-                        '${employee.employeeId} - ${employee.designation ?? "N/A"}',
+                child: _employees.isEmpty
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Text(
+                            'No employees available',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
+                          ),
+                        ),
+                      )
+                    : ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: _employees.length,
+                        itemBuilder: (context, index) {
+                          final employee = _employees[index];
+                          final isSelected = tempSelected.contains(employee.id);
+                          return CheckboxListTile(
+                            title: Text(
+                              employee.fullName,
+                              style: theme.textTheme.bodyLarge?.copyWith(
+                                    color: colorScheme.onSurface,
+                                  ),
+                            ),
+                            subtitle: Text(
+                              '${employee.employeeId} - ${employee.designation ?? "N/A"}',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
+                            ),
+                            value: isSelected,
+                            activeColor: colorScheme.primary,
+                            onChanged: (checked) {
+                              setDialogState(() {
+                                if (checked == true) {
+                                  tempSelected.add(employee.id);
+                                } else {
+                                  tempSelected.remove(employee.id);
+                                }
+                              });
+                            },
+                          );
+                        },
                       ),
-                      value: isSelected,
-                      onChanged: (checked) {
-                        setDialogState(() {
-                          if (checked == true) {
-                            tempSelected.add(employee.id);
-                          } else {
-                            tempSelected.remove(employee.id);
-                          }
-                        });
-                      },
-                    );
-                  },
-                ),
               ),
               actions: [
                 TextButton(
@@ -449,6 +668,10 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
                     setState(() => _selectedEmployeeIds = tempSelected);
                     Navigator.pop(context);
                   },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: colorScheme.primary,
+                    foregroundColor: colorScheme.onPrimary,
+                  ),
                   child: const Text('OK'),
                 ),
               ],
@@ -459,16 +682,39 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
     );
   }
 
-  Widget _buildReasonField() {
+  Widget _buildReasonField(ThemeData theme, ColorScheme colorScheme) {
     return TextFormField(
       controller: _reasonController,
       decoration: InputDecoration(
         labelText: 'Reason for Leave *',
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-        prefixIcon: const Icon(Icons.description),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: colorScheme.outline.withOpacity(0.3),
+          ),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: colorScheme.outline.withOpacity(0.3),
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: colorScheme.primary,
+            width: 2,
+          ),
+        ),
+        prefixIcon: Icon(Icons.description_rounded, color: colorScheme.primary),
         hintText: 'Enter reason',
         alignLabelWithHint: true,
+        filled: true,
+        fillColor: colorScheme.surface,
       ),
+      style: theme.textTheme.bodyLarge?.copyWith(
+            color: colorScheme.onSurface,
+          ),
       maxLines: 4,
       validator: (value) {
         if (value == null || value.trim().isEmpty) {
@@ -479,18 +725,29 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
     );
   }
 
-  Widget _buildMedicalCertificateUpload() {
+  Widget _buildMedicalCertificateUpload(ThemeData theme, ColorScheme colorScheme) {
+    final successColor = colorScheme.brightness == Brightness.dark
+        ? const Color(0xFF4CAF50)
+        : const Color(0xFF2E7D32);
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'Medical Certificate *',
-          style: Theme.of(context).textTheme.titleMedium,
+          style: theme.textTheme.titleMedium?.copyWith(
+                color: colorScheme.onSurface,
+                fontWeight: FontWeight.w600,
+              ),
         ),
         const SizedBox(height: 8),
         ElevatedButton.icon(
           onPressed: _pickMedicalCertificate,
-          icon: const Icon(Icons.upload_file),
+          icon: Icon(
+            _medicalCertificateUrl != null
+                ? Icons.check_circle_rounded
+                : Icons.upload_file_rounded,
+          ),
           label: Text(
             _medicalCertificateUrl != null
                 ? 'Certificate Uploaded'
@@ -498,8 +755,15 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
           ),
           style: ElevatedButton.styleFrom(
             backgroundColor: _medicalCertificateUrl != null
-                ? Colors.green
-                : null,
+                ? successColor
+                : colorScheme.primary,
+            foregroundColor: _medicalCertificateUrl != null
+                ? Colors.white
+                : colorScheme.onPrimary,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         ),
         if (_medicalCertificateUrl != null)
@@ -507,9 +771,14 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
             padding: const EdgeInsets.only(top: 8),
             child: Row(
               children: [
-                const Icon(Icons.check_circle, color: Colors.green, size: 16),
+                Icon(Icons.check_circle, color: successColor, size: 16),
                 const SizedBox(width: 4),
-                const Text('Certificate uploaded successfully'),
+                Text(
+                  'Certificate uploaded successfully',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                ),
               ],
             ),
           ),
@@ -517,22 +786,37 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
     );
   }
 
-  Widget _buildSubmitButton() {
+  Widget _buildSubmitButton(ThemeData theme, ColorScheme colorScheme) {
     return SizedBox(
       width: double.infinity,
       height: 50,
       child: ElevatedButton(
         onPressed: _isSubmitting ? null : _submitLeave,
         style: ElevatedButton.styleFrom(
+          backgroundColor: colorScheme.primary,
+          foregroundColor: colorScheme.onPrimary,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(12),
           ),
+          elevation: 2,
         ),
         child: _isSubmitting
-            ? const CircularProgressIndicator()
+            ? SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    colorScheme.onPrimary,
+                  ),
+                ),
+              )
             : Text(
                 widget.existingLeave != null ? 'UPDATE LEAVE' : 'SUBMIT LEAVE',
-                style: const TextStyle(fontSize: 16),
+                style: theme.textTheme.titleMedium?.copyWith(
+                      color: colorScheme.onPrimary,
+                      fontWeight: FontWeight.bold,
+                    ),
               ),
       ),
     );
