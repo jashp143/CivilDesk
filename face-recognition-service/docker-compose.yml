@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  face-recognition:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: face-recognition-service
+    environment:
+      # Service Configuration
+      SERVICE_PORT: ${SERVICE_PORT:-8000}
+      SERVICE_HOST: ${SERVICE_HOST:-0.0.0.0}
+      
+      # Database Configuration
+      DB_HOST: ${DB_HOST:-localhost}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_NAME: ${DB_NAME:-civildesk}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-change_me}
+      
+      # Face Recognition Settings
+      FACE_DETECTION_THRESHOLD: ${FACE_DETECTION_THRESHOLD:-0.65}
+      FACE_MATCHING_THRESHOLD: ${FACE_MATCHING_THRESHOLD:-0.6}
+      VIDEO_CAPTURE_DURATION: ${VIDEO_CAPTURE_DURATION:-15}
+      MAX_FACES_PER_FRAME: ${MAX_FACES_PER_FRAME:-1}
+      MIN_FACE_SAMPLES: ${MIN_FACE_SAMPLES:-10}
+      
+      # Live Video Stream Settings
+      STREAM_CACHE_DURATION: ${STREAM_CACHE_DURATION:-2.0}
+      FAST_MODE_DETECTION_SIZE: ${FAST_MODE_DETECTION_SIZE:-416}
+      ENABLE_FACE_TRACKING: ${ENABLE_FACE_TRACKING:-True}
+      
+      # Storage Paths
+      EMBEDDINGS_PATH: ${EMBEDDINGS_PATH:-./data/embeddings.pkl}
+      TEMP_VIDEO_PATH: ${TEMP_VIDEO_PATH:-./data/temp_videos}
+      LOGS_PATH: ${LOGS_PATH:-./logs}
+      
+      # CUDA/GPU Settings
+      USE_GPU: ${USE_GPU:-True}
+      GPU_DEVICE_ID: ${GPU_DEVICE_ID:-0}
+      
+      # Redis Configuration
+      REDIS_HOST: ${REDIS_HOST:-localhost}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: ${REDIS_DB:-0}
+      REDIS_ENABLED: ${REDIS_ENABLED:-True}
+    ports:
+      - "8000:8000"
+    volumes:
+      - embeddings_data:/app/data
+      - logs_data:/app/logs
+    networks:
+      - face-recognition-network
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+
+volumes:
+  embeddings_data:
+    driver: local
+  logs_data:
+    driver: local
+
+networks:
+  face-recognition-network:
+    driver: bridge
+
