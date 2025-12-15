@@ -1,0 +1,60 @@
+# Face Recognition Service with GPU support
+FROM nvidia/cuda:11.8.0-runtime-ubuntu22.04
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
+    python3-venv \
+    libpq-dev \
+    postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create virtual environment
+RUN python3 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Copy requirements first for better layer caching
+COPY requirements.txt .
+
+# Install Python dependencies
+# Note: For GPU support, faiss-gpu should be used instead of faiss-cpu
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir \
+    fastapi==0.104.1 \
+    uvicorn[standard]==0.24.0 \
+    python-multipart==0.0.6 \
+    opencv-python==4.8.1.78 \
+    numpy==1.24.3 \
+    insightface==0.7.3 \
+    onnxruntime-gpu==1.16.3 \
+    pillow==10.1.0 \
+    psycopg2-binary==2.9.9 \
+    python-dotenv==1.0.0 \
+    aiofiles==23.2.1 \
+    faiss-gpu==1.7.4 \
+    redis==5.0.1
+
+# Copy application code
+COPY . .
+
+# Create necessary directories
+RUN mkdir -p data/temp_videos logs
+
+# Create non-root user
+RUN useradd -m -u 1000 appuser && \
+    chown -R appuser:appuser /app
+USER appuser
+
+# Expose port
+EXPOSE 8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+  CMD python3 -c "import requests; requests.get('http://localhost:8000/health')" || exit 1
+
+# Run the application
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+
