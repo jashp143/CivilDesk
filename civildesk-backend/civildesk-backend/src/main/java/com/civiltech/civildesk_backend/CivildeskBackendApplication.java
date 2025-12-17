@@ -1,6 +1,8 @@
 package com.civiltech.civildesk_backend;
 
 import io.github.cdimascio.dotenv.Dotenv;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration;
@@ -9,6 +11,8 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 @SpringBootApplication(exclude = {RedisRepositoriesAutoConfiguration.class})
 @EnableJpaRepositories(basePackages = "com.civiltech.civildesk_backend.repository")
 public class CivildeskBackendApplication {
+
+	private static final Logger logger = LoggerFactory.getLogger(CivildeskBackendApplication.class);
 
 	public static void main(String[] args) {
 		// Load .env file BEFORE Spring Boot starts
@@ -20,18 +24,18 @@ public class CivildeskBackendApplication {
 					.load();
 			
 			// Load environment variables into system properties
-			dotenv.entries().forEach(entry -> {
+			int loadedCount = 0;
+			for (var entry : dotenv.entries()) {
 				String key = entry.getKey();
 				String value = entry.getValue();
 				if (System.getProperty(key) == null) {
 					System.setProperty(key, value);
-					System.out.println("Loaded environment variable: " + key + " from .env file");
+					loadedCount++;
 				}
-			});
-			System.out.println("Environment variables loaded from .env file successfully");
+			}
+			logger.info("Loaded {} environment variables from .env file", loadedCount);
 		} catch (Exception e) {
-			System.out.println("Warning: Could not load .env file: " + e.getMessage());
-			System.out.println("Using default values from application.properties or system environment variables");
+			logger.warn("Could not load .env file: {}. Using default values from application.properties or system environment variables", e.getMessage());
 		}
 		
 		SpringApplication.run(CivildeskBackendApplication.class, args);

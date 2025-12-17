@@ -9,6 +9,7 @@ class AuthProvider extends ChangeNotifier {
   final ApiService _apiService = ApiService();
   
   String? _token;
+  String? _refreshToken;
   Map<String, dynamic>? _user;
   bool _isAuthenticated = false;
   bool _isLoading = false;
@@ -30,9 +31,22 @@ class AuthProvider extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       _token = prefs.getString(AppConstants.tokenKey);
+      _refreshToken = prefs.getString(AppConstants.refreshTokenKey);
       final userString = prefs.getString(AppConstants.userKey);
       
-      if (_token != null && userString != null) {
+      // If we have a refresh token but no access token, try to refresh
+      if (_refreshToken != null && _token == null) {
+        final refreshed = await _refreshAccessToken();
+        if (refreshed && userString != null) {
+          try {
+            _user = jsonDecode(userString) as Map<String, dynamic>;
+            _isAuthenticated = true;
+          } catch (e) {
+            debugPrint('Error parsing user data: $e');
+            await _clearAuthData();
+          }
+        }
+      } else if (_token != null && userString != null) {
         try {
           // Parse user data from JSON string
           _user = jsonDecode(userString) as Map<String, dynamic>;
@@ -51,7 +65,7 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> login(String email, String password) async {
+  Future<bool> login(String email, String password, {bool rememberMe = false}) async {
     _lastError = null;
     _isLoading = true;
     notifyListeners();
@@ -62,6 +76,7 @@ class AuthProvider extends ChangeNotifier {
         data: {
           'email': email,
           'password': password,
+          'rememberMe': rememberMe,
         },
       );
 
@@ -81,12 +96,16 @@ class AuthProvider extends ChangeNotifier {
           }
           
           _token = authData['token'] as String;
+          _refreshToken = authData['refreshToken'] as String?;
           _user = user;
           _isAuthenticated = true;
 
           // Save to local storage
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString(AppConstants.tokenKey, _token!);
+          if (_refreshToken != null) {
+            await prefs.setString(AppConstants.refreshTokenKey, _refreshToken!);
+          }
           await prefs.setString(AppConstants.userKey, jsonEncode(_user));
 
           notifyListeners();
@@ -125,8 +144,11 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> logout() async {
     try {
-      if (_token != null) {
-        await _apiService.post(AppConstants.logoutEndpoint);
+      if (_token != null || _refreshToken != null) {
+        await _apiService.post(
+          AppConstants.logoutEndpoint,
+          data: _refreshToken != null ? {'refreshToken': _refreshToken} : null,
+        );
       }
     } catch (e) {
       debugPrint('Logout error: $e');
@@ -137,14 +159,75 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> _clearAuthData() async {
     _token = null;
+    _refreshToken = null;
     _user = null;
     _isAuthenticated = false;
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(AppConstants.tokenKey);
+    await prefs.remove(AppConstants.refreshTokenKey);
     await prefs.remove(AppConstants.userKey);
 
     notifyListeners();
+  }
+
+  Future<bool> _refreshAccessToken() async {
+    try {
+      if (_refreshToken == null) {
+        return false;
+      }
+
+      final response = await _apiService.post(
+        AppConstants.refreshTokenEndpoint,
+        data: {
+          'refreshToken': _refreshToken,
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = response.data;
+        if (responseData['success'] == true && responseData['data'] != null) {
+          final authData = responseData['data'] as Map<String, dynamic>;
+          _token = authData['token'] as String;
+          final newRefreshToken = authData['refreshToken'] as String?;
+          if (newRefreshToken != null) {
+            _refreshToken = newRefreshToken;
+          }
+
+          // Save updated tokens
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString(AppConstants.tokenKey, _token!);
+          if (_refreshToken != null) {
+            await prefs.setString(AppConstants.refreshTokenKey, _refreshToken!);
+          }
+
+          return true;
+        }
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Token refresh error: $e');
+      await _clearAuthData();
+      return false;
+    }
+  }
+
+  Future<bool> refreshTokenIfNeeded() async {
+    if (_refreshToken != null && (_token == null || await _isTokenExpired())) {
+      return await _refreshAccessToken();
+    }
+    return true;
+  }
+
+  Future<bool> _isTokenExpired() async {
+    if (_token == null) return true;
+    try {
+      // Simple check - if token exists, assume it's valid for now
+      // The API will return 401 if it's actually expired
+      return false;
+    } catch (e) {
+      return true;
+    }
   }
 
   bool hasRole(String role) {
@@ -177,27 +260,94 @@ class AuthProvider extends ChangeNotifier {
         },
       );
 
-      if (response.statusCode == 200) {
+      debugPrint('Signup response status: ${response.statusCode}');
+      debugPrint('Signup response data: ${response.data}');
+
+      // Check for successful response (200-299 status codes)
+      if (response.statusCode != null && response.statusCode! >= 200 && response.statusCode! < 300) {
         final responseData = response.data;
-        if (responseData['success'] == true) {
+        if (responseData is Map<String, dynamic>) {
+          // Check if success is true (handle both bool and string representations)
+          final success = responseData['success'];
+          final isSuccess = success == true || success == 'true' || success == 1;
+          
+          if (isSuccess) {
+            debugPrint('Signup successful!');
+            _lastError = null; // Clear any previous errors
+            _isLoading = false;
+            notifyListeners();
+            return true;
+          } else {
+            // Success field is false, extract error message
+            _lastError = responseData['message'] as String? ?? 'Signup failed. Please try again.';
+            debugPrint('Signup failed: $_lastError');
+            notifyListeners();
+            return false;
+          }
+        } else {
+          // Unexpected response format
+          _lastError = 'Unexpected response format from server.';
+          debugPrint('Unexpected response format: $responseData');
           notifyListeners();
-          return true;
+          return false;
         }
+      } else {
+        // Non-success status code
+        _lastError = 'Signup failed with status code: ${response.statusCode}';
+        debugPrint('Signup failed with status: ${response.statusCode}');
+        notifyListeners();
+        return false;
       }
-      return false;
     } catch (e) {
       debugPrint('Signup error: $e');
       if (e is DioException) {
         final response = e.response;
+        debugPrint('Signup error status: ${response?.statusCode}');
+        debugPrint('Signup error data: ${response?.data}');
+        
         if (response != null && response.data != null) {
           final errorData = response.data;
           if (errorData is Map<String, dynamic>) {
-            _lastError = errorData['message'] as String? ?? 'Signup failed. Please try again.';
+            // Try to extract error message from different response formats
+            String? errorMessage;
+            
+            // Check for direct message field
+            if (errorData['message'] != null) {
+              errorMessage = errorData['message'] as String?;
+            }
+            
+            // Check for validation errors in data field
+            if (errorMessage == null && errorData['data'] != null) {
+              final data = errorData['data'];
+              if (data is Map<String, dynamic>) {
+                // Extract first validation error
+                final firstError = data.values.first;
+                if (firstError is String) {
+                  errorMessage = firstError;
+                } else if (data.isNotEmpty) {
+                  errorMessage = data.values.first.toString();
+                }
+              }
+            }
+            
+            // Check for error field
+            if (errorMessage == null && errorData['error'] != null) {
+              errorMessage = errorData['error'] as String?;
+            }
+            
+            _lastError = errorMessage ?? 'Signup failed. Please try again.';
           } else {
             _lastError = 'Signup failed. Please try again.';
           }
         } else {
-          _lastError = 'Network error. Please check your connection.';
+          // Check error type for more specific messages
+          if (e.type == DioExceptionType.connectionTimeout) {
+            _lastError = 'Connection timeout. Please check your internet connection.';
+          } else if (e.type == DioExceptionType.connectionError) {
+            _lastError = 'Cannot connect to server. Please check your internet connection.';
+          } else {
+            _lastError = 'Network error. Please check your connection.';
+          }
         }
       } else {
         _lastError = e.toString().replaceFirst('Exception: ', '');
@@ -278,12 +428,16 @@ class AuthProvider extends ChangeNotifier {
         if (responseData['success'] == true && responseData['data'] != null) {
           final authData = responseData['data'] as Map<String, dynamic>;
           _token = authData['token'] as String;
+          _refreshToken = authData['refreshToken'] as String?;
           _user = authData['user'] as Map<String, dynamic>;
           _isAuthenticated = true;
 
           // Save to local storage
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString(AppConstants.tokenKey, _token!);
+          if (_refreshToken != null) {
+            await prefs.setString(AppConstants.refreshTokenKey, _refreshToken!);
+          }
           await prefs.setString(AppConstants.userKey, jsonEncode(_user));
 
           notifyListeners();

@@ -12,6 +12,21 @@ class AdminDashboardScreen extends StatefulWidget {
   State<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
 }
 
+// Helper class for quick action data
+class _QuickActionData {
+  final String title;
+  final IconData icon;
+  final String route;
+  final Color color;
+
+  _QuickActionData({
+    required this.title,
+    required this.icon,
+    required this.route,
+    required this.color,
+  });
+}
+
 class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   @override
   Widget build(BuildContext context) {
@@ -313,6 +328,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   Widget _buildQuickActionsSection(BuildContext context) {
+    if (_isMobile(context)) {
+      return _buildMobileQuickActions(context);
+    } else {
+      return _buildDesktopQuickActions(context);
+    }
+  }
+
+  Widget _buildMobileQuickActions(BuildContext context) {
+    final allActions = _getAllActions();
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -324,73 +349,439 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               ),
         ),
         SizedBox(height: _getSpacing(context)),
-        GridView.count(
-          crossAxisCount: _getCrossAxisCount(context),
+        
+        // Mobile: Compact grid with all actions
+        GridView.builder(
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 1.05,
+          ),
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          crossAxisSpacing: _getGridSpacing(context),
-          mainAxisSpacing: _getGridSpacing(context),
-          childAspectRatio: _getChildAspectRatio(context),
+          itemCount: allActions.length,
+          itemBuilder: (context, index) {
+            return _buildMobileActionCard(
+              context,
+              title: allActions[index].title,
+              icon: allActions[index].icon,
+              route: allActions[index].route,
+              color: allActions[index].color,
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDesktopQuickActions(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            _buildQuickActionCard(
-              context,
+            Text(
+              'Quick Actions',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    fontSize: _getTitleFontSize(context),
+                  ),
+            ),
+            Text(
+              'Access all admin features',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                  ),
+            ),
+          ],
+        ),
+        SizedBox(height: _getSpacing(context) * 1.5),
+        
+        // Employee Management Section
+        _buildActionCategory(
+          context,
+          title: 'Employee Management',
+          icon: Icons.people_outline,
+          actions: [
+            _QuickActionData(
               title: 'Employees',
-              icon: Icons.people,
+              icon: Icons.people_rounded,
               route: AppRoutes.adminEmployeeList,
-              color: Theme.of(context).colorScheme.primary,
+              color: const Color(0xFF3B82F6), // Blue
             ),
-            _buildQuickActionCard(
-              context,
+          ],
+        ),
+        SizedBox(height: _getSpacing(context) * 1.5),
+        
+        // Attendance Section
+        _buildActionCategory(
+          context,
+          title: 'Attendance',
+          icon: Icons.access_time_outlined,
+          actions: [
+            _QuickActionData(
+              title: 'Daily Overview',
+              icon: Icons.calendar_view_day_rounded,
+              route: AppRoutes.adminAttendance,
+              color: const Color(0xFF06B6D4), // Cyan
+            ),
+            _QuickActionData(
               title: 'Mark Attendance',
-              icon: Icons.camera_alt,
+              icon: Icons.camera_alt_rounded,
               route: AppRoutes.attendanceMarking,
-              color: Theme.of(context).colorScheme.secondary,
+              color: const Color(0xFF8B5CF6), // Purple
             ),
-            _buildQuickActionCard(
-              context,
+            _QuickActionData(
               title: 'View Analytics',
-              icon: Icons.analytics,
+              icon: Icons.analytics_rounded,
               route: AppRoutes.attendanceAnalytics,
-              color: Colors.blue,
+              color: const Color(0xFF6366F1), // Indigo
             ),
-            _buildQuickActionCard(
-              context,
-              title: 'Manage Sites',
-              icon: Icons.location_on,
-              route: AppRoutes.siteManagement,
-              color: Colors.green,
-            ),
-            _buildQuickActionCard(
-              context,
-              title: 'Calculate Salary',
-              icon: Icons.calculate,
-              route: AppRoutes.adminSalaryCalculation,
-              color: Colors.orange,
-            ),
-            _buildQuickActionCard(
-              context,
+            _QuickActionData(
               title: 'GPS Attendance',
-              icon: Icons.map,
+              icon: Icons.map_rounded,
               route: AppRoutes.gpsAttendanceMap,
-              color: Colors.purple,
+              color: const Color(0xFF10B981), // Green
             ),
-            _buildQuickActionCard(
-              context,
-              title: 'Manage Holidays',
-              icon: Icons.event,
-              route: AppRoutes.holidayManagement,
-              color: Colors.teal,
+          ],
+        ),
+        SizedBox(height: _getSpacing(context) * 1.5),
+        
+        // Site Management Section
+        _buildActionCategory(
+          context,
+          title: 'Site Management',
+          icon: Icons.location_city_outlined,
+          actions: [
+            _QuickActionData(
+              title: 'Manage Sites',
+              icon: Icons.location_on_rounded,
+              route: AppRoutes.siteManagement,
+              color: const Color(0xFF059669), // Emerald
             ),
-            _buildQuickActionCard(
-              context,
+          ],
+        ),
+        SizedBox(height: _getSpacing(context) * 1.5),
+        
+        // Salary & Finance Section
+        _buildActionCategory(
+          context,
+          title: 'Salary & Finance',
+          icon: Icons.account_balance_wallet_outlined,
+          actions: [
+            _QuickActionData(
+              title: 'Calculate Salary',
+              icon: Icons.calculate_rounded,
+              route: AppRoutes.adminSalaryCalculation,
+              color: const Color(0xFFF59E0B), // Amber
+            ),
+            _QuickActionData(
               title: 'Salary Slips',
-              icon: Icons.receipt_long,
+              icon: Icons.receipt_long_rounded,
               route: AppRoutes.adminSalarySlips,
-              color: Colors.indigo,
+              color: const Color(0xFFEC4899), // Pink
+            ),
+            _QuickActionData(
+              title: 'Expenses',
+              icon: Icons.account_balance_wallet_rounded,
+              route: AppRoutes.adminExpenses,
+              color: const Color(0xFF10B981), // Green
+            ),
+          ],
+        ),
+        SizedBox(height: _getSpacing(context) * 1.5),
+        
+        // Leave & Time Management Section
+        _buildActionCategory(
+          context,
+          title: 'Leave & Time Management',
+          icon: Icons.event_note_outlined,
+          actions: [
+            _QuickActionData(
+              title: 'Manage Holidays',
+              icon: Icons.event_rounded,
+              route: AppRoutes.holidayManagement,
+              color: const Color(0xFF14B8A6), // Teal
+            ),
+            _QuickActionData(
+              title: 'Leave Management',
+              icon: Icons.beach_access_rounded,
+              route: AppRoutes.adminLeave,
+              color: const Color(0xFF0EA5E9), // Sky
+            ),
+            _QuickActionData(
+              title: 'Overtime',
+              icon: Icons.access_time_filled_rounded,
+              route: AppRoutes.adminOvertime,
+              color: const Color(0xFFA855F7), // Violet
+            ),
+          ],
+        ),
+        SizedBox(height: _getSpacing(context) * 1.5),
+        
+        // Tasks & Settings Section
+        _buildActionCategory(
+          context,
+          title: 'Tasks & Settings',
+          icon: Icons.settings_outlined,
+          actions: [
+            _QuickActionData(
+              title: 'Tasks',
+              icon: Icons.assignment_rounded,
+              route: AppRoutes.adminTasks,
+              color: const Color(0xFF6366F1), // Indigo
+            ),
+            _QuickActionData(
+              title: 'Settings',
+              icon: Icons.settings_rounded,
+              route: AppRoutes.adminSettings,
+              color: const Color(0xFF64748B), // Slate
             ),
           ],
         ),
       ],
+    );
+  }
+
+  List<_QuickActionData> _getAllActions() {
+    return [
+      _QuickActionData(
+        title: 'Employees',
+        icon: Icons.people_rounded,
+        route: AppRoutes.adminEmployeeList,
+        color: const Color(0xFF3B82F6),
+      ),
+      _QuickActionData(
+        title: 'Daily Overview',
+        icon: Icons.calendar_view_day_rounded,
+        route: AppRoutes.adminAttendance,
+        color: const Color(0xFF06B6D4),
+      ),
+      _QuickActionData(
+        title: 'Mark Attendance',
+        icon: Icons.camera_alt_rounded,
+        route: AppRoutes.attendanceMarking,
+        color: const Color(0xFF8B5CF6),
+      ),
+      _QuickActionData(
+        title: 'View Analytics',
+        icon: Icons.analytics_rounded,
+        route: AppRoutes.attendanceAnalytics,
+        color: const Color(0xFF6366F1),
+      ),
+      _QuickActionData(
+        title: 'GPS Attendance',
+        icon: Icons.map_rounded,
+        route: AppRoutes.gpsAttendanceMap,
+        color: const Color(0xFF10B981),
+      ),
+      _QuickActionData(
+        title: 'Manage Sites',
+        icon: Icons.location_on_rounded,
+        route: AppRoutes.siteManagement,
+        color: const Color(0xFF059669),
+      ),
+      _QuickActionData(
+        title: 'Calculate Salary',
+        icon: Icons.calculate_rounded,
+        route: AppRoutes.adminSalaryCalculation,
+        color: const Color(0xFFF59E0B),
+      ),
+      _QuickActionData(
+        title: 'Salary Slips',
+        icon: Icons.receipt_long_rounded,
+        route: AppRoutes.adminSalarySlips,
+        color: const Color(0xFFEC4899),
+      ),
+      _QuickActionData(
+        title: 'Expenses',
+        icon: Icons.account_balance_wallet_rounded,
+        route: AppRoutes.adminExpenses,
+        color: const Color(0xFF10B981),
+      ),
+      _QuickActionData(
+        title: 'Manage Holidays',
+        icon: Icons.event_rounded,
+        route: AppRoutes.holidayManagement,
+        color: const Color(0xFF14B8A6),
+      ),
+      _QuickActionData(
+        title: 'Leave Management',
+        icon: Icons.beach_access_rounded,
+        route: AppRoutes.adminLeave,
+        color: const Color(0xFF0EA5E9),
+      ),
+      _QuickActionData(
+        title: 'Overtime',
+        icon: Icons.access_time_filled_rounded,
+        route: AppRoutes.adminOvertime,
+        color: const Color(0xFFA855F7),
+      ),
+      _QuickActionData(
+        title: 'Tasks',
+        icon: Icons.assignment_rounded,
+        route: AppRoutes.adminTasks,
+        color: const Color(0xFF6366F1),
+      ),
+      _QuickActionData(
+        title: 'Settings',
+        icon: Icons.settings_rounded,
+        route: AppRoutes.adminSettings,
+        color: const Color(0xFF64748B),
+      ),
+    ];
+  }
+
+  Widget _buildActionCategory(
+    BuildContext context, {
+    required String title,
+    required IconData icon,
+    required List<_QuickActionData> actions,
+  }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withOpacity(isDark ? 0.2 : 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                icon,
+                size: 18,
+                color: theme.colorScheme.primary,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              title,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                fontSize: _isMobile(context) ? 16 : 18,
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: _getSpacing(context)),
+        GridView.builder(
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: _getCrossAxisCount(context),
+            crossAxisSpacing: _getGridSpacing(context),
+            mainAxisSpacing: _getGridSpacing(context),
+            childAspectRatio: _getChildAspectRatio(context),
+          ),
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: actions.length,
+          itemBuilder: (context, index) {
+            return _buildQuickActionCard(
+              context,
+              title: actions[index].title,
+              icon: actions[index].icon,
+              route: actions[index].route,
+              color: actions[index].color,
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMobileActionCard(
+    BuildContext context, {
+    required String title,
+    required IconData icon,
+    required String route,
+    required Color color,
+  }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
+    return Card(
+      elevation: 1,
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(
+          color: isDark
+              ? theme.colorScheme.outline.withOpacity(0.1)
+              : theme.colorScheme.outline.withOpacity(0.05),
+          width: 1,
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            Navigator.pushNamed(context, route);
+          },
+          borderRadius: BorderRadius.circular(14),
+          splashColor: color.withOpacity(0.1),
+          highlightColor: color.withOpacity(0.05),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              color: theme.colorScheme.surface,
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        color.withOpacity(isDark ? 0.25 : 0.15),
+                        color.withOpacity(isDark ? 0.15 : 0.08),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: color.withOpacity(0.15),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    icon,
+                    size: 26,
+                    color: color,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Flexible(
+                  child: Text(
+                    title,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                          color: theme.colorScheme.onSurface,
+                          height: 1.2,
+                        ),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -405,48 +796,87 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     final isDark = theme.brightness == Brightness.dark;
     
     return Card(
-      elevation: 2,
+      elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: isDark
+              ? theme.colorScheme.outline.withOpacity(0.2)
+              : theme.colorScheme.outline.withOpacity(0.1),
+          width: 1,
+        ),
       ),
-      child: InkWell(
-        onTap: () {
-          Navigator.pushNamed(context, route);
-        },
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: EdgeInsets.all(_getCardPadding(context)),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            color: theme.colorScheme.surface,
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: EdgeInsets.all(_getIconPadding(context)),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(isDark ? 0.2 : 0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(
-                  icon,
-                  size: _getCardIconSize(context),
-                  color: color,
-                ),
-              ),
-              SizedBox(height: _getCardSpacing(context)),
-              Text(
-                title,
-                style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      fontSize: _getCardTitleFontSize(context),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            Navigator.pushNamed(context, route);
+          },
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            padding: EdgeInsets.all(_getCardPadding(context)),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              gradient: isDark
+                  ? null
+                  : LinearGradient(
+                      colors: [
+                        color.withOpacity(0.05),
+                        color.withOpacity(0.02),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: EdgeInsets.all(_getIconPadding(context) * 1.2),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        color.withOpacity(isDark ? 0.25 : 0.15),
+                        color.withOpacity(isDark ? 0.15 : 0.08),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: color.withOpacity(0.2),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    icon,
+                    size: _getCardIconSize(context),
+                    color: color,
+                  ),
+                ),
+                SizedBox(height: _getCardSpacing(context) * 1.2),
+                Text(
+                  title,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        fontSize: _getCardTitleFontSize(context),
+                        color: theme.colorScheme.onSurface,
+                      ),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                SizedBox(height: _getCardSpacing(context) * 0.4),
+                Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 10,
+                  color: color.withOpacity(0.5),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -498,22 +928,23 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   int _getCrossAxisCount(BuildContext context) {
-    // Always 4 columns for 4x2 grid
-    if (_isMobile(context)) return 2; // Mobile: 2 columns (4x2 becomes 2x4)
-    return 4; // Tablet and Desktop: 4 columns
+    // Responsive grid columns
+    if (_isMobile(context)) return 2; // Mobile: 2 columns
+    if (_isTablet(context)) return 3; // Tablet: 3 columns
+    return 4; // Desktop: 4 columns
   }
 
   double _getChildAspectRatio(BuildContext context) {
-    // Adjust aspect ratio for 4 columns, 2 rows layout
-    if (_isMobile(context)) return 1.2; // Mobile: 2 columns
-    if (_isTablet(context)) return 1.5; // Tablet: 4 columns, taller cards
-    return 1.6; // Desktop: 4 columns, taller cards
+    // Adjust aspect ratio for better card proportions
+    if (_isMobile(context)) return 1.1; // Mobile: slightly taller cards
+    if (_isTablet(context)) return 1.3; // Tablet: balanced cards
+    return 1.4; // Desktop: wider cards
   }
 
   double _getCardPadding(BuildContext context) {
-    if (_isMobile(context)) return 12.0;
-    if (_isTablet(context)) return 14.0;
-    return 16.0;
+    if (_isMobile(context)) return 14.0;
+    if (_isTablet(context)) return 16.0;
+    return 18.0;
   }
 
   double _getIconPadding(BuildContext context) {
@@ -523,9 +954,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   double _getCardIconSize(BuildContext context) {
-    if (_isMobile(context)) return 24.0;
-    if (_isTablet(context)) return 28.0;
-    return 32.0;
+    if (_isMobile(context)) return 26.0;
+    if (_isTablet(context)) return 30.0;
+    return 34.0;
   }
 
   double _getCardSpacing(BuildContext context) {
@@ -541,9 +972,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   double _getGridSpacing(BuildContext context) {
-    // Reduced spacing for tablet/desktop to make cards closer
+    // Balanced spacing for better visual hierarchy
     if (_isMobile(context)) return 12.0;
-    if (_isTablet(context)) return 8.0; // Tighter spacing on tablet
-    return 10.0; // Tighter spacing on desktop
+    if (_isTablet(context)) return 14.0;
+    return 16.0; // More breathing room on desktop
   }
 }

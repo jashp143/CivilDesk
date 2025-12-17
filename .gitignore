@@ -22,3 +22,18 @@ target/
 build/
 dist/
 
+# CI/CD - SSH keys and sensitive files
+*.pem
+*.key
+*_rsa
+*_ed25519
+github_actions_deploy
+deploy_key
+*.pub
+!*.pub.example
+
+# Server deployment files
+backups/
+*.backup
+deploy.log
+

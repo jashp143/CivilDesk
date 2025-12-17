@@ -10,6 +10,7 @@ import 'core/providers/overtime_provider.dart';
 import 'core/providers/expense_provider.dart';
 import 'core/providers/task_provider.dart';
 import 'core/providers/theme_provider.dart';
+import 'core/providers/holiday_provider.dart';
 import 'core/constants/app_routes.dart';
 import 'routes/app_router.dart';
 
@@ -33,6 +34,7 @@ class CivildeskEmployeeApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => OvertimeProvider()),
         ChangeNotifierProvider(create: (_) => ExpenseProvider()),
         ChangeNotifierProvider(create: (_) => TaskProvider()),
+        ChangeNotifierProvider(create: (_) => HolidayProvider()),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, _) {

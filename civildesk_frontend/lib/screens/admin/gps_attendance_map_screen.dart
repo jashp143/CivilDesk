@@ -1017,53 +1017,31 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
       },
     ];
 
-    return Column(
-      children: [
-        SizedBox(
-          height: 100,
-          child: PageView.builder(
-            controller: _statsPageController,
-            itemCount: stats.length,
-            onPageChanged: (index) {
-              setState(() {
-                _currentStatsPage = index;
-              });
-            },
-            itemBuilder: (context, index) {
-              final stat = stats[index];
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: _buildSummaryCard(
-                  stat['label'] as String,
-                  stat['count'] as int,
-                  stat['color'] as Color,
-                  colorScheme,
-                  isMobile: true,
-                ),
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 8),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(
-            stats.length,
-            (index) => AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              width: _currentStatsPage == index ? 24 : 8,
-              height: 8,
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(4),
-                color: _currentStatsPage == index
-                    ? colorScheme.primary
-                    : colorScheme.onSurfaceVariant.withOpacity(0.3),
+    return SizedBox(
+      height: 100,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: stats.length,
+        itemBuilder: (context, index) {
+          final stat = stats[index];
+          return Padding(
+            padding: EdgeInsets.only(
+              left: index == 0 ? 0 : 8,
+              right: index == stats.length - 1 ? 0 : 8,
+            ),
+            child: SizedBox(
+              width: 120,
+              child: _buildSummaryCard(
+                stat['label'] as String,
+                stat['count'] as int,
+                stat['color'] as Color,
+                colorScheme,
+                isMobile: true,
               ),
             ),
-          ),
-        ),
-      ],
+          );
+        },
+      ),
     );
   }
 
@@ -1098,44 +1076,30 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
       },
     ];
 
-    return Column(
-      children: [
-        SizedBox(
-          height: 100,
-          child: PageView.builder(
-            controller: _statsPageController,
-            itemCount: stats.length,
-            itemBuilder: (context, index) {
-              final stat = stats[index];
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: _buildSummaryCard(
-                  stat['label'] as String,
-                  stat['count'] as int,
-                  stat['color'] as Color,
-                  colorScheme,
-                ),
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 8),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(
-            stats.length,
-            (index) => Container(
-              width: 8,
-              height: 8,
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: colorScheme.onSurfaceVariant.withOpacity(0.3),
+    return SizedBox(
+      height: 100,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: stats.length,
+        itemBuilder: (context, index) {
+          final stat = stats[index];
+          return Padding(
+            padding: EdgeInsets.only(
+              left: index == 0 ? 0 : 12,
+              right: index == stats.length - 1 ? 0 : 12,
+            ),
+            child: SizedBox(
+              width: 140,
+              child: _buildSummaryCard(
+                stat['label'] as String,
+                stat['count'] as int,
+                stat['color'] as Color,
+                colorScheme,
               ),
             ),
-          ),
-        ),
-      ],
+          );
+        },
+      ),
     );
   }
 

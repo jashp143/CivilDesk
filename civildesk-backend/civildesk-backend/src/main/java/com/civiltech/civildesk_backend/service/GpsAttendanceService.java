@@ -56,12 +56,20 @@ public class GpsAttendanceService {
 
         // Validate location timestamp freshness (must be within last 60 seconds)
         // This prevents using stale/cached location data
+        // Allow up to 10 seconds in the future to account for clock drift and network latency
         if (request.getLocationTimestamp() != null) {
             LocalDateTime now = LocalDateTime.now();
             long secondsSinceLocationCapture = ChronoUnit.SECONDS.between(request.getLocationTimestamp(), now);
             
-            if (secondsSinceLocationCapture < 0) {
-                throw new BadRequestException("Location timestamp is in the future. Please check your device time settings.");
+            // Allow up to 10 seconds in the future to account for:
+            // - Clock drift between device and server
+            // - Network latency
+            // - Processing time
+            if (secondsSinceLocationCapture < -10) {
+                throw new BadRequestException(String.format(
+                    "Location timestamp is too far in the future (%d seconds ahead). Please check your device time settings and ensure it's synchronized with network time.",
+                    Math.abs(secondsSinceLocationCapture)
+                ));
             }
             
             if (secondsSinceLocationCapture > 60) {

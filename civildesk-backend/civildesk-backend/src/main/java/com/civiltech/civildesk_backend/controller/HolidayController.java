@@ -130,5 +130,18 @@ public class HolidayController {
                     .body(ApiResponse.error("Error retrieving upcoming holidays: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR.value()));
         }
     }
+
+    @GetMapping("/upcoming/public")
+    @PreAuthorize("hasRole('EMPLOYEE') or hasRole('ADMIN') or hasRole('HR_MANAGER')")
+    public ResponseEntity<ApiResponse<List<HolidayResponse>>> getUpcomingHolidaysPublic() {
+        try {
+            List<HolidayResponse> responses = holidayService.getUpcomingHolidays();
+            return ResponseEntity.ok(
+                    ApiResponse.success("Upcoming holidays retrieved successfully", responses));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Error retrieving upcoming holidays: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR.value()));
+        }
+    }
 }
 

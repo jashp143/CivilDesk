@@ -73,6 +73,9 @@ dependencies:
   # Image Caching - Phase 1 Optimization
   cached_network_image: ^3.3.1
   flutter_cache_manager: ^3.3.2
+  
+  # Package Info
+  package_info_plus: ^8.0.0
 
 dev_dependencies:
   flutter_test:

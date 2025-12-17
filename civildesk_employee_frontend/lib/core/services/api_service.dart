@@ -14,6 +14,11 @@ class ApiService {
         baseUrl: AppConstants.baseUrl,
         connectTimeout: const Duration(milliseconds: AppConstants.connectionTimeout),
         receiveTimeout: const Duration(milliseconds: AppConstants.receiveTimeout),
+        followRedirects: true, // Enable automatic redirect following
+        validateStatus: (status) {
+          // Accept status codes 200-399 as success (includes redirects)
+          return status != null && status >= 200 && status < 400;
+        },
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -32,10 +37,48 @@ class ApiService {
           }
           return handler.next(options);
         },
-        onError: (error, handler) {
-          // Don't clear auth data automatically on 401 errors
-          // Let the AuthProvider handle authentication state management
-          // This prevents premature clearing during hot restart
+        onError: (error, handler) async {
+          // Handle token refresh on 401 errors
+          if (error.response?.statusCode == 401) {
+            final prefs = await SharedPreferences.getInstance();
+            final refreshToken = prefs.getString(AppConstants.refreshTokenKey);
+            
+            if (refreshToken != null && !error.requestOptions.path.contains(AppConstants.refreshTokenEndpoint)) {
+              try {
+                // Try to refresh the token
+                final refreshResponse = await _dio.post(
+                  AppConstants.refreshTokenEndpoint,
+                  data: {'refreshToken': refreshToken},
+                );
+                
+                if (refreshResponse.statusCode == 200) {
+                  final responseData = refreshResponse.data;
+                  if (responseData['success'] == true && responseData['data'] != null) {
+                    final authData = responseData['data'] as Map<String, dynamic>;
+                    final newToken = authData['token'] as String;
+                    final newRefreshToken = authData['refreshToken'] as String?;
+                    
+                    // Save new tokens
+                    await prefs.setString(AppConstants.tokenKey, newToken);
+                    if (newRefreshToken != null) {
+                      await prefs.setString(AppConstants.refreshTokenKey, newRefreshToken);
+                    }
+                    
+                    // Retry the original request with new token
+                    error.requestOptions.headers['Authorization'] = 'Bearer $newToken';
+                    final response = await _dio.fetch(error.requestOptions);
+                    return handler.resolve(response);
+                  }
+                }
+              } catch (e) {
+                // Refresh failed, clear auth data
+                await _clearAuthData();
+              }
+            } else {
+              // No refresh token or refresh endpoint failed - clear storage
+              await _clearAuthData();
+            }
+          }
           return handler.next(error);
         },
       ),
@@ -59,6 +102,13 @@ class ApiService {
 
   Future<Response> delete(String path) async {
     return await _dio.delete(path);
+  }
+
+  Future<void> _clearAuthData() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(AppConstants.tokenKey);
+    await prefs.remove(AppConstants.refreshTokenKey);
+    await prefs.remove(AppConstants.userKey);
   }
 }
 

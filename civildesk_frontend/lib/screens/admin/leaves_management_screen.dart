@@ -828,23 +828,17 @@ class _LeavesManagementScreenState extends State<LeavesManagementScreen> {
                   children: [
                     Row(
                       children: [
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.primaryContainer,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Center(
-                            child: Text(
-                              leave.employeeName.isNotEmpty
-                                  ? leave.employeeName[0].toUpperCase()
-                                  : '?',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
+                        CircleAvatar(
+                          radius: 20,
+                          backgroundColor: Theme.of(context).colorScheme.primary,
+                          child: Text(
+                            leave.employeeName.isNotEmpty
+                                ? leave.employeeName[0].toUpperCase()
+                                : '?',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.onPrimary,
                             ),
                           ),
                         ),

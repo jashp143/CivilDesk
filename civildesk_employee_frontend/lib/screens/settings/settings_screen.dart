@@ -24,6 +24,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _isLoadingEmployee = false;
   String? _employeeError;
   final EmployeeService _employeeService = EmployeeService();
+  bool _isEmployeeInfoExpanded = false; // Default to collapsed
 
   @override
   void initState() {
@@ -89,16 +90,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
       title: const Text('Settings'),
       child: RefreshIndicator(
         onRefresh: () async {
-          await Future.wait([
-            _loadProfile(),
-            _loadEmployeeDetails(),
-          ]);
+          await Future.wait([_loadProfile(), _loadEmployeeDetails()]);
         },
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
             // Employee Information Section
-            _buildSectionHeader(theme, colorScheme, 'Employee Information', Icons.person_rounded),
+            _buildSectionHeader(
+              theme,
+              colorScheme,
+              'Employee Information',
+              Icons.person_rounded,
+            ),
             const SizedBox(height: 8),
             Card(
               elevation: 0,
@@ -109,234 +112,283 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   width: 1,
                 ),
               ),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    // Profile Header
-                    Row(
-                      children: [
-                        CachedProfileImage(
-                          imageUrl: _employeeData?['profilePhotoUrl'] ?? 
-                                   _employeeData?['employee']?['profilePhotoUrl'],
-                          fallbackInitials: authProvider.userName ?? 'E',
-                          radius: 30,
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                authProvider.userName ?? 'Employee',
-                                style: theme.textTheme.titleLarge?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                              ),
-                              if (personalInfo?.designation != null) ...[
-                                const SizedBox(height: 4),
-                                Text(
-                                  personalInfo!.designation,
-                                  style: theme.textTheme.bodyMedium?.copyWith(
-                                        color: colorScheme.onSurfaceVariant,
-                                      ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ],
+              child: Column(
+                children: [
+                  // Profile Header (Always visible)
+                  InkWell(
+                    onTap: () {
+                      setState(() {
+                        _isEmployeeInfoExpanded = !_isEmployeeInfoExpanded;
+                      });
+                    },
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(12),
                     ),
-                    const SizedBox(height: 16),
-                    const Divider(),
-                    const SizedBox(height: 16),
-                    
-                    // Basic Information
-                    if (_isLoadingEmployee)
-                      const Padding(
-                        padding: EdgeInsets.all(16),
-                        child: Center(child: CircularProgressIndicator()),
-                      )
-                    else if (_employeeError != null)
-                      Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          children: [
-                            Icon(
-                              Icons.error_outline,
-                              color: colorScheme.error,
-                              size: 48,
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Failed to load employee details',
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                    color: colorScheme.error,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          CachedProfileImage(
+                            imageUrl:
+                                _employeeData?['profilePhotoUrl'] ??
+                                _employeeData?['employee']?['profilePhotoUrl'],
+                            fallbackInitials: authProvider.userName ?? 'E',
+                            radius: 30,
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  authProvider.userName ?? 'Employee',
+                                  style: theme.textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.bold,
                                   ),
+                                ),
+                                if (personalInfo?.designation != null) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    personalInfo!.designation,
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      color: colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
-                            const SizedBox(height: 8),
-                            TextButton(
-                              onPressed: _loadEmployeeDetails,
-                              child: const Text('Retry'),
+                          ),
+                          Icon(
+                            _isEmployeeInfoExpanded
+                                ? Icons.expand_less_rounded
+                                : Icons.expand_more_rounded,
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  // Expandable Content
+                  AnimatedCrossFade(
+                    firstChild: const SizedBox.shrink(),
+                    secondChild: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                      child: Column(
+                        children: [
+                          const Divider(),
+                          const SizedBox(height: 16),
+                          // Basic Information
+                          if (_isLoadingEmployee)
+                            const Padding(
+                              padding: EdgeInsets.all(16),
+                              child: Center(child: CircularProgressIndicator()),
+                            )
+                          else if (_employeeError != null)
+                            Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                children: [
+                                  Icon(
+                                    Icons.error_outline,
+                                    color: colorScheme.error,
+                                    size: 48,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Failed to load employee details',
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      color: colorScheme.error,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  TextButton(
+                                    onPressed: _loadEmployeeDetails,
+                                    child: const Text('Retry'),
+                                  ),
+                                ],
+                              ),
+                            )
+                          else if (_employeeData != null) ...[
+                            // Employee ID
+                            _buildInfoRow(
+                              theme,
+                              colorScheme,
+                              Icons.badge_rounded,
+                              'Employee ID',
+                              _employeeData!['employeeId'] ??
+                                  personalInfo?.employeeCode ??
+                                  'N/A',
+                            ),
+                            const SizedBox(height: 12),
+
+                            // Email
+                            _buildInfoRow(
+                              theme,
+                              colorScheme,
+                              Icons.email_rounded,
+                              'Email',
+                              _employeeData!['email'] ??
+                                  personalInfo?.email ??
+                                  authProvider.user?['email'] ??
+                                  'N/A',
+                            ),
+                            const SizedBox(height: 12),
+
+                            // Phone Number
+                            if (_employeeData!['phoneNumber'] != null)
+                              _buildInfoRow(
+                                theme,
+                                colorScheme,
+                                Icons.phone_rounded,
+                                'Phone Number',
+                                _employeeData!['phoneNumber'],
+                              ),
+                            if (_employeeData!['phoneNumber'] != null)
+                              const SizedBox(height: 12),
+
+                            // Department
+                            _buildInfoRow(
+                              theme,
+                              colorScheme,
+                              Icons.business_rounded,
+                              'Department',
+                              _employeeData!['department'] ??
+                                  personalInfo?.department ??
+                                  'N/A',
+                            ),
+                            const SizedBox(height: 12),
+
+                            // Designation
+                            _buildInfoRow(
+                              theme,
+                              colorScheme,
+                              Icons.work_rounded,
+                              'Designation',
+                              _employeeData!['designation'] ??
+                                  personalInfo?.designation ??
+                                  'N/A',
+                            ),
+
+                            // Additional fields if available
+                            if (_employeeData!['alternatePhoneNumber'] !=
+                                null) ...[
+                              const SizedBox(height: 12),
+                              _buildInfoRow(
+                                theme,
+                                colorScheme,
+                                Icons.phone_android_rounded,
+                                'Alternate Phone',
+                                _employeeData!['alternatePhoneNumber'],
+                              ),
+                            ],
+
+                            if (_employeeData!['joiningDate'] != null) ...[
+                              const SizedBox(height: 12),
+                              _buildInfoRow(
+                                theme,
+                                colorScheme,
+                                Icons.calendar_today_rounded,
+                                'Joining Date',
+                                DateFormat('MMM dd, yyyy').format(
+                                  DateTime.parse(_employeeData!['joiningDate']),
+                                ),
+                              ),
+                            ],
+
+                            if (_employeeData!['employmentStatus'] != null) ...[
+                              const SizedBox(height: 12),
+                              _buildInfoRow(
+                                theme,
+                                colorScheme,
+                                Icons.verified_user_rounded,
+                                'Employment Status',
+                                _employeeData!['employmentStatus'],
+                              ),
+                            ],
+
+                            if (_employeeData!['employmentType'] != null) ...[
+                              const SizedBox(height: 12),
+                              _buildInfoRow(
+                                theme,
+                                colorScheme,
+                                Icons.business_center_rounded,
+                                'Employment Type',
+                                _employeeData!['employmentType'],
+                              ),
+                            ],
+
+                            if (_employeeData!['workLocation'] != null) ...[
+                              const SizedBox(height: 12),
+                              _buildInfoRow(
+                                theme,
+                                colorScheme,
+                                Icons.location_on_rounded,
+                                'Work Location',
+                                _employeeData!['workLocation'],
+                              ),
+                            ],
+                          ] else ...[
+                            // Fallback to personalInfo if employeeData is not available
+                            _buildInfoRow(
+                              theme,
+                              colorScheme,
+                              Icons.badge_rounded,
+                              'Employee Code',
+                              personalInfo?.employeeCode ?? 'N/A',
+                            ),
+                            const SizedBox(height: 12),
+                            _buildInfoRow(
+                              theme,
+                              colorScheme,
+                              Icons.email_rounded,
+                              'Email',
+                              personalInfo?.email ??
+                                  authProvider.user?['email'] ??
+                                  'N/A',
+                            ),
+                            const SizedBox(height: 12),
+                            _buildInfoRow(
+                              theme,
+                              colorScheme,
+                              Icons.business_rounded,
+                              'Department',
+                              personalInfo?.department ?? 'N/A',
+                            ),
+                            const SizedBox(height: 12),
+                            _buildInfoRow(
+                              theme,
+                              colorScheme,
+                              Icons.work_rounded,
+                              'Designation',
+                              personalInfo?.designation ?? 'N/A',
                             ),
                           ],
-                        ),
-                      )
-                    else if (_employeeData != null) ...[
-                      // Employee ID
-                      _buildInfoRow(
-                        theme,
-                        colorScheme,
-                        Icons.badge_rounded,
-                        'Employee ID',
-                        _employeeData!['employeeId'] ?? personalInfo?.employeeCode ?? 'N/A',
+                        ],
                       ),
-                      const SizedBox(height: 12),
-                      
-                      // Email
-                      _buildInfoRow(
-                        theme,
-                        colorScheme,
-                        Icons.email_rounded,
-                        'Email',
-                        _employeeData!['email'] ?? personalInfo?.email ?? authProvider.user?['email'] ?? 'N/A',
-                      ),
-                      const SizedBox(height: 12),
-                      
-                      // Phone Number
-                      if (_employeeData!['phoneNumber'] != null)
-                        _buildInfoRow(
-                          theme,
-                          colorScheme,
-                          Icons.phone_rounded,
-                          'Phone Number',
-                          _employeeData!['phoneNumber'],
-                        ),
-                      if (_employeeData!['phoneNumber'] != null) const SizedBox(height: 12),
-                      
-                      // Department
-                      _buildInfoRow(
-                        theme,
-                        colorScheme,
-                        Icons.business_rounded,
-                        'Department',
-                        _employeeData!['department'] ?? personalInfo?.department ?? 'N/A',
-                      ),
-                      const SizedBox(height: 12),
-                      
-                      // Designation
-                      _buildInfoRow(
-                        theme,
-                        colorScheme,
-                        Icons.work_rounded,
-                        'Designation',
-                        _employeeData!['designation'] ?? personalInfo?.designation ?? 'N/A',
-                      ),
-                      
-                      // Additional fields if available
-                      if (_employeeData!['alternatePhoneNumber'] != null) ...[
-                        const SizedBox(height: 12),
-                        _buildInfoRow(
-                          theme,
-                          colorScheme,
-                          Icons.phone_android_rounded,
-                          'Alternate Phone',
-                          _employeeData!['alternatePhoneNumber'],
-                        ),
-                      ],
-                      
-                      if (_employeeData!['joiningDate'] != null) ...[
-                        const SizedBox(height: 12),
-                        _buildInfoRow(
-                          theme,
-                          colorScheme,
-                          Icons.calendar_today_rounded,
-                          'Joining Date',
-                          DateFormat('MMM dd, yyyy').format(DateTime.parse(_employeeData!['joiningDate'])),
-                        ),
-                      ],
-                      
-                      if (_employeeData!['employmentStatus'] != null) ...[
-                        const SizedBox(height: 12),
-                        _buildInfoRow(
-                          theme,
-                          colorScheme,
-                          Icons.verified_user_rounded,
-                          'Employment Status',
-                          _employeeData!['employmentStatus'],
-                        ),
-                      ],
-                      
-                      if (_employeeData!['employmentType'] != null) ...[
-                        const SizedBox(height: 12),
-                        _buildInfoRow(
-                          theme,
-                          colorScheme,
-                          Icons.business_center_rounded,
-                          'Employment Type',
-                          _employeeData!['employmentType'],
-                        ),
-                      ],
-                      
-                      if (_employeeData!['workLocation'] != null) ...[
-                        const SizedBox(height: 12),
-                        _buildInfoRow(
-                          theme,
-                          colorScheme,
-                          Icons.location_on_rounded,
-                          'Work Location',
-                          _employeeData!['workLocation'],
-                        ),
-                      ],
-                    ] else ...[
-                      // Fallback to personalInfo if employeeData is not available
-                      _buildInfoRow(
-                        theme,
-                        colorScheme,
-                        Icons.badge_rounded,
-                        'Employee Code',
-                        personalInfo?.employeeCode ?? 'N/A',
-                      ),
-                      const SizedBox(height: 12),
-                      _buildInfoRow(
-                        theme,
-                        colorScheme,
-                        Icons.email_rounded,
-                        'Email',
-                        personalInfo?.email ?? authProvider.user?['email'] ?? 'N/A',
-                      ),
-                      const SizedBox(height: 12),
-                      _buildInfoRow(
-                        theme,
-                        colorScheme,
-                        Icons.business_rounded,
-                        'Department',
-                        personalInfo?.department ?? 'N/A',
-                      ),
-                      const SizedBox(height: 12),
-                      _buildInfoRow(
-                        theme,
-                        colorScheme,
-                        Icons.work_rounded,
-                        'Designation',
-                        personalInfo?.designation ?? 'N/A',
-                      ),
-                    ],
-                  ],
-                ),
+                    ),
+                    crossFadeState: _isEmployeeInfoExpanded
+                        ? CrossFadeState.showSecond
+                        : CrossFadeState.showFirst,
+                    duration: const Duration(milliseconds: 300),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 24),
 
             // Contact Information Section
-            if (_employeeData != null && (
-              _employeeData!['addressLine1'] != null ||
-              _employeeData!['city'] != null ||
-              _employeeData!['state'] != null ||
-              _employeeData!['pincode'] != null ||
-              _employeeData!['country'] != null
-            )) ...[
-              _buildSectionHeader(theme, colorScheme, 'Contact Information', Icons.contact_phone_rounded),
+            if (_employeeData != null &&
+                (_employeeData!['addressLine1'] != null ||
+                    _employeeData!['city'] != null ||
+                    _employeeData!['state'] != null ||
+                    _employeeData!['pincode'] != null ||
+                    _employeeData!['country'] != null)) ...[
+              _buildSectionHeader(
+                theme,
+                colorScheme,
+                'Contact Information',
+                Icons.contact_phone_rounded,
+              ),
               const SizedBox(height: 8),
               Card(
                 elevation: 0,
@@ -357,11 +409,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           colorScheme,
                           Icons.home_rounded,
                           'Address',
-                          _employeeData!['addressLine1'] + 
-                          (_employeeData!['addressLine2'] != null ? ', ${_employeeData!['addressLine2']}' : ''),
+                          _employeeData!['addressLine1'] +
+                              (_employeeData!['addressLine2'] != null
+                                  ? ', ${_employeeData!['addressLine2']}'
+                                  : ''),
                         ),
-                      if (_employeeData!['addressLine1'] != null) const SizedBox(height: 12),
-                      if (_employeeData!['city'] != null || _employeeData!['state'] != null || _employeeData!['pincode'] != null)
+                      if (_employeeData!['addressLine1'] != null)
+                        const SizedBox(height: 12),
+                      if (_employeeData!['city'] != null ||
+                          _employeeData!['state'] != null ||
+                          _employeeData!['pincode'] != null)
                         _buildInfoRow(
                           theme,
                           colorScheme,
@@ -373,7 +430,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             _employeeData!['pincode'],
                           ].where((e) => e != null).join(', '),
                         ),
-                      if (_employeeData!['city'] != null || _employeeData!['state'] != null || _employeeData!['pincode'] != null) const SizedBox(height: 12),
+                      if (_employeeData!['city'] != null ||
+                          _employeeData!['state'] != null ||
+                          _employeeData!['pincode'] != null)
+                        const SizedBox(height: 12),
                       if (_employeeData!['country'] != null)
                         _buildInfoRow(
                           theme,
@@ -390,11 +450,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ],
 
             // Work Information Section
-            if (_employeeData != null && (
-              _employeeData!['reportingManagerName'] != null ||
-              _employeeData!['reportingManagerId'] != null
-            )) ...[
-              _buildSectionHeader(theme, colorScheme, 'Work Information', Icons.work_outline_rounded),
+            if (_employeeData != null &&
+                (_employeeData!['reportingManagerName'] != null ||
+                    _employeeData!['reportingManagerId'] != null)) ...[
+              _buildSectionHeader(
+                theme,
+                colorScheme,
+                'Work Information',
+                Icons.work_outline_rounded,
+              ),
               const SizedBox(height: 8),
               Card(
                 elevation: 0,
@@ -425,7 +489,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ],
 
             // Theme Mode Section
-            _buildSectionHeader(theme, colorScheme, 'Theme', Icons.palette_rounded),
+            _buildSectionHeader(
+              theme,
+              colorScheme,
+              'Theme',
+              Icons.palette_rounded,
+            ),
             const SizedBox(height: 8),
             Card(
               elevation: 0,
@@ -482,7 +551,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 24),
 
             // Color Palette Section
-            _buildSectionHeader(theme, colorScheme, 'Color Palette', Icons.color_lens_rounded),
+            _buildSectionHeader(
+              theme,
+              colorScheme,
+              'Color Palette',
+              Icons.color_lens_rounded,
+            ),
             const SizedBox(height: 8),
             Card(
               elevation: 0,
@@ -496,7 +570,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: Column(
                 children: [
                   RadioListTile<ColorPalette>(
-                    secondary: _buildPalettePreview(theme, ColorPalette.palette1),
+                    secondary: _buildPalettePreview(
+                      theme,
+                      ColorPalette.palette1,
+                    ),
                     title: const Text('Palette 1'),
                     subtitle: const Text('Blue tones'),
                     value: ColorPalette.palette1,
@@ -509,7 +586,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   const Divider(height: 1),
                   RadioListTile<ColorPalette>(
-                    secondary: _buildPalettePreview(theme, ColorPalette.palette2),
+                    secondary: _buildPalettePreview(
+                      theme,
+                      ColorPalette.palette2,
+                    ),
                     title: const Text('Palette 2'),
                     subtitle: const Text('Grayscale'),
                     value: ColorPalette.palette2,
@@ -522,7 +602,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   const Divider(height: 1),
                   RadioListTile<ColorPalette>(
-                    secondary: _buildPalettePreview(theme, ColorPalette.palette3),
+                    secondary: _buildPalettePreview(
+                      theme,
+                      ColorPalette.palette3,
+                    ),
                     title: const Text('Palette 3'),
                     subtitle: const Text('Green/Red tones'),
                     value: ColorPalette.palette3,
@@ -539,7 +622,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 24),
 
             // App Info Section
-            _buildSectionHeader(theme, colorScheme, 'App Information', Icons.info_rounded),
+            _buildSectionHeader(
+              theme,
+              colorScheme,
+              'App Information',
+              Icons.info_rounded,
+            ),
             const SizedBox(height: 8),
             Card(
               elevation: 0,
@@ -658,27 +746,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildSectionHeader(ThemeData theme, ColorScheme colorScheme, String title, IconData icon) {
+  Widget _buildSectionHeader(
+    ThemeData theme,
+    ColorScheme colorScheme,
+    String title,
+    IconData icon,
+  ) {
     return Row(
       children: [
-        Icon(
-          icon,
-          size: 18,
-          color: colorScheme.primary,
-        ),
+        Icon(icon, size: 18, color: colorScheme.primary),
         const SizedBox(width: 8),
         Text(
           title,
           style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: colorScheme.onSurface,
-              ),
+            fontWeight: FontWeight.bold,
+            color: colorScheme.onSurface,
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildInfoRow(ThemeData theme, ColorScheme colorScheme, IconData icon, String label, String value) {
+  Widget _buildInfoRow(
+    ThemeData theme,
+    ColorScheme colorScheme,
+    IconData icon,
+    String label,
+    String value,
+  ) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -688,11 +783,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             color: colorScheme.primaryContainer.withOpacity(0.3),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(
-            icon,
-            size: 20,
-            color: colorScheme.primary,
-          ),
+          child: Icon(icon, size: 20, color: colorScheme.primary),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -702,17 +793,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Text(
                 label,
                 style: theme.textTheme.labelSmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                      fontSize: 11,
-                    ),
+                  color: colorScheme.onSurfaceVariant,
+                  fontSize: 11,
+                ),
               ),
               const SizedBox(height: 4),
               Text(
                 value,
                 style: theme.textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurface,
-                      fontWeight: FontWeight.w500,
-                    ),
+                  color: colorScheme.onSurface,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ],
           ),

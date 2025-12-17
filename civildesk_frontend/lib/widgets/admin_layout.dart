@@ -29,7 +29,7 @@ class _AdminLayoutState extends State<AdminLayout> {
     return [
       SidebarItem(
         title: 'Dashboard',
-        icon: Icons.dashboard,
+        icon: Icons.dashboard_rounded,
         route: AppRoutes.adminDashboard,
         onTap: () {
           if (widget.currentRoute != AppRoutes.adminDashboard) {
@@ -43,7 +43,7 @@ class _AdminLayoutState extends State<AdminLayout> {
       ),
       SidebarItem(
         title: 'Employees',
-        icon: Icons.people,
+        icon: Icons.groups_rounded,
         route: AppRoutes.adminEmployeeList,
         onTap: () {
           if (widget.currentRoute != AppRoutes.adminEmployeeList) {
@@ -57,7 +57,7 @@ class _AdminLayoutState extends State<AdminLayout> {
       ),
       SidebarItem(
         title: 'Attendance',
-        icon: Icons.access_time,
+        icon: Icons.how_to_reg_rounded,
         route: AppRoutes.adminAttendance,
         onTap: () {
           if (widget.currentRoute != AppRoutes.adminAttendance) {
@@ -71,7 +71,7 @@ class _AdminLayoutState extends State<AdminLayout> {
       ),
       SidebarItem(
         title: 'Mark Attendance',
-        icon: Icons.camera_alt,
+        icon: Icons.face_retouching_natural_rounded,
         route: AppRoutes.attendanceMarking,
         onTap: () {
           Navigator.pushNamed(
@@ -82,7 +82,7 @@ class _AdminLayoutState extends State<AdminLayout> {
       ),
       SidebarItem(
         title: 'Site Management',
-        icon: Icons.location_on,
+        icon: Icons.location_city_rounded,
         route: AppRoutes.siteManagement,
         onTap: () {
           if (widget.currentRoute != AppRoutes.siteManagement) {
@@ -96,7 +96,7 @@ class _AdminLayoutState extends State<AdminLayout> {
       ),
       SidebarItem(
         title: 'GPS Attendance Map',
-        icon: Icons.map,
+        icon: Icons.map_rounded,
         route: AppRoutes.gpsAttendanceMap,
         onTap: () {
           if (widget.currentRoute != AppRoutes.gpsAttendanceMap) {
@@ -110,7 +110,7 @@ class _AdminLayoutState extends State<AdminLayout> {
       ),
       SidebarItem(
         title: 'Attendance Analytics',
-        icon: Icons.analytics,
+        icon: Icons.bar_chart_rounded,
         route: AppRoutes.attendanceAnalytics,
         onTap: () {
           if (widget.currentRoute != AppRoutes.attendanceAnalytics) {
@@ -124,7 +124,7 @@ class _AdminLayoutState extends State<AdminLayout> {
       ),
       SidebarItem(
         title: 'Holidays',
-        icon: Icons.event,
+        icon: Icons.calendar_today_rounded,
         route: AppRoutes.holidayManagement,
         onTap: () {
           if (widget.currentRoute != AppRoutes.holidayManagement) {
@@ -138,7 +138,7 @@ class _AdminLayoutState extends State<AdminLayout> {
       ),
       SidebarItem(
         title: 'Salary Slips',
-        icon: Icons.receipt_long,
+        icon: Icons.description_rounded,
         route: AppRoutes.adminSalarySlips,
         onTap: () {
           if (widget.currentRoute != AppRoutes.adminSalarySlips) {
@@ -152,7 +152,7 @@ class _AdminLayoutState extends State<AdminLayout> {
       ),
       SidebarItem(
         title: 'Calculate Salary',
-        icon: Icons.calculate,
+        icon: Icons.calculate_rounded,
         route: AppRoutes.adminSalaryCalculation,
         onTap: () {
           if (widget.currentRoute != AppRoutes.adminSalaryCalculation) {
@@ -165,7 +165,7 @@ class _AdminLayoutState extends State<AdminLayout> {
       ),
       SidebarItem(
         title: 'Leave',
-        icon: Icons.event_busy,
+        icon: Icons.beach_access_rounded,
         route: AppRoutes.adminLeave,
         onTap: () {
           if (widget.currentRoute != AppRoutes.adminLeave) {
@@ -179,7 +179,7 @@ class _AdminLayoutState extends State<AdminLayout> {
       ),
       SidebarItem(
         title: 'Overtime',
-        icon: Icons.schedule,
+        icon: Icons.access_time_filled_rounded,
         route: AppRoutes.adminOvertime,
         onTap: () {
           if (widget.currentRoute != AppRoutes.adminOvertime) {
@@ -193,7 +193,7 @@ class _AdminLayoutState extends State<AdminLayout> {
       ),
       SidebarItem(
         title: 'Expenses',
-        icon: Icons.receipt_long,
+        icon: Icons.account_balance_wallet_rounded,
         route: AppRoutes.adminExpenses,
         onTap: () {
           if (widget.currentRoute != AppRoutes.adminExpenses) {
@@ -207,7 +207,7 @@ class _AdminLayoutState extends State<AdminLayout> {
       ),
       SidebarItem(
         title: 'Tasks',
-        icon: Icons.task_alt,
+        icon: Icons.assignment_rounded,
         route: AppRoutes.adminTasks,
         onTap: () {
           if (widget.currentRoute != AppRoutes.adminTasks) {
@@ -221,13 +221,16 @@ class _AdminLayoutState extends State<AdminLayout> {
       ),
       SidebarItem(
         title: 'Settings',
-        icon: Icons.settings,
+        icon: Icons.settings_rounded,
         route: AppRoutes.adminSettings,
         onTap: () {
-          // Placeholder for future implementation
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Settings feature coming soon')),
-          );
+          if (widget.currentRoute != AppRoutes.adminSettings) {
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              AppRoutes.adminSettings,
+              (route) => false,
+            );
+          }
         },
       ),
     ];
@@ -236,7 +239,7 @@ class _AdminLayoutState extends State<AdminLayout> {
   SidebarItem _getLogoutItem() {
     return SidebarItem(
         title: 'Logout',
-        icon: Icons.logout,
+        icon: Icons.logout_rounded,
         route: '/logout',
         onTap: () {
           context.read<AuthProvider>().logout();

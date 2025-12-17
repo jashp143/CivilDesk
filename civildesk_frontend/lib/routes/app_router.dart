@@ -25,6 +25,7 @@ import '../screens/admin/leaves_management_screen.dart';
 import '../screens/admin/overtime_management_screen.dart';
 import '../screens/admin/expenses_management_screen.dart';
 import '../screens/admin/tasks_management_screen.dart';
+import '../screens/admin/admin_settings_screen.dart';
 import '../widgets/route_guard.dart';
 
 class AppRouter {
@@ -195,6 +196,13 @@ class AppRouter {
         return MaterialPageRoute(
           builder: (_) => ManagerRouteGuard(
             child: const TasksManagementScreen(),
+          ),
+        );
+
+      case AppRoutes.adminSettings:
+        return MaterialPageRoute(
+          builder: (_) => AdminRouteGuard(
+            child: const AdminSettingsScreen(),
           ),
         );
 
