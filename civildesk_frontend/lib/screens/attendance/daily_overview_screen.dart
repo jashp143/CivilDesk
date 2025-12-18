@@ -118,6 +118,23 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
     return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
   }
 
+  Color _getStatusColor(AttendanceStatus status, ThemeData theme) {
+    switch (status) {
+      case AttendanceStatus.present:
+        return AppTheme.statusApproved;
+      case AttendanceStatus.absent:
+        return AppTheme.statusRejected;
+      case AttendanceStatus.onLeave:
+        return Colors.blue;
+      case AttendanceStatus.halfDay:
+        return Colors.orange;
+      case AttendanceStatus.late:
+        return Colors.amber;
+      case AttendanceStatus.notMarked:
+        return Colors.grey;
+    }
+  }
+
   void _handleSearch(String query) {
     setState(() {
       _searchQuery = query;
@@ -788,9 +805,8 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
     Attendance attendance,
     ThemeData theme,
   ) {
-    final isPresent = attendance.status == AttendanceStatus.present;
-    final statusColor = isPresent ? AppTheme.statusApproved : AppTheme.statusRejected;
-    final statusText = isPresent ? 'Present' : 'Absent';
+    final statusColor = _getStatusColor(attendance.status, theme);
+    final statusText = attendance.status.displayName;
     final primaryColor = theme.colorScheme.primary;
     
     return Padding(
@@ -838,29 +854,109 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
         ),
       ),
           const SizedBox(width: 8),
-          // Edit Action
-          Tooltip(
-            message: 'Edit Punch Times',
-            child: IconButton(
-              icon: Icon(
-                Icons.edit_outlined,
-                color: primaryColor,
-                size: 20,
-              ),
-              onPressed: () => _navigateToEditScreen(attendance),
-              tooltip: 'Edit',
-              style: IconButton.styleFrom(
-                backgroundColor: primaryColor.withOpacity(0.1),
-                padding: const EdgeInsets.all(8),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(6),
+          // Actions Menu
+          PopupMenuButton<String>(
+            icon: Icon(
+              Icons.more_vert,
+              color: primaryColor,
+              size: 20,
+            ),
+            onSelected: (value) {
+              if (value == 'edit') {
+                _navigateToEditScreen(attendance);
+              } else if (value == 'mark_absent') {
+                _markAsAbsent(attendance);
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'edit',
+                child: Row(
+                  children: [
+                    Icon(Icons.edit_outlined, size: 18),
+                    SizedBox(width: 8),
+                    Text('Edit Punch Times'),
+                  ],
                 ),
               ),
+              if (attendance.status != AttendanceStatus.absent)
+                const PopupMenuItem(
+                  value: 'mark_absent',
+                  child: Row(
+                    children: [
+                      Icon(Icons.cancel_outlined, size: 18, color: Colors.red),
+                      SizedBox(width: 8),
+                      Text('Mark as Absent', style: TextStyle(color: Colors.red)),
+                    ],
+                  ),
+                ),
+            ],
           ),
-        ),
-      ],
+        ],
       ),
     );
+  }
+
+  Future<void> _markAsAbsent(Attendance attendance) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Mark as Absent'),
+        content: Text(
+          'Are you sure you want to mark ${attendance.employeeName} as absent for ${DateFormat('dd MMM yyyy').format(attendance.date)}?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Mark Absent'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        setState(() {
+          _isLoading = true;
+        });
+
+        final dateString = DateFormat('yyyy-MM-dd').format(_selectedDate);
+        await _attendanceService.markAbsent(
+          employeeId: attendance.employeeId,
+          date: attendance.date,
+        );
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${attendance.employeeName} marked as absent'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          _loadDailyAttendance();
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error marking absent: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      }
+    }
   }
 
   // Mobile Card View
@@ -880,9 +976,8 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
   Widget _buildMobileCard(Attendance attendance) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final isPresent = attendance.status == AttendanceStatus.present;
-    final statusColor = isPresent ? AppTheme.statusApproved : AppTheme.statusRejected;
-    final statusText = isPresent ? 'Present' : 'Absent';
+    final statusColor = _getStatusColor(attendance.status, theme);
+    final statusText = attendance.status.displayName;
     final isDark = theme.brightness == Brightness.dark;
     final screenHeight = MediaQuery.of(context).size.height;
     final isSmallScreen = screenHeight < 700;

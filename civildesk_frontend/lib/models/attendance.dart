@@ -148,7 +148,8 @@ enum AttendanceStatus {
   absent,
   onLeave,
   halfDay,
-  late;
+  late,
+  notMarked;
 
   static AttendanceStatus fromString(String status) {
     switch (status.toUpperCase()) {
@@ -162,6 +163,8 @@ enum AttendanceStatus {
         return AttendanceStatus.halfDay;
       case 'LATE':
         return AttendanceStatus.late;
+      case 'NOT_MARKED':
+        return AttendanceStatus.notMarked;
       default:
         return AttendanceStatus.present;
     }
@@ -179,6 +182,8 @@ enum AttendanceStatus {
         return 'Half Day';
       case AttendanceStatus.late:
         return 'Late';
+      case AttendanceStatus.notMarked:
+        return 'Not Marked';
     }
   }
 }

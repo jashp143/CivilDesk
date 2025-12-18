@@ -140,5 +140,27 @@ class AttendanceService {
       throw Exception('Error updating punch time: $e');
     }
   }
+
+  /// Mark employee as absent for a specific date (admin function)
+  Future<Map<String, dynamic>> markAbsent({
+    required String employeeId,
+    required DateTime date,
+  }) async {
+    try {
+      final dateString = date.toIso8601String().split('T')[0]; // Format as YYYY-MM-DD
+      
+      final response = await _apiService.post(
+        '${AppConstants.attendanceEndpoint}/mark-absent',
+        queryParameters: {
+          'employee_id': employeeId,
+          'date': dateString,
+        },
+      );
+
+      return response.data;
+    } catch (e) {
+      throw Exception('Error marking absent: $e');
+    }
+  }
 }
 

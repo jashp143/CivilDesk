@@ -7,9 +7,11 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication(exclude = {RedisRepositoriesAutoConfiguration.class})
 @EnableJpaRepositories(basePackages = "com.civiltech.civildesk_backend.repository")
+@EnableScheduling
 public class CivildeskBackendApplication {
 
 	private static final Logger logger = LoggerFactory.getLogger(CivildeskBackendApplication.class);

@@ -8,6 +8,7 @@ import com.civiltech.civildesk_backend.model.Attendance;
 import com.civiltech.civildesk_backend.model.Employee;
 import com.civiltech.civildesk_backend.repository.AttendanceRepository;
 import com.civiltech.civildesk_backend.repository.EmployeeRepository;
+import com.civiltech.civildesk_backend.repository.HolidayRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +34,12 @@ public class AttendanceService {
 
     @Autowired
     private AttendanceCalculationService calculationService;
+
+    @Autowired
+    private AbsentAttendanceService absentAttendanceService;
+
+    @Autowired
+    private HolidayRepository holidayRepository;
 
     public Employee getEmployeeByUserId(Long userId) {
         return employeeRepository.findByUserIdAndDeletedFalse(userId).orElse(null);
@@ -167,24 +174,143 @@ public class AttendanceService {
         return mapToResponse(attendance);
     }
 
+    /**
+     * Get employee attendance for a date range.
+     * For past dates without records, returns virtual absent records.
+     * For today/future dates without records, returns "Not Marked" status.
+     */
     @Transactional(readOnly = true)
     public List<AttendanceResponse> getEmployeeAttendance(String employeeId, LocalDate startDate, LocalDate endDate) {
         Employee employee = employeeRepository.findByEmployeeIdAndDeletedFalse(employeeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found with ID: " + employeeId));
 
+        // Get existing attendance records
         List<Attendance> attendances = attendanceRepository.findByEmployeeIdAndDateBetween(
                 employee.getId(), startDate, endDate);
 
-        return attendances.stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
+        // Create a map of date to attendance for quick lookup
+        java.util.Map<LocalDate, Attendance> attendanceMap = attendances.stream()
+                .collect(Collectors.toMap(
+                        Attendance::getDate,
+                        a -> a,
+                        (a1, a2) -> a1 // In case of duplicates, keep first
+                ));
+
+        LocalDate today = LocalDate.now();
+        List<AttendanceResponse> responses = new ArrayList<>();
+
+        // Iterate through all dates in range
+        LocalDate currentDate = startDate;
+        while (!currentDate.isAfter(endDate)) {
+            Attendance attendance = attendanceMap.get(currentDate);
+            
+            if (attendance != null) {
+                // Attendance record exists
+                responses.add(mapToResponse(attendance));
+            } else {
+                // No attendance record - create virtual response
+                AttendanceResponse virtualResponse = createVirtualAttendanceResponse(employee, currentDate, today);
+                responses.add(virtualResponse);
+            }
+            
+            currentDate = currentDate.plusDays(1);
+        }
+
+        return responses;
     }
 
+    /**
+     * Get daily attendance for all employees.
+     * Includes employees without attendance records (will show as absent if past date).
+     * For past dates, automatically creates absent records if missing.
+     * For today/future dates, shows "Not Marked" status.
+     */
+    @Transactional(readOnly = true)
     public List<AttendanceResponse> getDailyAttendance(LocalDate date) {
-        List<Attendance> attendances = attendanceRepository.findAllByDate(date);
-        return attendances.stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
+        LocalDate today = LocalDate.now();
+        
+        // Get all active employees
+        List<Employee> activeEmployees = employeeRepository
+                .findByEmploymentStatusAndDeletedFalse(Employee.EmploymentStatus.ACTIVE);
+        
+        // Get existing attendance records for the date
+        List<Attendance> existingAttendances = attendanceRepository.findAllByDate(date);
+        
+        // Create a map of employee ID to attendance for quick lookup
+        java.util.Map<Long, Attendance> attendanceMap = existingAttendances.stream()
+                .collect(Collectors.toMap(
+                        a -> a.getEmployee().getId(),
+                        a -> a,
+                        (a1, a2) -> a1 // In case of duplicates, keep first
+                ));
+        
+        List<AttendanceResponse> responses = new ArrayList<>();
+        
+        for (Employee employee : activeEmployees) {
+            Attendance attendance = attendanceMap.get(employee.getId());
+            
+            if (attendance != null) {
+                // Attendance record exists, use it
+                responses.add(mapToResponse(attendance));
+            } else {
+                // No attendance record exists
+                // For past dates, create absent record on-the-fly (or return virtual absent)
+                // For today/future, return null status or "Not Marked"
+                AttendanceResponse response = createVirtualAttendanceResponse(employee, date, today);
+                responses.add(response);
+            }
+        }
+        
+        return responses;
+    }
+
+    /**
+     * Create a virtual attendance response for employees without attendance records.
+     * For past dates, this will represent an absent status.
+     * For today/future dates, this will represent "Not Marked" status.
+     */
+    private AttendanceResponse createVirtualAttendanceResponse(Employee employee, LocalDate date, LocalDate today) {
+        AttendanceResponse response = new AttendanceResponse();
+        response.setEmployeeId(employee.getEmployeeId());
+        response.setEmployeeName(employee.getFirstName() + " " + employee.getLastName());
+        response.setDate(date);
+        response.setCheckInTime(null);
+        response.setLunchOutTime(null);
+        response.setLunchInTime(null);
+        response.setCheckOutTime(null);
+        response.setWorkingHours(null);
+        response.setOvertimeHours(null);
+        response.setRecognitionMethod(null);
+        response.setFaceRecognitionConfidence(null);
+        
+        // Determine status based on date
+        if (date.isBefore(today)) {
+            // Past date - should be marked as absent
+            // Check if it's a working day
+            if (absentAttendanceService.isWorkingDay(date)) {
+                response.setStatus("ABSENT");
+                response.setNotes("No attendance recorded - automatically marked as absent");
+            } else {
+                // Non-working day (Sunday or holiday)
+                if (date.getDayOfWeek() == DayOfWeek.SUNDAY) {
+                    response.setStatus("ABSENT"); // Or could be "NON_WORKING_DAY"
+                    response.setNotes("Sunday - Non-working day");
+                } else {
+                    response.setStatus("ABSENT"); // Holiday
+                    response.setNotes("Holiday - Non-working day");
+                }
+            }
+        } else if (date.equals(today)) {
+            // Today - not yet marked
+            response.setStatus("NOT_MARKED");
+            response.setNotes("Attendance not yet marked for today");
+        } else {
+            // Future date
+            response.setStatus("NOT_MARKED");
+            response.setNotes("Future date - Attendance not yet marked");
+        }
+        
+        return response;
     }
 
     @Transactional
@@ -316,7 +442,7 @@ public class AttendanceService {
         return workingDays;
     }
 
-    private AttendanceResponse mapToResponse(Attendance attendance) {
+    public AttendanceResponse mapToResponse(Attendance attendance) {
         AttendanceResponse response = new AttendanceResponse();
         response.setId(attendance.getId());
         response.setEmployeeId(attendance.getEmployee().getEmployeeId());

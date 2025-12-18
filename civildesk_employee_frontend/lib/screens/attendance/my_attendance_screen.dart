@@ -24,6 +24,7 @@ class _MyAttendanceScreenState extends State<MyAttendanceScreen> {
     'Half Day',
     'On Leave',
     'Late',
+    'Not Marked',
   ];
   bool _isStatsExpanded = false; // Statistics collapsed by default
   final Set<String> _expandedDates = {}; // Track expanded timeline items
@@ -97,6 +98,8 @@ class _MyAttendanceScreenState extends State<MyAttendanceScreen> {
             return status == 'ON_LEAVE' || status == 'LEAVE';
           case 'Late':
             return status == 'LATE';
+          case 'Not Marked':
+            return status == 'NOT_MARKED';
           default:
             return true;
         }
@@ -740,6 +743,8 @@ class _MyAttendanceScreenState extends State<MyAttendanceScreen> {
 
   Color _getStatusColor(String status) {
     switch (status.toUpperCase()) {
+      case 'NOT_MARKED':
+        return Colors.grey;
       case 'PRESENT':
         return Colors.green;
       case 'ABSENT':
@@ -769,6 +774,8 @@ class _MyAttendanceScreenState extends State<MyAttendanceScreen> {
         return 'On Leave';
       case 'LATE':
         return 'Late';
+      case 'NOT_MARKED':
+        return 'Not Marked';
       default:
         return status;
     }

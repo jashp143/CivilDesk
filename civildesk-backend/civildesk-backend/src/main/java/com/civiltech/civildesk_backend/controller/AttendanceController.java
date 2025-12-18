@@ -5,6 +5,8 @@ import com.civiltech.civildesk_backend.dto.AttendanceRequest;
 import com.civiltech.civildesk_backend.dto.AttendanceResponse;
 import com.civiltech.civildesk_backend.dto.AttendanceAnalyticsResponse;
 import com.civiltech.civildesk_backend.dto.FaceRecognitionResponse;
+import com.civiltech.civildesk_backend.model.Attendance;
+import com.civiltech.civildesk_backend.service.AbsentAttendanceService;
 import com.civiltech.civildesk_backend.service.AttendanceService;
 import com.civiltech.civildesk_backend.service.FaceRecognitionService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,6 +19,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/attendance")
@@ -28,6 +31,9 @@ public class AttendanceController {
 
     @Autowired
     private FaceRecognitionService faceRecognitionService;
+
+    @Autowired
+    private AbsentAttendanceService absentAttendanceService;
 
     @PostMapping("/mark")
     @PreAuthorize("isAuthenticated()")
@@ -305,6 +311,79 @@ public class AttendanceController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Error retrieving attendance analytics: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR.value()));
+        }
+    }
+
+    /**
+     * Manually mark an employee as absent for a specific date.
+     * Only accessible by ADMIN or HR_MANAGER.
+     */
+    @PostMapping("/mark-absent")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('HR_MANAGER')")
+    public ResponseEntity<ApiResponse<AttendanceResponse>> markAbsent(
+            @RequestParam("employee_id") String employeeId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        try {
+            Attendance absentAttendance = absentAttendanceService.markEmployeeAbsent(employeeId, date);
+            AttendanceResponse response = attendanceService.mapToResponse(absentAttendance);
+            return ResponseEntity.ok(
+                    ApiResponse.success("Employee marked as absent successfully", response));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Error marking absent: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR.value()));
+        }
+    }
+
+    /**
+     * Bulk mark absent for multiple employees on a specific date.
+     * Only accessible by ADMIN or HR_MANAGER.
+     */
+    @PostMapping("/bulk-mark-absent")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('HR_MANAGER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> bulkMarkAbsent(
+            @RequestBody Map<String, Object> request) {
+        try {
+            @SuppressWarnings("unchecked")
+            List<String> employeeIds = (List<String>) request.get("employee_ids");
+            String dateStr = (String) request.get("date");
+            LocalDate date = LocalDate.parse(dateStr);
+
+            if (employeeIds == null || employeeIds.isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("employee_ids list is required and cannot be empty"));
+            }
+
+            int count = absentAttendanceService.bulkMarkAbsent(employeeIds, date);
+            return ResponseEntity.ok(
+                    ApiResponse.success("Bulk absent marking completed", 
+                            Map.of("marked_count", count, "total_requested", employeeIds.size())));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Error in bulk marking absent: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR.value()));
+        }
+    }
+
+    /**
+     * Manually trigger absent marking for a specific date.
+     * Useful for backfilling missing records or correcting data.
+     * Only accessible by ADMIN or HR_MANAGER.
+     */
+    @PostMapping("/trigger-absent-marking")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('HR_MANAGER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> triggerAbsentMarking(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        try {
+            if (date == null) {
+                date = LocalDate.now().minusDays(1); // Default to yesterday
+            }
+
+            int count = absentAttendanceService.markAbsentForDate(date);
+            return ResponseEntity.ok(
+                    ApiResponse.success("Absent marking completed for date: " + date, 
+                            Map.of("date", date.toString(), "absent_records_created", count)));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Error triggering absent marking: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR.value()));
         }
     }
 }
