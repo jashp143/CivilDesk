@@ -100,13 +100,24 @@ build_and_start() {
     
     cd "$BACKEND_DIR"
     
-    # Pull latest images
+    # Pull latest images for postgres and redis
     log_info "Pulling latest base images..."
-    docker compose pull || true
+    docker compose pull postgres redis || true
     
-    # Build application
-    log_info "Building application Docker image..."
-    docker compose build --no-cache --pull
+    # Check if we should build or use existing image
+    # If CI_CD_DEPLOY is set, skip building (image already loaded)
+    if [ -z "$CI_CD_DEPLOY" ]; then
+        # Build application
+        log_info "Building application Docker image..."
+        docker compose build --no-cache --pull
+    else
+        log_info "Using pre-built Docker image from CI/CD..."
+        # Verify image exists
+        if ! docker images | grep -q "civildesk-backend.*latest"; then
+            log_error "Docker image 'civildesk-backend:latest' not found!"
+            exit 1
+        fi
+    fi
     
     # Start containers
     log_info "Starting containers..."

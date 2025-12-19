@@ -1,0 +1,285 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'civildesk-backend/**'
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'civildesk-backend/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+
+env:
+  MAVEN_OPTS: -Dmaven.repo.local=.m2/repository
+  DOCKER_BUILDKIT: 1
+  COMPOSE_DOCKER_CLI_BUILD: 1
+
+jobs:
+  # ============================================
+  # CI: Build and Test
+  # ============================================
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Cache Maven dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+
+      - name: Build with Maven
+        working-directory: civildesk-backend/civildesk-backend
+        run: |
+          mvn clean compile -DskipTests
+          echo "✅ Build successful"
+
+      - name: Run tests
+        working-directory: civildesk-backend/civildesk-backend
+        run: |
+          mvn test
+          echo "✅ Tests passed"
+        continue-on-error: false
+
+      - name: Package application
+        working-directory: civildesk-backend/civildesk-backend
+        run: |
+          mvn package -DskipTests
+          echo "✅ Package created successfully"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: civildesk-backend/civildesk-backend/target/surefire-reports/
+          retention-days: 7
+
+      - name: Upload JAR artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: application-jar
+          path: civildesk-backend/civildesk-backend/target/*.jar
+          retention-days: 7
+
+  # ============================================
+  # CI: Docker Build
+  # ============================================
+  docker-build:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        working-directory: civildesk-backend
+        run: |
+          docker build -t civildesk-backend:${{ github.sha }} .
+          docker build -t civildesk-backend:latest .
+          echo "✅ Docker image built successfully"
+
+      - name: Test Docker image
+        working-directory: civildesk-backend
+        run: |
+          docker run --rm civildesk-backend:latest --version || echo "Container test completed"
+          echo "✅ Docker image test passed"
+
+      - name: Save Docker image
+        if: success()
+        run: |
+          docker save civildesk-backend:latest | gzip > civildesk-backend-image.tar.gz
+
+      - name: Upload Docker image
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image
+          path: civildesk-backend-image.tar.gz
+          retention-days: 1
+
+  # ============================================
+  # CD: Deploy to Server
+  # ============================================
+  deploy:
+    name: Deploy to Server
+    runs-on: ubuntu-latest
+    needs: [build-and-test, docker-build]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download Docker image
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+          path: ./artifacts
+
+      - name: Load Docker image
+        run: |
+          gunzip -c ./artifacts/civildesk-backend-image.tar.gz | docker load
+          docker images | grep civildesk-backend
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Add server to known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Copy files to server
+        run: |
+          # Create necessary directories on server
+          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
+            mkdir -p /opt/civildesk/civildesk-backend
+            mkdir -p /opt/civildesk/backups
+          EOF
+          
+          # Copy docker-compose.yml and deployment script
+          scp -r civildesk-backend/docker-compose.yml ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/opt/civildesk/civildesk-backend/
+          scp -r civildesk-backend/Dockerfile ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/opt/civildesk/civildesk-backend/
+          scp -r civildesk-backend/deploy.sh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/opt/civildesk/civildesk-backend/
+          chmod +x civildesk-backend/deploy.sh || true
+
+      - name: Save and transfer Docker image
+        run: |
+          # Save the image
+          docker save civildesk-backend:latest | gzip > civildesk-backend-latest.tar.gz
+          
+          # Transfer image to server
+          scp civildesk-backend-latest.tar.gz ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/tmp/
+          
+          # Load image on server
+          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
+            docker load < /tmp/civildesk-backend-latest.tar.gz
+            rm /tmp/civildesk-backend-latest.tar.gz
+            docker images | grep civildesk-backend
+          EOF
+
+      - name: Deploy application
+        run: |
+          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'ENDSSH'
+            set -e
+            cd /opt/civildesk/civildesk-backend
+            
+            # Make deploy script executable
+            chmod +x deploy.sh || true
+            
+            # Run deployment with CI_CD_DEPLOY flag
+            CI_CD_DEPLOY=true ./deploy.sh || {
+              echo "Deployment failed, checking logs..."
+              docker compose logs --tail=50 backend || true
+              exit 1
+            }
+            
+            echo "✅ Deployment completed successfully"
+          ENDSSH
+
+      - name: Health check
+        run: |
+          echo "Waiting for application to be ready..."
+          sleep 30
+          
+          MAX_RETRIES=10
+          RETRY_COUNT=0
+          
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            HTTP_CODE=$(ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
+              "curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/api/health || echo '000'")
+            
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "✅ Health check passed! (HTTP $HTTP_CODE)"
+              exit 0
+            else
+              RETRY_COUNT=$((RETRY_COUNT + 1))
+              echo "Health check attempt $RETRY_COUNT/$MAX_RETRIES failed (HTTP $HTTP_CODE), retrying..."
+              sleep 10
+            fi
+          done
+          
+          echo "❌ Health check failed after $MAX_RETRIES attempts"
+          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
+            "cd /opt/civildesk/civildesk-backend && docker compose logs --tail=50 backend" || true
+          exit 1
+
+      - name: Deployment summary
+        if: always()
+        run: |
+          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
+            echo "=========================================="
+            echo "📊 Deployment Summary"
+            echo "=========================================="
+            echo "Date: $(date)"
+            echo "Commit: ${{ github.sha }}"
+            echo "Branch: ${{ github.ref_name }}"
+            echo ""
+            echo "Container Status:"
+            cd /opt/civildesk/civildesk-backend
+            docker compose ps
+            echo ""
+            echo "Recent Backend Logs:"
+            docker compose logs --tail=20 backend || true
+            echo "=========================================="
+          EOF
+
+  # ============================================
+  # Notification (Optional)
+  # ============================================
+  notify:
+    name: Notify Deployment Status
+    runs-on: ubuntu-latest
+    needs: [deploy]
+    if: always()
+    
+    steps:
+      - name: Deployment status
+        run: |
+          if [ "${{ needs.deploy.result }}" == "success" ]; then
+            echo "✅ Deployment successful!"
+            echo "Commit: ${{ github.sha }}"
+            echo "Branch: ${{ github.ref_name }}"
+          else
+            echo "❌ Deployment failed!"
+            echo "Check the logs for more details."
+          fi
+

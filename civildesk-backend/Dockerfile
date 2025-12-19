@@ -6,15 +6,15 @@ FROM maven:3.9-eclipse-temurin-17 AS build
 WORKDIR /app
 
 # Copy Maven files
-COPY civildesk-backend/civildesk-backend/pom.xml .
-COPY civildesk-backend/civildesk-backend/mvnw .
-COPY civildesk-backend/civildesk-backend/.mvn .mvn
+COPY civildesk-backend/pom.xml .
+COPY civildesk-backend/mvnw .
+COPY civildesk-backend/.mvn .mvn
 
 # Download dependencies
 RUN mvn dependency:go-offline -B
 
 # Copy source code
-COPY civildesk-backend/civildesk-backend/src ./src
+COPY civildesk-backend/src ./src
 
 # Build application
 RUN mvn clean package -DskipTests
@@ -27,7 +27,7 @@ FROM eclipse-temurin:17-jre-jammy
 
 WORKDIR /app
 
-# Update packages and install wget for healthcheck
+# Install wget for healthcheck
 RUN apt-get update && \
     apt-get install -y --no-install-recommends wget && \
     apt-get clean && \

@@ -1,3 +1,5 @@
+version: "3.9"
+
 services:
   postgres:
     image: postgres:15-alpine
@@ -5,11 +7,10 @@ services:
     environment:
       POSTGRES_DB: ${DB_NAME:-civildesk}
       POSTGRES_USER: ${DB_USERNAME:-civildesk_user}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-change_me}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-civildesk143}
       PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-      # Optional: Uncomment if you have setup.sql file
+      - postgres_data:/var/lib/postgresql/data/pgdata
       # - ./civildesk-backend/database/setup.sql:/docker-entrypoint-initdb.d/01-setup.sql:ro
     ports:
       - "5432:5432"
@@ -17,7 +18,7 @@ services:
       - civildesk-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-civildesk_user} -d ${POSTGRES_DB:-civildesk}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-civildesk_user} -d ${DB_NAME:-civildesk}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -34,7 +35,7 @@ services:
       - civildesk-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "redis-cli -a ${REDIS_PASSWORD:-civildesk143} ping"]
       interval: 10s
       timeout: 3s
       retries: 5
@@ -50,21 +51,21 @@ services:
       DB_PORT: 5432
       DB_NAME: ${DB_NAME:-civildesk}
       DB_USERNAME: ${DB_USERNAME:-civildesk_user}
-      DB_PASSWORD: ${DB_PASSWORD:-change_me}
-      
+      DB_PASSWORD: ${DB_PASSWORD:-civildesk143}
+
       # JWT
       JWT_SECRET: ${JWT_SECRET:-change_me_to_secure_secret_key}
       JWT_EXPIRATION: ${JWT_EXPIRATION:-86400000}
-      
+
       # Server
       SERVER_PORT: 8080
-      
+
       # CORS
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
-      
+
       # Face Service
       FACE_SERVICE_URL: ${FACE_SERVICE_URL:-http://localhost:8000}
-      
+
       # Email
       MAIL_HOST: ${MAIL_HOST:-smtp.gmail.com}
       MAIL_PORT: ${MAIL_PORT:-587}
@@ -72,14 +73,14 @@ services:
       MAIL_PASSWORD: ${MAIL_PASSWORD:-}
       MAIL_FROM: ${MAIL_FROM:-noreply@civildesk.com}
       EMAIL_ENABLED: ${EMAIL_ENABLED:-true}
-      
+
       # Redis
       REDIS_ENABLED: ${REDIS_ENABLED:-true}
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-change_me}
-      
-      # Spring Profile
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-civildesk143}
+
+      # Spring
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
     ports:
       - "8080:8080"
@@ -96,13 +97,9 @@ services:
 
 volumes:
   postgres_data:
-    driver: local
   redis_data:
-    driver: local
   uploads_data:
-    driver: local
 
 networks:
   civildesk-network:
     driver: bridge
-
