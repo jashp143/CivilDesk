@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -157,31 +158,51 @@ public class SiteService {
         Site site = siteRepository.findById(request.getSiteId())
                 .orElseThrow(() -> new ResourceNotFoundException("Site not found with id: " + request.getSiteId()));
 
-        // Check if assignment already exists
+        LocalDate assignmentDate = request.getAssignmentDate() != null ? request.getAssignmentDate() : LocalDate.now();
+
+        // Check if an active assignment already exists
         assignmentRepository.findByEmployeeIdAndSiteIdAndIsActiveTrue(employee.getId(), site.getId())
                 .ifPresent(existing -> {
                     throw new BadRequestException("Employee is already assigned to this site");
                 });
 
+        // Check if an assignment exists with the same employee, site, and assignment date (active or inactive)
+        // If found, reactivate it instead of creating a new one to avoid unique constraint violation
+        Optional<EmployeeSiteAssignment> existingAssignment = assignmentRepository
+                .findByEmployeeIdAndSiteIdAndAssignmentDate(employee.getId(), site.getId(), assignmentDate);
+
+        EmployeeSiteAssignment assignment;
+        if (existingAssignment.isPresent()) {
+            // Reactivate existing assignment
+            assignment = existingAssignment.get();
+            assignment.setIsActive(true);
+            assignment.setEndDate(request.getEndDate());
+            assignment.setIsPrimary(request.getIsPrimary());
+        } else {
+            // Create new assignment
+            assignment = new EmployeeSiteAssignment();
+            assignment.setEmployee(employee);
+            assignment.setSite(site);
+            assignment.setAssignmentDate(assignmentDate);
+            assignment.setEndDate(request.getEndDate());
+            assignment.setIsPrimary(request.getIsPrimary());
+            assignment.setIsActive(true);
+        }
+
         // If this is primary assignment, remove primary from other assignments
         if (Boolean.TRUE.equals(request.getIsPrimary())) {
+            final EmployeeSiteAssignment finalAssignment = assignment;
             assignmentRepository.findPrimaryAssignmentByEmployeeId(employee.getId())
                     .ifPresent(existing -> {
-                        existing.setIsPrimary(false);
-                        assignmentRepository.save(existing);
+                        if (!existing.getId().equals(finalAssignment.getId())) {
+                            existing.setIsPrimary(false);
+                            assignmentRepository.save(existing);
+                        }
                     });
         }
 
-        EmployeeSiteAssignment assignment = new EmployeeSiteAssignment();
-        assignment.setEmployee(employee);
-        assignment.setSite(site);
-        assignment.setAssignmentDate(request.getAssignmentDate() != null ? request.getAssignmentDate() : LocalDate.now());
-        assignment.setEndDate(request.getEndDate());
-        assignment.setIsPrimary(request.getIsPrimary());
-        assignment.setIsActive(true);
-
-        assignment = assignmentRepository.save(assignment);
-        return EmployeeSiteAssignmentResponse.fromEntity(assignment);
+        EmployeeSiteAssignment savedAssignment = assignmentRepository.save(assignment);
+        return EmployeeSiteAssignmentResponse.fromEntity(savedAssignment);
     }
 
     @Transactional

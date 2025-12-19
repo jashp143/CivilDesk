@@ -48,5 +48,12 @@ public interface EmployeeSiteAssignmentRepository extends JpaRepository<Employee
     @Query("SELECT a FROM EmployeeSiteAssignment a JOIN FETCH a.site JOIN FETCH a.employee " +
            "WHERE a.employee.employeeId = :employeeId AND a.isActive = true")
     List<EmployeeSiteAssignment> findByEmployeeCode(@Param("employeeId") String employeeId);
+
+    @Query("SELECT a FROM EmployeeSiteAssignment a WHERE a.employee.id = :employeeId " +
+           "AND a.site.id = :siteId AND a.assignmentDate = :assignmentDate")
+    Optional<EmployeeSiteAssignment> findByEmployeeIdAndSiteIdAndAssignmentDate(
+            @Param("employeeId") Long employeeId, 
+            @Param("siteId") Long siteId, 
+            @Param("assignmentDate") LocalDate assignmentDate);
 }
 

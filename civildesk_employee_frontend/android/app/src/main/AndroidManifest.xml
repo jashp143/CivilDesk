@@ -6,7 +6,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
     
     <application
-        android:label="civildesk_employee_frontend"
+        android:label="Civil Desk"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

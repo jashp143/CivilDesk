@@ -1050,7 +1050,7 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          isPresent ? Icons.check_circle_rounded : Icons.cancel_rounded,
+                          attendance.status == AttendanceStatus.present ? Icons.check_circle_rounded : Icons.cancel_rounded,
                           size: 14,
                           color: statusColor,
                         ),

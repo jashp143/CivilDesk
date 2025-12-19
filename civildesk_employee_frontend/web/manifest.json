@@ -1,11 +1,11 @@
 {
-    "name": "civildesk_employee_frontend",
-    "short_name": "civildesk_employee_frontend",
+    "name": "Civil Desk",
+    "short_name": "Civil Desk",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Civil Desk - Employee Application",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

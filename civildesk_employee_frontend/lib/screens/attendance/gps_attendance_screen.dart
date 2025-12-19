@@ -398,8 +398,9 @@ class _GpsAttendanceScreenState extends State<GpsAttendanceScreen> {
         return;
       }
 
-      // Create request with fresh location and current timestamp
-      final locationCaptureTime = DateTime.now();
+      // Create request with fresh location and current timestamp in UTC
+      // Using UTC ensures consistent time comparison regardless of device/server timezone
+      final locationCaptureTime = DateTime.now().toUtc();
       final request = GpsAttendanceRequest(
         employeeId: _employeeId!,
         punchType: punchType,
@@ -412,7 +413,7 @@ class _GpsAttendanceScreenState extends State<GpsAttendanceScreen> {
         siteId: nearestSiteForFreshLocation.id,
         deviceName: Platform.operatingSystem,
         osVersion: Platform.operatingSystemVersion,
-        locationTimestamp: locationCaptureTime, // Send timestamp to backend for validation
+        locationTimestamp: locationCaptureTime, // Send UTC timestamp to backend for validation
       );
 
       final log = await _attendanceService.markAttendance(request);

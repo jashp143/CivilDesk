@@ -304,17 +304,122 @@ docker compose ps
 
 #### 4.6 Run Database Migrations
 
-If you have SQL migration files, run them:
+If you have SQL migration files, run them using one of the methods below:
+
+##### Method 1: Run Migration from Local File (Recommended)
+
+This method copies the migration file into the container and executes it:
 
 ```bash
-# Copy migration files to the postgres container
-docker cp database/setup.sql civildesk-postgres:/tmp/setup.sql
+# Navigate to the backend directory
+cd /opt/civildesk/civildesk-backend
 
-# Execute migrations
-docker exec -i civildesk-postgres psql -U civildesk_user -d civildesk < database/setup.sql
+# Copy the complete migration file to the postgres container
+docker cp civildesk-backend/database/migrations/complete_migration.sql civildesk-postgres:/tmp/complete_migration.sql
 
-# Or if migrations are in docker-entrypoint-initdb.d, they run automatically on first start
+# Execute the migration
+docker exec -i civildesk-postgres psql -U civildesk_user -d civildesk -f /tmp/complete_migration.sql
+
+# Verify the migration completed successfully
+docker exec -it civildesk-postgres psql -U civildesk_user -d civildesk -c "\dt"
 ```
+
+##### Method 2: Run Migration Directly from Host
+
+This method pipes the file directly into the container:
+
+```bash
+# Navigate to the backend directory
+cd /opt/civildesk/civildesk-backend
+
+# Execute migration directly (file path is relative to current directory)
+docker exec -i civildesk-postgres psql -U civildesk_user -d civildesk < civildesk-backend/database/migrations/complete_migration.sql
+```
+
+##### Method 3: Run Migration via Interactive psql Session
+
+This method allows you to see output interactively:
+
+```bash
+# Connect to PostgreSQL container
+docker exec -it civildesk-postgres psql -U civildesk_user -d civildesk
+
+# Inside psql, run:
+\i /tmp/complete_migration.sql
+
+# Or if you copied it to a different location:
+\i /path/to/complete_migration.sql
+
+# Exit psql
+\q
+```
+
+**Note**: If using Method 3, you'll need to copy the file first:
+```bash
+docker cp civildesk-backend/database/migrations/complete_migration.sql civildesk-postgres:/tmp/complete_migration.sql
+```
+
+##### Method 4: Auto-run on First Start (For Fresh Deployments)
+
+If you want migrations to run automatically when the database is first created, you can mount the migration file:
+
+1. **Edit `docker-compose.yml`** and uncomment/modify the volume mount:
+   ```yaml
+   postgres:
+     volumes:
+       - postgres_data:/var/lib/postgresql/data
+       - ./civildesk-backend/database/migrations/complete_migration.sql:/docker-entrypoint-initdb.d/01-complete-migration.sql:ro
+   ```
+
+2. **Remove existing database volume** (WARNING: This deletes all data):
+   ```bash
+   docker compose down -v
+   docker compose up -d
+   ```
+
+**Important**: This method only works on first database initialization. For existing databases, use Method 1 or 2.
+
+##### Verify Migration Success
+
+After running the migration, verify it completed successfully:
+
+```bash
+# Check that tables were created
+docker exec -it civildesk-postgres psql -U civildesk_user -d civildesk -c "\dt"
+
+# Check specific tables exist
+docker exec -it civildesk-postgres psql -U civildesk_user -d civildesk -c "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name;"
+
+# Check for any errors in PostgreSQL logs
+docker logs civildesk-postgres | tail -50
+```
+
+##### Troubleshooting Migration Issues
+
+If you encounter errors:
+
+1. **Check if database exists:**
+   ```bash
+   docker exec -it civildesk-postgres psql -U civildesk_user -l
+   ```
+
+2. **Check if tables already exist:**
+   ```bash
+   docker exec -it civildesk-postgres psql -U civildesk_user -d civildesk -c "\dt"
+   ```
+
+3. **View PostgreSQL logs:**
+   ```bash
+   docker logs civildesk-postgres
+   ```
+
+4. **Check file encoding** (should be UTF-8):
+   ```bash
+   file civildesk-backend/database/migrations/complete_migration.sql
+   ```
+
+5. **Run migration in transaction mode** (if the script supports it):
+   The `complete_migration.sql` file uses `BEGIN;` and `COMMIT;` for transaction safety, so it will rollback on error.
 
 #### 4.7 Verify Services
 
@@ -375,6 +480,446 @@ docker stats
 docker exec -it civildesk-backend sh
 docker exec -it civildesk-postgres psql -U civildesk_user -d civildesk
 ```
+
+---
+
+## Part 1.5: How to Read/Access the Database
+
+This section provides comprehensive instructions on how to connect to and read data from the PostgreSQL database.
+
+### Database Connection Details
+
+**Default Connection Information:**
+- **Host**: `localhost` (from host machine) or `postgres` (from Docker network)
+- **Port**: `5432`
+- **Database Name**: `civildesk` (or value from `DB_NAME` in `.env`)
+- **Username**: `civildesk_user` (or value from `DB_USERNAME` in `.env`)
+- **Password**: Value from `DB_PASSWORD` in `.env` file
+
+### Method 1: Connect via Docker (Recommended)
+
+#### 1.1 Interactive psql Session
+
+Connect directly to the PostgreSQL container:
+
+```bash
+# Connect to PostgreSQL container
+docker exec -it civildesk-postgres psql -U civildesk_user -d civildesk
+```
+
+Once connected, you can run SQL queries:
+
+```sql
+-- List all tables
+\dt
+
+-- List all tables with details
+\d+
+
+-- View table structure
+\d employees
+
+-- Query data
+SELECT * FROM employees LIMIT 10;
+
+-- Count records
+SELECT COUNT(*) FROM employees;
+
+-- Exit psql
+\q
+```
+
+#### 1.2 Execute Single SQL Command
+
+Run a single SQL command without entering interactive mode:
+
+```bash
+# List all tables
+docker exec -it civildesk-postgres psql -U civildesk_user -d civildesk -c "\dt"
+
+# Query employees
+docker exec -it civildesk-postgres psql -U civildesk_user -d civildesk -c "SELECT employee_id, first_name, last_name FROM employees LIMIT 5;"
+
+# Count attendance records
+docker exec -it civildesk-postgres psql -U civildesk_user -d civildesk -c "SELECT COUNT(*) FROM attendance;"
+```
+
+#### 1.3 Execute SQL File
+
+Run a SQL script file:
+
+```bash
+# Copy SQL file to container
+docker cp your-query.sql civildesk-postgres:/tmp/query.sql
+
+# Execute the file
+docker exec -i civildesk-postgres psql -U civildesk_user -d civildesk -f /tmp/query.sql
+```
+
+### Method 2: Connect from Host Machine (Direct Connection)
+
+If PostgreSQL port is exposed (default: 5432), you can connect directly from your host machine.
+
+#### 2.1 Using psql Command Line
+
+```bash
+# Connect using psql (if installed on host)
+psql -h localhost -p 5432 -U civildesk_user -d civildesk
+
+# Or with password prompt
+PGPASSWORD=your_password psql -h localhost -p 5432 -U civildesk_user -d civildesk
+```
+
+#### 2.2 Using Connection String
+
+```bash
+# Using connection string
+psql "postgresql://civildesk_user:your_password@localhost:5432/civildesk"
+```
+
+### Method 3: Using pgAdmin (GUI Tool)
+
+#### 3.1 Install pgAdmin
+
+Download and install pgAdmin from: https://www.pgadmin.org/download/
+
+#### 3.2 Create Server Connection
+
+1. Open pgAdmin
+2. Right-click "Servers" → "Create" → "Server..."
+3. Fill in connection details:
+   - **Name**: Civildesk (any name)
+   - **Host**: `localhost`
+   - **Port**: `5432`
+   - **Database**: `civildesk`
+   - **Username**: `civildesk_user`
+   - **Password**: Your database password
+4. Click "Save"
+
+#### 3.3 Browse Database
+
+- Expand "Servers" → "Civildesk" → "Databases" → "civildesk" → "Schemas" → "public" → "Tables"
+- Right-click any table → "View/Edit Data" → "All Rows"
+
+### Method 4: Using Database GUI Tools
+
+#### 4.1 DBeaver (Free, Cross-platform)
+
+1. Download DBeaver: https://dbeaver.io/download/
+2. Create new connection:
+   - Database: PostgreSQL
+   - Host: `localhost`
+   - Port: `5432`
+   - Database: `civildesk`
+   - Username: `civildesk_user`
+   - Password: Your password
+3. Test connection and connect
+
+#### 4.2 TablePlus (macOS/Windows)
+
+1. Download TablePlus: https://tableplus.com/
+2. Create new connection → PostgreSQL
+3. Enter connection details
+4. Connect and browse tables
+
+### Common Database Queries
+
+#### View Database Schema
+
+```sql
+-- List all tables
+SELECT table_name 
+FROM information_schema.tables 
+WHERE table_schema = 'public' 
+ORDER BY table_name;
+
+-- Get table structure
+SELECT 
+    column_name, 
+    data_type, 
+    is_nullable,
+    column_default
+FROM information_schema.columns
+WHERE table_name = 'employees'
+ORDER BY ordinal_position;
+```
+
+#### Read Employee Data
+
+```sql
+-- Get all employees
+SELECT * FROM employees;
+
+-- Get active employees only
+SELECT employee_id, first_name, last_name, email, department, designation
+FROM employees
+WHERE employment_status = 'ACTIVE'
+ORDER BY first_name;
+
+-- Get employee with user details
+SELECT 
+    e.employee_id,
+    e.first_name,
+    e.last_name,
+    e.email,
+    e.department,
+    u.role,
+    u.is_active
+FROM employees e
+JOIN users u ON e.user_id = u.id
+WHERE e.employment_status = 'ACTIVE';
+```
+
+#### Read Attendance Data
+
+```sql
+-- Get today's attendance
+SELECT 
+    a.employee_id,
+    e.first_name || ' ' || e.last_name AS employee_name,
+    a.attendance_date,
+    a.check_in_time,
+    a.check_out_time,
+    a.working_hours,
+    a.status
+FROM attendance a
+JOIN employees e ON a.employee_id = e.employee_id
+WHERE a.attendance_date = CURRENT_DATE
+ORDER BY a.check_in_time;
+
+-- Get attendance for specific date range
+SELECT 
+    employee_id,
+    attendance_date,
+    check_in_time,
+    check_out_time,
+    working_hours,
+    status
+FROM attendance
+WHERE attendance_date BETWEEN '2024-01-01' AND '2024-01-31'
+ORDER BY attendance_date, employee_id;
+
+-- Count attendance by status
+SELECT 
+    status,
+    COUNT(*) as count
+FROM attendance
+WHERE attendance_date >= CURRENT_DATE - INTERVAL '30 days'
+GROUP BY status;
+```
+
+#### Read Leave Data
+
+```sql
+-- Get pending leaves
+SELECT 
+    l.id,
+    e.employee_id,
+    e.first_name || ' ' || e.last_name AS employee_name,
+    l.leave_type,
+    l.start_date,
+    l.end_date,
+    l.status,
+    l.reason
+FROM leaves l
+JOIN employees e ON l.employee_id = e.employee_id
+WHERE l.status = 'PENDING'
+ORDER BY l.start_date;
+
+-- Get approved leaves for current month
+SELECT 
+    employee_id,
+    leave_type,
+    start_date,
+    end_date,
+    (end_date - start_date + 1) as days
+FROM leaves
+WHERE status = 'APPROVED'
+  AND EXTRACT(MONTH FROM start_date) = EXTRACT(MONTH FROM CURRENT_DATE)
+  AND EXTRACT(YEAR FROM start_date) = EXTRACT(YEAR FROM CURRENT_DATE);
+```
+
+#### Read Task Data
+
+```sql
+-- Get all tasks
+SELECT 
+    t.id,
+    t.title,
+    t.description,
+    e.first_name || ' ' || e.last_name AS assigned_to,
+    s.name AS site_name,
+    t.due_date,
+    t.status
+FROM tasks t
+JOIN employees e ON t.assigned_to = e.employee_id
+LEFT JOIN sites s ON t.site_id = s.id
+ORDER BY t.due_date;
+
+-- Get pending tasks
+SELECT * FROM tasks WHERE status = 'PENDING' ORDER BY due_date;
+```
+
+#### Read Expense Data
+
+```sql
+-- Get all expenses
+SELECT 
+    ex.id,
+    e.employee_id,
+    e.first_name || ' ' || e.last_name AS employee_name,
+    ex.expense_type,
+    ex.amount,
+    ex.description,
+    ex.status,
+    ex.created_at
+FROM expenses ex
+JOIN employees e ON ex.employee_id = e.employee_id
+ORDER BY ex.created_at DESC;
+
+-- Get pending expenses
+SELECT * FROM expenses WHERE status = 'PENDING' ORDER BY created_at;
+```
+
+#### Dashboard Statistics Queries
+
+```sql
+-- Total employees
+SELECT COUNT(*) as total_employees FROM employees WHERE employment_status = 'ACTIVE';
+
+-- Today's attendance count
+SELECT COUNT(*) as today_attendance 
+FROM attendance 
+WHERE attendance_date = CURRENT_DATE AND status = 'PRESENT';
+
+-- Pending leaves count
+SELECT COUNT(*) as pending_leaves FROM leaves WHERE status = 'PENDING';
+
+-- Pending expenses count
+SELECT COUNT(*) as pending_expenses FROM expenses WHERE status = 'PENDING';
+
+-- Monthly attendance summary
+SELECT 
+    EXTRACT(MONTH FROM attendance_date) as month,
+    EXTRACT(YEAR FROM attendance_date) as year,
+    COUNT(*) as total_records,
+    COUNT(CASE WHEN status = 'PRESENT' THEN 1 END) as present_count,
+    COUNT(CASE WHEN status = 'ABSENT' THEN 1 END) as absent_count
+FROM attendance
+WHERE attendance_date >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '6 months')
+GROUP BY month, year
+ORDER BY year, month;
+```
+
+### Useful psql Commands
+
+```sql
+-- List all databases
+\l
+
+-- List all tables
+\dt
+
+-- Describe table structure
+\d table_name
+
+-- List all columns in a table
+\d+ table_name
+
+-- List all schemas
+\dn
+
+-- Show current database
+SELECT current_database();
+
+-- Show current user
+SELECT current_user;
+
+-- Show table sizes
+SELECT 
+    schemaname,
+    tablename,
+    pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) AS size
+FROM pg_tables
+WHERE schemaname = 'public'
+ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;
+
+-- Show database size
+SELECT pg_size_pretty(pg_database_size('civildesk'));
+
+-- Exit psql
+\q
+```
+
+### Exporting Data
+
+#### Export to CSV
+
+```bash
+# Export query results to CSV
+docker exec -it civildesk-postgres psql -U civildesk_user -d civildesk -c "COPY (SELECT * FROM employees) TO STDOUT WITH CSV HEADER" > employees.csv
+
+# Or using psql directly
+psql -h localhost -U civildesk_user -d civildesk -c "COPY (SELECT * FROM employees) TO STDOUT WITH CSV HEADER" > employees.csv
+```
+
+#### Export Table to SQL
+
+```bash
+# Export entire table
+docker exec civildesk-postgres pg_dump -U civildesk_user -d civildesk -t employees > employees_backup.sql
+
+# Export entire database
+docker exec civildesk-postgres pg_dump -U civildesk_user -d civildesk > civildesk_backup.sql
+```
+
+### Troubleshooting Database Connection
+
+#### Check if Database Container is Running
+
+```bash
+docker ps | grep civildesk-postgres
+```
+
+#### Check Database Logs
+
+```bash
+docker logs civildesk-postgres
+```
+
+#### Test Database Connection
+
+```bash
+# Test connection from host
+docker exec -it civildesk-postgres psql -U civildesk_user -d civildesk -c "SELECT version();"
+
+# Check if database exists
+docker exec -it civildesk-postgres psql -U civildesk_user -l
+```
+
+#### Reset Database Password
+
+If you need to reset the database password:
+
+```bash
+# Connect as postgres superuser
+docker exec -it civildesk-postgres psql -U postgres
+
+# Change password
+ALTER USER civildesk_user WITH PASSWORD 'new_password';
+
+# Update .env file with new password
+# Restart containers
+docker compose restart
+```
+
+### Security Notes
+
+1. **Never commit `.env` files** with real passwords to version control
+2. **Use strong passwords** for production databases
+3. **Limit database access** to only necessary users
+4. **Use connection pooling** (already configured with HikariCP)
+5. **Regular backups** are essential (see backup section in deployment guide)
 
 ---
 

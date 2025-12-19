@@ -288,15 +288,16 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                         width: 1,
                       ),
                     ),
-                    child: Icon(
-                      Icons.business_center_rounded,
-                      size: isTablet ? 56 : 64,
-                      color: textColor,
+                    child: Image.asset(
+                      'assets/app-logo.png',
+                      width: isTablet ? 56 : 64,
+                      height: isTablet ? 56 : 64,
+                      fit: BoxFit.contain,
                     ),
                   ),
                   SizedBox(height: isTablet ? 20 : 28),
                   Text(
-                    'CivilDesk',
+                    'CivilTech EMS',
                     style: theme.textTheme.headlineLarge?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: textColor,
@@ -621,7 +622,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-                // Logo/Icon
+                // Logo
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -634,16 +635,17 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                       width: 1,
                     ),
                   ),
-                  child: Icon(
-                    Icons.business_center_rounded,
-                    size: isMobile ? 50 : 60,
-                    color: textColor,
+                  child: Image.asset(
+                    'assets/app-logo.png',
+                    width: isMobile ? 50 : 60,
+                    height: isMobile ? 50 : 60,
+                    fit: BoxFit.contain,
                   ),
                 ),
                 SizedBox(height: isMobile ? 24 : 32),
                 // Title
                 Text(
-                  'Civildesk',
+                  'CivilTech EMS',
                   style: theme.textTheme.headlineLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: textColor,

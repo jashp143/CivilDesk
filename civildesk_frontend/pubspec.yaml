@@ -1,5 +1,5 @@
 name: civildesk_frontend
-description: "A new Flutter project."
+description: "CivilTech EMS - Admin Application"
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -91,6 +91,9 @@ dev_dependencies:
   # JSON Serialization Code Generation
   build_runner: ^2.4.8
   json_serializable: ^6.7.1
+  
+  # App Icon Generation
+  flutter_launcher_icons: ^0.13.1
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -106,6 +109,7 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - .env
+    - assets/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
@@ -132,3 +136,24 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+# App Icon Configuration
+flutter_launcher_icons:
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  web:
+    generate: true
+    image_path: "assets/app-logo.png"
+    background_color: "#ffffff"
+    theme_color: "#0175C2"
+  windows:
+    generate: true
+    image_path: "assets/app-logo.png"
+    icon_size: 48
+  linux:
+    generate: true
+    image_path: "assets/app-logo.png"
+  image_path: "assets/app-logo.png"
+  adaptive_icon_background: "#ffffff"
+  adaptive_icon_foreground: "assets/app-logo.png"

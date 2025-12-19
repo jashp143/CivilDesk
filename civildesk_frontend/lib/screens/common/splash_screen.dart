@@ -255,7 +255,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Animated Icon
+              // Animated Logo
               AnimatedBuilder(
                 animation: _rotationAnimation,
                 builder: (context, child) {
@@ -273,10 +273,11 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                           width: 1,
                         ),
                       ),
-                      child: Icon(
-                        Icons.business_center_rounded,
-                        size: isMobile ? 60 : (isTablet ? 70 : 80),
-                        color: textColor,
+                      child: Image.asset(
+                        'assets/app-logo.png',
+                        width: isMobile ? 60 : (isTablet ? 70 : 80),
+                        height: isMobile ? 60 : (isTablet ? 70 : 80),
+                        fit: BoxFit.contain,
                       ),
                     ),
                   );
@@ -285,7 +286,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
               SizedBox(height: isMobile ? 32 : 40),
               // Title
               Text(
-                'Civildesk',
+                'CivilTech EMS',
                 style: theme.textTheme.headlineLarge?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: textColor,

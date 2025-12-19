@@ -12,8 +12,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -56,10 +59,13 @@ public class GpsAttendanceService {
 
         // Validate location timestamp freshness (must be within last 60 seconds)
         // This prevents using stale/cached location data
-        // Allow up to 10 seconds in the future to account for clock drift and network latency
+        // Use UTC for comparison to avoid timezone issues between device and server
         if (request.getLocationTimestamp() != null) {
-            LocalDateTime now = LocalDateTime.now();
-            long secondsSinceLocationCapture = ChronoUnit.SECONDS.between(request.getLocationTimestamp(), now);
+            // Convert both timestamps to UTC (Instant) for timezone-agnostic comparison
+            // The client sends UTC timestamps, so we treat the incoming LocalDateTime as UTC
+            Instant locationTime = request.getLocationTimestamp().toInstant(ZoneOffset.UTC);
+            Instant now = Instant.now();
+            long secondsSinceLocationCapture = ChronoUnit.SECONDS.between(locationTime, now);
             
             // Allow up to 10 seconds in the future to account for:
             // - Clock drift between device and server
@@ -123,18 +129,24 @@ public class GpsAttendanceService {
         validatePunchSequence(employee.getEmployeeId(), request.getPunchType());
 
         // Get or create attendance record for today
-        LocalDate today = LocalDate.now();
+        // Use IST (Asia/Kolkata) timezone for business operations
+        ZoneId businessTimeZone = ZoneId.of("Asia/Kolkata");
+        LocalDate today = LocalDate.now(businessTimeZone);
         Attendance attendance = attendanceRepository.findByEmployeeAndDate(employee, today)
                 .orElseGet(() -> createNewAttendance(employee, today));
 
         // Create GPS attendance log
+        // Use business timezone (IST) for punch times to match local business hours
+        // Use UTC for server timestamp for consistency
+        LocalDateTime nowBusinessTime = LocalDateTime.now(businessTimeZone);
+        LocalDateTime nowUtc = LocalDateTime.now(ZoneOffset.UTC);
         GpsAttendanceLog log = new GpsAttendanceLog();
         log.setAttendance(attendance);
         log.setEmployee(employee);
         log.setSite(site);
         log.setPunchType(request.getPunchType());
-        log.setPunchTime(LocalDateTime.now());
-        log.setServerTimestamp(LocalDateTime.now());
+        log.setPunchTime(nowBusinessTime); // Store in business timezone (IST)
+        log.setServerTimestamp(nowUtc); // Server timestamp in UTC
         log.setLatitude(request.getLatitude());
         log.setLongitude(request.getLongitude());
         log.setAccuracyMeters(request.getAccuracyMeters());
@@ -152,7 +164,7 @@ public class GpsAttendanceService {
                 GpsAttendanceLog.NetworkStatus.ONLINE);
         log.setOfflineTimestamp(request.getOfflineTimestamp());
         log.setSyncStatus(GpsAttendanceLog.SyncStatus.SYNCED);
-        log.setSyncedAt(LocalDateTime.now());
+        log.setSyncedAt(LocalDateTime.now(ZoneOffset.UTC));
 
         log = gpsLogRepository.save(log);
 
@@ -231,8 +243,9 @@ public class GpsAttendanceService {
     // ==================== Helper Methods ====================
 
     private Site findAssignedSiteForLocation(Employee employee, double latitude, double longitude) {
+        ZoneId businessTimeZone = ZoneId.of("Asia/Kolkata");
         List<EmployeeSiteAssignment> assignments = 
-                assignmentRepository.findActiveAssignmentsByEmployeeIdAndDate(employee.getId(), LocalDate.now());
+                assignmentRepository.findActiveAssignmentsByEmployeeIdAndDate(employee.getId(), LocalDate.now(businessTimeZone));
 
         for (EmployeeSiteAssignment assignment : assignments) {
             Site site = assignment.getSite();
@@ -248,7 +261,8 @@ public class GpsAttendanceService {
     }
 
     private void validatePunchSequence(String employeeId, GpsAttendanceLog.PunchType punchType) {
-        LocalDate today = LocalDate.now();
+        ZoneId businessTimeZone = ZoneId.of("Asia/Kolkata");
+        LocalDate today = LocalDate.now(businessTimeZone);
         List<GpsAttendanceLog> todayLogs = gpsLogRepository.findByEmployeeIdAndDate(employeeId, today);
 
         boolean hasCheckIn = todayLogs.stream()
