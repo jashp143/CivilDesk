@@ -5,12 +5,11 @@ import 'package:url_launcher/url_launcher.dart';
 import 'dart:io';
 import '../../models/leave.dart';
 import '../../core/providers/leave_provider.dart';
-import '../../core/constants/app_constants.dart';
 
 class LeaveDetailScreen extends StatefulWidget {
   final Leave leave;
 
-  const LeaveDetailScreen({Key? key, required this.leave}) : super(key: key);
+  const LeaveDetailScreen({super.key, required this.leave});
 
   @override
   State<LeaveDetailScreen> createState() => _LeaveDetailScreenState();
@@ -45,7 +44,7 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: color.withOpacity(0.15),
+                      color: color.withValues(alpha: 0.15),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(icon, color: color, size: 28),
@@ -87,7 +86,7 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide(
-                      color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                      color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
                     ),
                   ),
                   focusedBorder: OutlineInputBorder(
@@ -96,7 +95,7 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                   ),
                   alignLabelWithHint: true,
                   filled: true,
-                  fillColor: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+                  fillColor: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                 ),
                 maxLines: 3,
               ),
@@ -208,7 +207,7 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
           if (urlString.startsWith('/')) {
             urlString = serverUrl + urlString;
           } else {
-            urlString = serverUrl + '/' + urlString;
+            urlString = '$serverUrl/$urlString';
           }
         }
         
@@ -276,15 +275,15 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
                     decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.15),
+                      color: statusColor.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(30),
                       border: Border.all(
-                        color: statusColor.withOpacity(0.4),
+                        color: statusColor.withValues(alpha: 0.4),
                         width: 2,
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: statusColor.withOpacity(0.2),
+                          color: statusColor.withValues(alpha: 0.2),
                           blurRadius: 8,
                           offset: const Offset(0, 4),
                         ),
@@ -296,7 +295,7 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: statusColor.withOpacity(0.2),
+                            color: statusColor.withValues(alpha: 0.2),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(statusIcon, color: statusColor, size: 24),
@@ -330,10 +329,10 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                           width: 60,
                           height: 60,
                           decoration: BoxDecoration(
-                            color: Colors.blue.withOpacity(0.15),
+                            color: Colors.blue.withValues(alpha: 0.15),
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color: Colors.blue.withOpacity(0.3),
+                              color: Colors.blue.withValues(alpha: 0.3),
                               width: 2,
                             ),
                           ),
@@ -396,10 +395,10 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       decoration: BoxDecoration(
-                        color: Colors.purple.withOpacity(0.15),
+                        color: Colors.purple.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: Colors.purple.withOpacity(0.3),
+                          color: Colors.purple.withValues(alpha: 0.3),
                           width: 1.5,
                         ),
                       ),
@@ -423,10 +422,10 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
+                        color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
                         ),
                       ),
                       child: Row(
@@ -464,7 +463,7 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                           Container(
                             width: 1,
                             height: 40,
-                            color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                            color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
                           ),
                           const SizedBox(width: 16),
                           Expanded(
@@ -502,7 +501,7 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                           child: Container(
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+                              color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Row(
@@ -544,10 +543,10 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                             child: Container(
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
-                                color: Colors.orange.withOpacity(0.15),
+                                color: Colors.orange.withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
-                                  color: Colors.orange.withOpacity(0.3),
+                                  color: Colors.orange.withValues(alpha: 0.3),
                                 ),
                               ),
                               child: Row(
@@ -586,10 +585,10 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Colors.teal.withOpacity(0.1),
+                        color: Colors.teal.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: Colors.teal.withOpacity(0.3),
+                          color: Colors.teal.withValues(alpha: 0.3),
                         ),
                       ),
                       child: Row(
@@ -597,7 +596,7 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                           Container(
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
-                              color: Colors.teal.withOpacity(0.2),
+                              color: Colors.teal.withValues(alpha: 0.2),
                               shape: BoxShape.circle,
                             ),
                             child: Icon(Icons.phone, color: Colors.teal.shade700, size: 24),
@@ -641,10 +640,10 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                       width: double.infinity,
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                        color: Colors.indigo.withOpacity(0.08),
+                        color: Colors.indigo.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: Colors.indigo.withOpacity(0.2),
+                          color: Colors.indigo.withValues(alpha: 0.2),
                           width: 1.5,
                         ),
                       ),
@@ -686,10 +685,10 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                           width: double.infinity,
                           padding: const EdgeInsets.all(20),
                           decoration: BoxDecoration(
-                            color: Colors.red.withOpacity(0.1),
+                            color: Colors.red.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: Colors.red.withOpacity(0.3),
+                              color: Colors.red.withValues(alpha: 0.3),
                               width: 1.5,
                             ),
                           ),
@@ -738,10 +737,10 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                           width: double.infinity,
                           padding: const EdgeInsets.all(20),
                           decoration: BoxDecoration(
-                            color: Colors.grey.withOpacity(0.1),
+                            color: Colors.grey.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: Colors.grey.withOpacity(0.3),
+                              color: Colors.grey.withValues(alpha: 0.3),
                             ),
                           ),
                           child: Row(
@@ -779,13 +778,13 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                           color: (widget.leave.status == LeaveStatus.APPROVED
                                   ? Colors.green
                                   : Colors.red)
-                              .withOpacity(0.1),
+                              .withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
                             color: (widget.leave.status == LeaveStatus.APPROVED
                                     ? Colors.green
                                     : Colors.red)
-                                .withOpacity(0.3),
+                                .withValues(alpha: 0.3),
                           ),
                         ),
                         child: Row(
@@ -796,7 +795,7 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                                 color: (widget.leave.status == LeaveStatus.APPROVED
                                         ? Colors.green
                                         : Colors.red)
-                                    .withOpacity(0.2),
+                                    .withValues(alpha: 0.2),
                                 shape: BoxShape.circle,
                               ),
                               child: Icon(
@@ -864,10 +863,10 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                           width: double.infinity,
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+                            color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                              color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
                             ),
                           ),
                           child: Column(
@@ -927,7 +926,7 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                   color: Theme.of(context).colorScheme.surface,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.15),
+                      color: Colors.black.withValues(alpha: 0.15),
                       blurRadius: 20,
                       offset: const Offset(0, -4),
                     ),
@@ -996,7 +995,7 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
           // Loading Overlay
           if (_isSubmitting)
             Container(
-              color: Colors.black.withOpacity(0.3),
+              color: Colors.black.withValues(alpha: 0.3),
               child: const Center(
                 child: CircularProgressIndicator(),
               ),
@@ -1015,9 +1014,9 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
     final sectionColor = color ?? Colors.blue;
     // Create a darker version of the color for text/icons
     final darkerColor = Color.fromRGBO(
-      (sectionColor.red * 0.7).round().clamp(0, 255),
-      (sectionColor.green * 0.7).round().clamp(0, 255),
-      (sectionColor.blue * 0.7).round().clamp(0, 255),
+      ((sectionColor.r * 255.0) * 0.7).round().clamp(0, 255),
+      ((sectionColor.g * 255.0) * 0.7).round().clamp(0, 255),
+      ((sectionColor.b * 255.0) * 0.7).round().clamp(0, 255),
       1.0,
     );
     
@@ -1030,7 +1029,7 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: sectionColor.withOpacity(0.2),
+            color: sectionColor.withValues(alpha: 0.2),
             width: 1,
           ),
         ),
@@ -1042,7 +1041,7 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
-                  color: sectionColor.withOpacity(0.15),
+                  color: sectionColor.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Row(
@@ -1115,10 +1114,10 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.blue.withOpacity(0.08),
+        color: Colors.blue.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: Colors.blue.withOpacity(0.3),
+          color: Colors.blue.withValues(alpha: 0.3),
           width: 1.5,
         ),
       ),
@@ -1128,10 +1127,10 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
             width: 50,
             height: 50,
             decoration: BoxDecoration(
-              color: Colors.blue.withOpacity(0.2),
+              color: Colors.blue.withValues(alpha: 0.2),
               shape: BoxShape.circle,
               border: Border.all(
-                color: Colors.blue.withOpacity(0.4),
+                color: Colors.blue.withValues(alpha: 0.4),
                 width: 2,
               ),
             ),

@@ -108,7 +108,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
                 side: BorderSide(
-                  color: colorScheme.outline.withOpacity(0.12),
+                  color: colorScheme.outline.withValues(alpha: 0.12),
                   width: 1,
                 ),
               ),
@@ -395,7 +395,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                   side: BorderSide(
-                    color: colorScheme.outline.withOpacity(0.12),
+                    color: colorScheme.outline.withValues(alpha: 0.12),
                     width: 1,
                   ),
                 ),
@@ -465,7 +465,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                   side: BorderSide(
-                    color: colorScheme.outline.withOpacity(0.12),
+                    color: colorScheme.outline.withValues(alpha: 0.12),
                     width: 1,
                   ),
                 ),
@@ -501,51 +501,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
                 side: BorderSide(
-                  color: colorScheme.outline.withOpacity(0.12),
+                  color: colorScheme.outline.withValues(alpha: 0.12),
                   width: 1,
                 ),
               ),
-              child: Column(
-                children: [
-                  RadioListTile<ThemeMode>(
-                    secondary: const Icon(Icons.brightness_6),
-                    title: const Text('System'),
-                    subtitle: const Text('Follow system theme'),
-                    value: ThemeMode.system,
-                    groupValue: themeProvider.themeMode,
-                    onChanged: (value) {
-                      if (value != null) {
-                        themeProvider.setThemeMode(value);
-                      }
-                    },
-                  ),
-                  const Divider(height: 1),
-                  RadioListTile<ThemeMode>(
-                    secondary: const Icon(Icons.light_mode),
-                    title: const Text('Light'),
-                    subtitle: const Text('Always use light theme'),
-                    value: ThemeMode.light,
-                    groupValue: themeProvider.themeMode,
-                    onChanged: (value) {
-                      if (value != null) {
-                        themeProvider.setThemeMode(value);
-                      }
-                    },
-                  ),
-                  const Divider(height: 1),
-                  RadioListTile<ThemeMode>(
-                    secondary: const Icon(Icons.dark_mode),
-                    title: const Text('Dark'),
-                    subtitle: const Text('Always use dark theme'),
-                    value: ThemeMode.dark,
-                    groupValue: themeProvider.themeMode,
-                    onChanged: (value) {
-                      if (value != null) {
-                        themeProvider.setThemeMode(value);
-                      }
-                    },
-                  ),
-                ],
+              child: RadioGroup<ThemeMode>(
+                groupValue: themeProvider.themeMode,
+                onChanged: (value) {
+                  if (value != null) {
+                    themeProvider.setThemeMode(value);
+                  }
+                },
+                child: Column(
+                  children: [
+                    RadioListTile<ThemeMode>(
+                      secondary: const Icon(Icons.brightness_6),
+                      title: const Text('System'),
+                      subtitle: const Text('Follow system theme'),
+                      value: ThemeMode.system,
+                    ),
+                    const Divider(height: 1),
+                    RadioListTile<ThemeMode>(
+                      secondary: const Icon(Icons.light_mode),
+                      title: const Text('Light'),
+                      subtitle: const Text('Always use light theme'),
+                      value: ThemeMode.light,
+                    ),
+                    const Divider(height: 1),
+                    RadioListTile<ThemeMode>(
+                      secondary: const Icon(Icons.dark_mode),
+                      title: const Text('Dark'),
+                      subtitle: const Text('Always use dark theme'),
+                      value: ThemeMode.dark,
+                    ),
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 24),
@@ -563,60 +553,50 @@ class _SettingsScreenState extends State<SettingsScreen> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
                 side: BorderSide(
-                  color: colorScheme.outline.withOpacity(0.12),
+                  color: colorScheme.outline.withValues(alpha: 0.12),
                   width: 1,
                 ),
               ),
-              child: Column(
-                children: [
-                  RadioListTile<ColorPalette>(
-                    secondary: _buildPalettePreview(
-                      theme,
-                      ColorPalette.palette1,
+              child: RadioGroup<ColorPalette>(
+                groupValue: themeProvider.colorPalette,
+                onChanged: (value) {
+                  if (value != null) {
+                    themeProvider.setColorPalette(value);
+                  }
+                },
+                child: Column(
+                  children: [
+                    RadioListTile<ColorPalette>(
+                      secondary: _buildPalettePreview(
+                        theme,
+                        ColorPalette.palette1,
+                      ),
+                      title: const Text('Palette 1'),
+                      subtitle: const Text('Blue tones'),
+                      value: ColorPalette.palette1,
                     ),
-                    title: const Text('Palette 1'),
-                    subtitle: const Text('Blue tones'),
-                    value: ColorPalette.palette1,
-                    groupValue: themeProvider.colorPalette,
-                    onChanged: (value) {
-                      if (value != null) {
-                        themeProvider.setColorPalette(value);
-                      }
-                    },
-                  ),
-                  const Divider(height: 1),
-                  RadioListTile<ColorPalette>(
-                    secondary: _buildPalettePreview(
-                      theme,
-                      ColorPalette.palette2,
+                    const Divider(height: 1),
+                    RadioListTile<ColorPalette>(
+                      secondary: _buildPalettePreview(
+                        theme,
+                        ColorPalette.palette2,
+                      ),
+                      title: const Text('Palette 2'),
+                      subtitle: const Text('Grayscale'),
+                      value: ColorPalette.palette2,
                     ),
-                    title: const Text('Palette 2'),
-                    subtitle: const Text('Grayscale'),
-                    value: ColorPalette.palette2,
-                    groupValue: themeProvider.colorPalette,
-                    onChanged: (value) {
-                      if (value != null) {
-                        themeProvider.setColorPalette(value);
-                      }
-                    },
-                  ),
-                  const Divider(height: 1),
-                  RadioListTile<ColorPalette>(
-                    secondary: _buildPalettePreview(
-                      theme,
-                      ColorPalette.palette3,
+                    const Divider(height: 1),
+                    RadioListTile<ColorPalette>(
+                      secondary: _buildPalettePreview(
+                        theme,
+                        ColorPalette.palette3,
+                      ),
+                      title: const Text('Palette 3'),
+                      subtitle: const Text('Green/Red tones'),
+                      value: ColorPalette.palette3,
                     ),
-                    title: const Text('Palette 3'),
-                    subtitle: const Text('Green/Red tones'),
-                    value: ColorPalette.palette3,
-                    groupValue: themeProvider.colorPalette,
-                    onChanged: (value) {
-                      if (value != null) {
-                        themeProvider.setColorPalette(value);
-                      }
-                    },
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 24),
@@ -634,7 +614,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
                 side: BorderSide(
-                  color: colorScheme.outline.withOpacity(0.12),
+                  color: colorScheme.outline.withValues(alpha: 0.12),
                   width: 1,
                 ),
               ),
@@ -780,7 +760,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: colorScheme.primaryContainer.withOpacity(0.3),
+            color: colorScheme.primaryContainer.withValues(alpha: 0.3),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(icon, size: 20, color: colorScheme.primary),
@@ -852,7 +832,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             color: color,
             shape: BoxShape.circle,
             border: Border.all(
-              color: theme.colorScheme.onSurface.withOpacity(0.2),
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.2),
               width: 1,
             ),
           ),

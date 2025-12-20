@@ -8,7 +8,7 @@ import '../../core/providers/expense_provider.dart';
 class ApplyExpenseScreen extends StatefulWidget {
   final Expense? existingExpense; // For editing existing expense
 
-  const ApplyExpenseScreen({Key? key, this.existingExpense}) : super(key: key);
+  const ApplyExpenseScreen({super.key, this.existingExpense});
 
   @override
   State<ApplyExpenseScreen> createState() => _ApplyExpenseScreenState();
@@ -16,7 +16,6 @@ class ApplyExpenseScreen extends StatefulWidget {
 
 class _ApplyExpenseScreenState extends State<ApplyExpenseScreen> {
   final _formKey = GlobalKey<FormState>();
-  final NumberFormat _currencyFormat = NumberFormat.currency(symbol: '₹', decimalDigits: 2);
 
   // Form fields
   DateTime? _expenseDate;
@@ -70,15 +69,13 @@ class _ApplyExpenseScreenState extends State<ApplyExpenseScreen> {
           }
         }
         
-        if (uploadedUrls.isNotEmpty) {
+        if (uploadedUrls.isNotEmpty && mounted) {
           setState(() {
             _receiptUrls.addAll(uploadedUrls);
           });
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('${uploadedUrls.length} receipt(s) uploaded successfully')),
-            );
-          }
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('${uploadedUrls.length} receipt(s) uploaded successfully')),
+          );
         }
       }
     } catch (e) {
@@ -220,7 +217,7 @@ class _ApplyExpenseScreenState extends State<ApplyExpenseScreen> {
 
   Widget _buildCategoryDropdown() {
     return DropdownButtonFormField<ExpenseCategory>(
-      value: _selectedCategory,
+      initialValue: _selectedCategory,
       decoration: InputDecoration(
         labelText: 'Category *',
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),

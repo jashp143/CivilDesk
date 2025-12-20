@@ -8,7 +8,7 @@ import '../../models/overtime.dart';
 import 'overtime_detail_screen.dart';
 
 class OvertimeManagementScreen extends StatefulWidget {
-  const OvertimeManagementScreen({Key? key}) : super(key: key);
+  const OvertimeManagementScreen({super.key});
 
   @override
   State<OvertimeManagementScreen> createState() => _OvertimeManagementScreenState();
@@ -19,16 +19,36 @@ class _OvertimeManagementScreenState extends State<OvertimeManagementScreen> {
     return MediaQuery.of(context).size.shortestSide < 600;
   }
 
+  late ScrollController _scrollController;
+
   @override
   void initState() {
     super.initState();
+    _scrollController = ScrollController();
+    _scrollController.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<OvertimeProvider>(context, listen: false).fetchAllOvertimes();
+      Provider.of<OvertimeProvider>(context, listen: false).refreshOvertimes();
     });
   }
 
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= 
+        _scrollController.position.maxScrollExtent * 0.9) {
+      final provider = Provider.of<OvertimeProvider>(context, listen: false);
+      if (provider.hasMore && !provider.isLoading) {
+        provider.loadMoreOvertimes();
+      }
+    }
+  }
+
   Future<void> _refreshOvertimes() async {
-    await Provider.of<OvertimeProvider>(context, listen: false).fetchAllOvertimes();
+    await Provider.of<OvertimeProvider>(context, listen: false).refreshOvertimes();
   }
 
   void _showFilterDialog() {
@@ -52,7 +72,7 @@ class _OvertimeManagementScreenState extends State<OvertimeManagementScreen> {
                   ),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
-                    value: provider.selectedStatus,
+                    initialValue: provider.selectedStatus,
                     decoration: const InputDecoration(
                       border: OutlineInputBorder(),
                       hintText: 'All Statuses',
@@ -80,7 +100,7 @@ class _OvertimeManagementScreenState extends State<OvertimeManagementScreen> {
                   ),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
-                    value: provider.selectedDepartment,
+                    initialValue: provider.selectedDepartment,
                     decoration: const InputDecoration(
                       border: OutlineInputBorder(),
                       hintText: 'All Departments',
@@ -342,11 +362,18 @@ class _OvertimeManagementScreenState extends State<OvertimeManagementScreen> {
                       final isMobile = constraints.maxWidth < 600;
                       
                       if (isMobile) {
-                        // Card view for mobile
+                        // Card view for mobile with pagination
                         return ListView.builder(
+                          controller: _scrollController,
                           padding: const EdgeInsets.all(16),
-                          itemCount: provider.overtimes.length,
+                          itemCount: provider.overtimes.length + (provider.hasMore ? 1 : 0),
                           itemBuilder: (context, index) {
+                            if (index == provider.overtimes.length) {
+                              return const Padding(
+                                padding: EdgeInsets.all(16.0),
+                                child: Center(child: CircularProgressIndicator()),
+                              );
+                            }
                             final overtime = provider.overtimes[index];
                             return Padding(
                               padding: const EdgeInsets.only(bottom: 16),
@@ -356,7 +383,7 @@ class _OvertimeManagementScreenState extends State<OvertimeManagementScreen> {
                         );
                       } else {
                         // Table view for tablet/desktop
-                        return _buildOvertimesTable(provider.overtimes);
+                        return _buildOvertimesTable(provider.overtimes, provider.hasMore);
                       }
                     },
                   ),
@@ -439,7 +466,7 @@ class _OvertimeManagementScreenState extends State<OvertimeManagementScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.15),
+                      color: statusColor.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Row(
@@ -470,7 +497,7 @@ class _OvertimeManagementScreenState extends State<OvertimeManagementScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
-                      color: Colors.blue.withOpacity(0.1),
+                      color: Colors.blue.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -581,7 +608,7 @@ class _OvertimeManagementScreenState extends State<OvertimeManagementScreen> {
               Divider(
                 height: 1,
                 thickness: 1,
-                color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
               ),
               
               const SizedBox(height: 12),
@@ -684,75 +711,104 @@ class _OvertimeManagementScreenState extends State<OvertimeManagementScreen> {
     }
   }
 
-  Widget _buildOvertimesTable(List<Overtime> overtimes) {
+  Widget _buildOvertimesTable(List<Overtime> overtimes, bool hasMore) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final tableWidth = constraints.maxWidth > 1000 ? constraints.maxWidth - 32 : 1000.0;
         
-        return SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
+        return NotificationListener<ScrollNotification>(
+          onNotification: (notification) {
+            if (notification is ScrollEndNotification) {
+              final provider = Provider.of<OvertimeProvider>(context, listen: false);
+              if (notification.metrics.pixels >= notification.metrics.maxScrollExtent * 0.9) {
+                if (provider.hasMore && !provider.isLoading) {
+                  provider.loadMoreOvertimes();
+                }
+              }
+            }
+            return false;
+          },
           child: SingleChildScrollView(
-            scrollDirection: Axis.vertical,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Card(
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surface,
-                    ),
-                    child: SizedBox(
-                      width: tableWidth,
-                      child: Table(
-                        columnWidths: const {
-                          0: FlexColumnWidth(2.5),
-                          1: FlexColumnWidth(1.2),
-                          2: FlexColumnWidth(1.5),
-                          3: FlexColumnWidth(1.8),
-                          4: FlexColumnWidth(2.0),
-                        },
-                        border: TableBorder(
-                          horizontalInside: BorderSide(
-                            color: Theme.of(context).colorScheme.outline.withOpacity(0.1),
-                            width: 1,
+            scrollDirection: Axis.horizontal,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.vertical,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Card(
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surface,
+                      ),
+                      child: SizedBox(
+                        width: tableWidth,
+                        child: Table(
+                          columnWidths: const {
+                            0: FlexColumnWidth(2.5),
+                            1: FlexColumnWidth(1.2),
+                            2: FlexColumnWidth(1.5),
+                            3: FlexColumnWidth(1.8),
+                            4: FlexColumnWidth(2.0),
+                          },
+                          border: TableBorder(
+                            horizontalInside: BorderSide(
+                              color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.1),
+                              width: 1,
+                            ),
+                            bottom: BorderSide(
+                              color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.1),
+                              width: 1,
+                            ),
                           ),
-                          bottom: BorderSide(
-                            color: Theme.of(context).colorScheme.outline.withOpacity(0.1),
-                            width: 1,
-                          ),
-                        ),
-                        children: [
-                          // Table Header
-                          TableRow(
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
-                              border: Border(
-                                bottom: BorderSide(
-                                  color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
-                                  width: 2,
+                          children: [
+                            // Table Header
+                            TableRow(
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
+                                border: Border(
+                                  bottom: BorderSide(
+                                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
+                                    width: 2,
+                                  ),
                                 ),
                               ),
+                              children: [
+                                _buildTableHeaderCell('Employee', Icons.person),
+                                _buildTableHeaderCell('Status', Icons.info),
+                                _buildTableHeaderCell('Date & Time', Icons.access_time),
+                                _buildTableHeaderCell('Date', Icons.calendar_today),
+                                _buildTableHeaderCell('Actions', Icons.more_vert),
+                              ],
                             ),
-                            children: [
-                              _buildTableHeaderCell('Employee', Icons.person),
-                              _buildTableHeaderCell('Status', Icons.info),
-                              _buildTableHeaderCell('Date & Time', Icons.access_time),
-                              _buildTableHeaderCell('Date', Icons.calendar_today),
-                              _buildTableHeaderCell('Actions', Icons.more_vert),
-                            ],
-                          ),
-                          // Table Rows with alternating colors
-                          ...overtimes.asMap().entries.map((entry) {
-                            final index = entry.key;
-                            final overtime = entry.value;
-                            return _buildOvertimeTableRow(overtime, index);
-                          }),
-                        ],
+                            // Table Rows with alternating colors
+                            ...overtimes.asMap().entries.map((entry) {
+                              final index = entry.key;
+                              final overtime = entry.value;
+                              return _buildOvertimeTableRow(overtime, index);
+                            }),
+                            // Loading indicator row
+                            if (hasMore)
+                              TableRow(
+                                children: [
+                                  TableCell(
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(16.0),
+                                      child: const Center(child: CircularProgressIndicator()),
+                                    ),
+                                  ),
+                                  const TableCell(child: SizedBox()),
+                                  const TableCell(child: SizedBox()),
+                                  const TableCell(child: SizedBox()),
+                                  const TableCell(child: SizedBox()),
+                                ],
+                              ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -816,7 +872,7 @@ class _OvertimeManagementScreenState extends State<OvertimeManagementScreen> {
     final isEven = index % 2 == 0;
     final rowColor = isEven
         ? Colors.transparent
-        : Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.2);
+        : Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.2);
 
     return TableRow(
       decoration: BoxDecoration(
@@ -899,10 +955,10 @@ class _OvertimeManagementScreenState extends State<OvertimeManagementScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.15),
+                color: statusColor.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: statusColor.withOpacity(0.3),
+                  color: statusColor.withValues(alpha: 0.3),
                   width: 1,
                 ),
               ),
@@ -938,7 +994,7 @@ class _OvertimeManagementScreenState extends State<OvertimeManagementScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+                color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Row(
@@ -975,7 +1031,7 @@ class _OvertimeManagementScreenState extends State<OvertimeManagementScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+                color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Row(

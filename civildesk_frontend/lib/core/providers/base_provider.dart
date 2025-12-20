@@ -186,7 +186,7 @@ abstract class PaginatedProvider<T> extends BaseProvider {
 
 /// Filtered provider base class
 abstract class FilteredProvider<T> extends BaseProvider {
-  Map<String, dynamic> _filters = {};
+  final Map<String, dynamic> _filters = {};
   
   Map<String, dynamic> get filters => Map.unmodifiable(_filters);
   
@@ -224,6 +224,6 @@ abstract class FilteredProvider<T> extends BaseProvider {
   bool hasFilter(String key) => _filters.containsKey(key);
   
   /// Get filter value
-  T? getFilterValue<T>(String key) => _filters[key] as T?;
+  V? getFilterValue<V>(String key) => _filters[key] as V?;
 }
 

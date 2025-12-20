@@ -38,7 +38,6 @@ class CivildeskEmployeeApp extends StatelessWidget {
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, _) {
-          final brightness = themeProvider.isDarkMode ? Brightness.dark : Brightness.light;
           return MaterialApp(
             title: 'Civildesk Employee',
             debugShowCheckedModeBanner: false,

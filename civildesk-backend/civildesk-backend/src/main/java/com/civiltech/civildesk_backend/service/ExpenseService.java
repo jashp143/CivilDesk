@@ -13,6 +13,10 @@ import com.civiltech.civildesk_backend.repository.EmployeeRepository;
 import com.civiltech.civildesk_backend.repository.ExpenseRepository;
 import com.civiltech.civildesk_backend.security.SecurityUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,6 +37,7 @@ public class ExpenseService {
     private EmployeeRepository employeeRepository;
 
     // Apply for expense
+    @CacheEvict(value = "expenses", allEntries = true)
     public ExpenseResponse applyExpense(ExpenseRequest request) {
         User currentUser = SecurityUtils.getCurrentUser();
         
@@ -66,7 +71,11 @@ public class ExpenseService {
     }
 
     // Update expense (only if status is PENDING)
-    public ExpenseResponse updateExpense(Long expenseId, ExpenseRequest request) {
+    @Caching(evict = {
+        @CacheEvict(value = "expenses", key = "#expenseId"),
+        @CacheEvict(value = "expenses", allEntries = true)
+    })
+    public ExpenseResponse updateExpense(@NonNull Long expenseId, ExpenseRequest request) {
         User currentUser = SecurityUtils.getCurrentUser();
         
         Expense expense = expenseRepository.findById(expenseId)
@@ -107,7 +116,11 @@ public class ExpenseService {
     }
 
     // Delete expense (only if status is PENDING)
-    public void deleteExpense(Long expenseId) {
+    @Caching(evict = {
+        @CacheEvict(value = "expenses", key = "#expenseId"),
+        @CacheEvict(value = "expenses", allEntries = true)
+    })
+    public void deleteExpense(@NonNull Long expenseId) {
         User currentUser = SecurityUtils.getCurrentUser();
         
         Expense expense = expenseRepository.findById(expenseId)
@@ -129,6 +142,8 @@ public class ExpenseService {
     }
 
     // Get all expenses for current employee
+    @Cacheable(value = "expenses", key = "'my-expenses:' + T(com.civiltech.civildesk_backend.security.SecurityUtils).getCurrentUserId()")
+    @Transactional(readOnly = true)
     public List<ExpenseResponse> getMyExpenses() {
         User currentUser = SecurityUtils.getCurrentUser();
         
@@ -143,6 +158,8 @@ public class ExpenseService {
     }
 
     // Get all expenses (Admin/HR only)
+    @Cacheable(value = "expenses", key = "'all-expenses'")
+    @Transactional(readOnly = true)
     public List<ExpenseResponse> getAllExpenses() {
         User currentUser = SecurityUtils.getCurrentUser();
         
@@ -159,6 +176,8 @@ public class ExpenseService {
     }
 
     // Get expenses by status (Admin/HR only)
+    @Cacheable(value = "expenses", key = "'expenses-status:' + #status")
+    @Transactional(readOnly = true)
     public List<ExpenseResponse> getExpensesByStatus(Expense.ExpenseStatus status) {
         User currentUser = SecurityUtils.getCurrentUser();
         
@@ -207,7 +226,9 @@ public class ExpenseService {
     }
 
     // Get expense by ID
-    public ExpenseResponse getExpenseById(Long expenseId) {
+    @Cacheable(value = "expenses", key = "#expenseId")
+    @Transactional(readOnly = true)
+    public ExpenseResponse getExpenseById(@NonNull Long expenseId) {
         User currentUser = SecurityUtils.getCurrentUser();
         
         Expense expense = expenseRepository.findById(expenseId)
@@ -226,7 +247,11 @@ public class ExpenseService {
     }
 
     // Review expense (Approve/Reject) - Admin/HR only
-    public ExpenseResponse reviewExpense(Long expenseId, ExpenseReviewRequest request) {
+    @Caching(evict = {
+        @CacheEvict(value = "expenses", key = "#expenseId"),
+        @CacheEvict(value = "expenses", allEntries = true)
+    })
+    public ExpenseResponse reviewExpense(@NonNull Long expenseId, ExpenseReviewRequest request) {
         User currentUser = SecurityUtils.getCurrentUser();
         
         // Check if user has admin or HR role

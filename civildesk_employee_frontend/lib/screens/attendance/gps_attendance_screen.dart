@@ -10,7 +10,6 @@ import 'package:fluttertoast/fluttertoast.dart';
 import '../../core/services/location_service.dart';
 import '../../core/services/gps_attendance_service.dart';
 import '../../core/providers/auth_provider.dart';
-import '../../core/providers/theme_provider.dart';
 import '../../core/constants/app_constants.dart';
 import '../../models/site.dart';
 import '../../widgets/employee_layout.dart';
@@ -346,7 +345,7 @@ class _GpsAttendanceScreenState extends State<GpsAttendanceScreen> {
       Site? nearestSiteForFreshLocation;
       double? distanceFromSiteForFreshLocation;
       
-      if (freshPosition != null && _assignedSites.isNotEmpty) {
+      if (_assignedSites.isNotEmpty) {
         double minDistance = double.infinity;
         Site? nearest;
         
@@ -416,7 +415,7 @@ class _GpsAttendanceScreenState extends State<GpsAttendanceScreen> {
         locationTimestamp: locationCaptureTime, // Send UTC timestamp to backend for validation
       );
 
-      final log = await _attendanceService.markAttendance(request);
+      await _attendanceService.markAttendance(request);
 
       // Reload attendance logs
       _todayLogs = await _attendanceService.getTodayAttendance(_employeeId!);
@@ -658,8 +657,6 @@ class _GpsAttendanceScreenState extends State<GpsAttendanceScreen> {
   }
 
   Widget _buildTimeCard(ColorScheme colorScheme) {
-    // Get theme provider for adaptive colors
-    final themeProvider = Provider.of<ThemeProvider>(context, listen: true);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
     // Create adaptive gradient colors based on theme and palette
@@ -669,17 +666,17 @@ class _GpsAttendanceScreenState extends State<GpsAttendanceScreen> {
     // For dark theme, use slightly lighter variants for better contrast
     if (isDark) {
       primaryColor = Color.alphaBlend(
-        Colors.white.withOpacity(0.1),
+        Colors.white.withValues(alpha: 0.1),
         colorScheme.primary,
       );
       primaryContainerColor = Color.alphaBlend(
-        Colors.white.withOpacity(0.15),
+        Colors.white.withValues(alpha: 0.15),
         colorScheme.primaryContainer,
       );
     } else {
       // For light theme, use slightly darker variants for depth
       primaryColor = Color.alphaBlend(
-        Colors.black.withOpacity(0.1),
+        Colors.black.withValues(alpha: 0.1),
         colorScheme.primary,
       );
       primaryContainerColor = colorScheme.primaryContainer;
@@ -708,8 +705,8 @@ class _GpsAttendanceScreenState extends State<GpsAttendanceScreen> {
           boxShadow: [
             BoxShadow(
               color: isDark 
-                  ? Colors.black.withOpacity(0.3)
-                  : Colors.black.withOpacity(0.06),
+                  ? Colors.black.withValues(alpha: 0.3)
+                  : Colors.black.withValues(alpha: 0.06),
               blurRadius: 20,
               offset: const Offset(0, 8),
             ),
@@ -723,7 +720,7 @@ class _GpsAttendanceScreenState extends State<GpsAttendanceScreen> {
               child: Text(
                 DateFormat('EEEE, dd MMMM yyyy').format(DateTime.now()),
                 style: TextStyle(
-                  color: textColor.withOpacity(0.9),
+                  color: textColor.withValues(alpha: 0.9),
                   fontSize: 13,
                   fontWeight: FontWeight.normal,
                 ),
@@ -842,7 +839,7 @@ class _GpsAttendanceScreenState extends State<GpsAttendanceScreen> {
                     '• GPS',
                     style: TextStyle(
                       fontSize: 13,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.8),
+                      color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
                     ),
                   ),
                 ],
@@ -853,8 +850,8 @@ class _GpsAttendanceScreenState extends State<GpsAttendanceScreen> {
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
                     color: _isInsideGeofence
-                        ? const Color(0xFF16A34A).withOpacity(0.1)
-                        : const Color(0xFFF59E0B).withOpacity(0.1),
+                        ? const Color(0xFF16A34A).withValues(alpha: 0.1)
+                        : const Color(0xFFF59E0B).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: _isInsideGeofence
@@ -920,7 +917,7 @@ class _GpsAttendanceScreenState extends State<GpsAttendanceScreen> {
                     Icon(
                       Icons.gps_off,
                       size: 20,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.6),
+                      color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
                     ),
                     const SizedBox(width: 8),
                     Text(
@@ -999,15 +996,15 @@ class _GpsAttendanceScreenState extends State<GpsAttendanceScreen> {
                               color: isNearest
                                   ? const Color(0xFF2563EB)
                                   : isInside
-                                      ? const Color(0xFF16A34A).withOpacity(0.3)
-                                      : Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                                      ? const Color(0xFF16A34A).withValues(alpha: 0.3)
+                                      : Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
                               width: isNearest ? 2 : 1,
                             ),
                             boxShadow: [
                               BoxShadow(
                                 color: Theme.of(context).brightness == Brightness.dark
-                                    ? Colors.black.withOpacity(0.3)
-                                    : Colors.black.withOpacity(0.03),
+                                    ? Colors.black.withValues(alpha: 0.3)
+                                    : Colors.black.withValues(alpha: 0.03),
                                 blurRadius: 4,
                                 offset: const Offset(0, 2),
                               ),
@@ -1023,10 +1020,10 @@ class _GpsAttendanceScreenState extends State<GpsAttendanceScreen> {
                                     height: 36,
                                     decoration: BoxDecoration(
                                       color: isNearest
-                                          ? const Color(0xFF2563EB).withOpacity(0.1)
+                                          ? const Color(0xFF2563EB).withValues(alpha: 0.1)
                                           : isInside
-                                              ? const Color(0xFF16A34A).withOpacity(0.1)
-                                              : Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+                                              ? const Color(0xFF16A34A).withValues(alpha: 0.1)
+                                              : Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                     child: Icon(
@@ -1106,7 +1103,7 @@ class _GpsAttendanceScreenState extends State<GpsAttendanceScreen> {
                       ),
                     ),
                   );
-                }).toList(),
+                }),
             ] else if (!_isLoading) ...[
               const Divider(height: 32),
               Row(
@@ -1135,32 +1132,6 @@ class _GpsAttendanceScreenState extends State<GpsAttendanceScreen> {
     );
   }
 
-  Widget _buildStatusChip(String label, Color color) {
-    return Container(
-      constraints: const BoxConstraints(
-        minHeight: 20,
-        maxHeight: 24,
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Center(
-        child: Text(
-          label,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 10,
-            fontWeight: FontWeight.w600,
-          ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ),
-    );
-  }
-
   Widget _buildGlassStatusChip(String label, Color color) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
@@ -1170,15 +1141,15 @@ class _GpsAttendanceScreenState extends State<GpsAttendanceScreen> {
       ),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(isDark ? 0.25 : 0.15),
+        color: color.withValues(alpha: isDark ? 0.25 : 0.15),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: color.withOpacity(0.5),
+          color: color.withValues(alpha: 0.5),
           width: 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.3 : 0.1),
+            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.1),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -1195,111 +1166,6 @@ class _GpsAttendanceScreenState extends State<GpsAttendanceScreen> {
           ),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStickyPrimaryCTA() {
-    final nextPunch = _nextPunchType;
-    if (nextPunch == null) {
-      return const SizedBox.shrink(); // All punches completed
-    }
-
-    final isEnabled = _currentPosition != null &&
-        _isInsideGeofence &&
-        !_isLoading &&
-        _employeeId != null &&
-        _employeeId!.isNotEmpty;
-
-    String buttonText = _getPunchTypeLabel(nextPunch);
-    String? disabledReason;
-
-    if (_currentPosition == null) {
-      disabledReason = 'Waiting for location...';
-    } else if (!_isInsideGeofence) {
-      if (_nearestSite != null && _distanceFromSite != null) {
-        final distanceToMove = (_distanceFromSite! - _nearestSite!.geofenceRadiusMeters).clamp(0.0, double.infinity).toDouble();
-        disabledReason = 'Move ${_formatDistance(distanceToMove)} closer to site';
-      } else if (_assignedSites.isEmpty) {
-        disabledReason = 'No site assigned';
-      } else {
-        disabledReason = 'Must be inside site';
-      }
-    } else if (_employeeId == null || _employeeId!.isEmpty) {
-      disabledReason = 'Employee ID not found';
-    }
-
-    return Material(
-      elevation: 8,
-      borderRadius: BorderRadius.circular(12),
-      shadowColor: Colors.black.withOpacity(0.2),
-      child: Container(
-        height: 56,
-        decoration: BoxDecoration(
-          color: isEnabled ? const Color(0xFF0B5B36) : Colors.grey[400],
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: isEnabled
-                ? () {
-                    _showConfirmationDialog(nextPunch);
-                  }
-                : null,
-            borderRadius: BorderRadius.circular(12),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (_isLoading)
-                    const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    )
-                  else
-                    Icon(
-                      _getPunchTypeIcon(nextPunch),
-                      color: Colors.white,
-                      size: 24,
-                    ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          buttonText,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        if (disabledReason != null)
-                          Text(
-                            disabledReason!,
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.9),
-                              fontSize: 12,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
         ),
       ),
     );
@@ -1353,29 +1219,6 @@ class _GpsAttendanceScreenState extends State<GpsAttendanceScreen> {
     );
   }
 
-  Widget _buildLocationRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 100,
-            child: Text(
-              label,
-              style: TextStyle(color: Colors.grey[600]),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(fontWeight: FontWeight.w500),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildPunchButtons(ColorScheme colorScheme) {
     final nextPunch = _nextPunchType;
     final screenWidth = MediaQuery.of(context).size.width;
@@ -1407,10 +1250,10 @@ class _GpsAttendanceScreenState extends State<GpsAttendanceScreen> {
               Container(
                 padding: EdgeInsets.all(isSmallScreen ? 12 : 16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF16A34A).withOpacity(0.1),
+                  color: const Color(0xFF16A34A).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: const Color(0xFF16A34A).withOpacity(0.3),
+                    color: const Color(0xFF16A34A).withValues(alpha: 0.3),
                   ),
                 ),
                 child: Row(
@@ -1500,10 +1343,10 @@ class _GpsAttendanceScreenState extends State<GpsAttendanceScreen> {
     
     return Material(
       color: isDone
-          ? (isDark ? theme.colorScheme.surfaceVariant : Colors.grey[200])
+          ? (isDark ? theme.colorScheme.surfaceContainerHighest : Colors.grey[200])
           : isActive
-              ? color.withOpacity(isDark ? 0.2 : 0.1)
-              : (isDark ? theme.colorScheme.surfaceVariant.withOpacity(0.5) : Colors.grey[100]),
+              ? color.withValues(alpha: isDark ? 0.2 : 0.1)
+              : (isDark ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5) : Colors.grey[100]),
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         onTap: isEnabled
@@ -1559,11 +1402,11 @@ class _GpsAttendanceScreenState extends State<GpsAttendanceScreen> {
                   ? theme.colorScheme.outline
                   : isActive && isEnabled
                       ? color
-                      : theme.colorScheme.outline.withOpacity(0.5),
+                      : theme.colorScheme.outline.withValues(alpha: 0.5),
               width: isActive && !isDone && isEnabled ? 2 : 1,
             ),
             color: !isEnabled && !isDone 
-                ? (isDark ? theme.colorScheme.surfaceVariant.withOpacity(0.3) : Colors.grey[50]) 
+                ? (isDark ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3) : Colors.grey[50])
                 : null,
           ),
           child: Padding(
@@ -1589,7 +1432,7 @@ class _GpsAttendanceScreenState extends State<GpsAttendanceScreen> {
                         ? theme.colorScheme.onSurfaceVariant
                         : isActive
                             ? color
-                            : theme.colorScheme.onSurfaceVariant.withOpacity(0.6),
+                            : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
                   ),
                 SizedBox(height: isSmallScreen ? 6 : 8),
                 Flexible(
@@ -1617,7 +1460,7 @@ class _GpsAttendanceScreenState extends State<GpsAttendanceScreen> {
                       vertical: isSmallScreen ? 3 : 4,
                     ),
                     decoration: BoxDecoration(
-                      color: color.withOpacity(0.2),
+                      color: color.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
@@ -1639,7 +1482,7 @@ class _GpsAttendanceScreenState extends State<GpsAttendanceScreen> {
                       'Not available',
                       style: TextStyle(
                         fontSize: isSmallScreen ? 9 : 10,
-                        color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7),
+                        color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -1730,7 +1573,7 @@ class _GpsAttendanceScreenState extends State<GpsAttendanceScreen> {
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: color.withOpacity(0.1),
+                      color: color.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(icon, color: color, size: 20),

@@ -11,6 +11,7 @@ import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.lang.NonNull;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -36,7 +37,7 @@ public class TaskController {
     @PutMapping("/{taskId}")
     @RequiresRole({"ADMIN", "HR_MANAGER"})
     public ResponseEntity<ApiResponse<TaskResponse>> updateTask(
-            @PathVariable Long taskId,
+            @PathVariable @NonNull Long taskId,
             @Valid @RequestBody TaskRequest request) {
         TaskResponse response = taskService.updateTask(taskId, request);
         return ResponseEntity.ok(ApiResponse.success("Task updated successfully", response));
@@ -45,7 +46,7 @@ public class TaskController {
     // Delete task (Admin/HR only)
     @DeleteMapping("/{taskId}")
     @RequiresRole({"ADMIN", "HR_MANAGER"})
-    public ResponseEntity<ApiResponse<Void>> deleteTask(@PathVariable Long taskId) {
+    public ResponseEntity<ApiResponse<Void>> deleteTask(@PathVariable @NonNull Long taskId) {
         taskService.deleteTask(taskId);
         return ResponseEntity.ok(ApiResponse.success("Task deleted successfully", null));
     }
@@ -82,7 +83,7 @@ public class TaskController {
 
     // Get task by ID
     @GetMapping("/{taskId}")
-    public ResponseEntity<ApiResponse<TaskResponse>> getTaskById(@PathVariable Long taskId) {
+    public ResponseEntity<ApiResponse<TaskResponse>> getTaskById(@PathVariable @NonNull Long taskId) {
         TaskResponse task = taskService.getTaskById(taskId);
         return ResponseEntity.ok(ApiResponse.success("Task fetched successfully", task));
     }
@@ -90,7 +91,7 @@ public class TaskController {
     // Review task (Approve/Reject) - Employee only
     @PutMapping("/{taskId}/review")
     public ResponseEntity<ApiResponse<TaskResponse>> reviewTask(
-            @PathVariable Long taskId,
+            @PathVariable @NonNull Long taskId,
             @Valid @RequestBody TaskReviewRequest request) {
         TaskResponse response = taskService.reviewTask(taskId, request);
         return ResponseEntity.ok(ApiResponse.success("Task reviewed successfully", response));

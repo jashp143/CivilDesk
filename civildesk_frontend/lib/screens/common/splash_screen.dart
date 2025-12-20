@@ -140,8 +140,8 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: isDark
-                            ? Colors.white.withOpacity(0.03)
-                            : Colors.black.withOpacity(0.03),
+                            ? Colors.white.withValues(alpha: 0.03)
+                            : Colors.black.withValues(alpha: 0.03),
                       ),
                     ),
                   );
@@ -162,8 +162,8 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: isDark
-                            ? Colors.white.withOpacity(0.02)
-                            : Colors.black.withOpacity(0.02),
+                            ? Colors.white.withValues(alpha: 0.02)
+                            : Colors.black.withValues(alpha: 0.02),
                       ),
                     ),
                   );
@@ -184,8 +184,8 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: isDark
-                            ? Colors.white.withOpacity(0.02)
-                            : Colors.black.withOpacity(0.02),
+                            ? Colors.white.withValues(alpha: 0.02)
+                            : Colors.black.withValues(alpha: 0.02),
                       ),
                     ),
                   );
@@ -235,18 +235,18 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
           padding: EdgeInsets.all(isMobile ? 32.0 : (isTablet ? 40.0 : 48.0)),
           decoration: BoxDecoration(
             color: isDark
-                ? Colors.white.withOpacity(0.05)
-                : Colors.black.withOpacity(0.05),
+                ? Colors.white.withValues(alpha: 0.05)
+                : Colors.black.withValues(alpha: 0.05),
             borderRadius: BorderRadius.circular(isMobile ? 24 : 32),
             border: Border.all(
-              color: borderColor.withOpacity(0.2),
+              color: borderColor.withValues(alpha: 0.2),
               width: 1.5,
             ),
             boxShadow: [
               BoxShadow(
                 color: isDark
-                    ? Colors.black.withOpacity(0.3)
-                    : Colors.black.withOpacity(0.1),
+                    ? Colors.black.withValues(alpha: 0.3)
+                    : Colors.black.withValues(alpha: 0.1),
                 blurRadius: 20,
                 offset: const Offset(0, 10),
               ),
@@ -265,11 +265,11 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                       padding: const EdgeInsets.all(24),
                       decoration: BoxDecoration(
                         color: isDark
-                            ? Colors.white.withOpacity(0.1)
-                            : Colors.black.withOpacity(0.1),
+                            ? Colors.white.withValues(alpha: 0.1)
+                            : Colors.black.withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: borderColor.withOpacity(0.3),
+                          color: borderColor.withValues(alpha: 0.3),
                           width: 1,
                         ),
                       ),
@@ -300,7 +300,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
               Text(
                 'Employee Management System',
                 style: theme.textTheme.bodyLarge?.copyWith(
-                  color: textColor.withOpacity(0.7),
+                  color: textColor.withValues(alpha: 0.7),
                   fontWeight: FontWeight.w500,
                   fontSize: isMobile ? 14 : (isTablet ? 16 : 18),
                 ),

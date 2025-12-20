@@ -19,6 +19,7 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -103,7 +104,7 @@ public class GpsAttendanceService {
         Site site = findAssignedSiteForLocation(employee, request.getLatitude(), request.getLongitude());
         
         if (site == null && request.getSiteId() != null) {
-            site = siteRepository.findById(request.getSiteId())
+            site = siteRepository.findById(Objects.requireNonNull(request.getSiteId(), "Site ID cannot be null"))
                     .orElseThrow(() -> new ResourceNotFoundException("Site not found: " + request.getSiteId()));
         }
 
@@ -170,7 +171,9 @@ public class GpsAttendanceService {
 
         // Update attendance record based on punch type
         updateAttendanceFromPunch(attendance, request.getPunchType(), log.getPunchTime(), site);
-        attendanceRepository.save(attendance);
+        // Attendance is guaranteed to be non-null from orElseGet(), Spring Data JPA save() always returns non-null
+        @SuppressWarnings({"null", "unused"})
+        Attendance savedAttendance = attendanceRepository.save(attendance);
 
         return GpsAttendanceResponse.fromEntity(log);
     }

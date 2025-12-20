@@ -197,13 +197,13 @@ public class FaceRecognitionService {
             String url = faceServiceUrl + "/face/embeddings/" + employeeId;
             ResponseEntity<java.util.Map<String, Object>> response = restTemplate.exchange(
                 url,
-                HttpMethod.DELETE,
+                Objects.requireNonNull(HttpMethod.DELETE, "HttpMethod.DELETE cannot be null"),
                 null,
                 new org.springframework.core.ParameterizedTypeReference<java.util.Map<String, Object>>() {}
             );
             
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                java.util.Map<String, Object> responseBody = response.getBody();
+                java.util.Map<String, Object> responseBody = Objects.requireNonNull(response.getBody(), "Response body cannot be null");
                 return (Boolean) responseBody.getOrDefault("success", false);
             }
             return false;

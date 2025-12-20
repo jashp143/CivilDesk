@@ -1,6 +1,7 @@
 package com.civiltech.civildesk_backend.exception;
 
 import com.civiltech.civildesk_backend.dto.ApiResponse;
+import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -79,6 +80,18 @@ public class GlobalExceptionHandler {
                 HttpStatus.BAD_REQUEST.value()
         );
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(RedisConnectionFailureException.class)
+    public ResponseEntity<ApiResponse<Object>> handleRedisConnectionFailureException(RedisConnectionFailureException ex) {
+        // Log the error but return a user-friendly message
+        // The CacheErrorHandler should handle most cache failures gracefully,
+        // but if a Redis exception still propagates, handle it here
+        ApiResponse<Object> response = ApiResponse.error(
+                "Service temporarily unavailable. Please try again in a moment.",
+                HttpStatus.SERVICE_UNAVAILABLE.value()
+        );
+        return new ResponseEntity<>(response, HttpStatus.SERVICE_UNAVAILABLE);
     }
 
     @ExceptionHandler(Exception.class)

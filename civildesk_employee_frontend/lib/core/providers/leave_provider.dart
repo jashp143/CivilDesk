@@ -10,10 +10,21 @@ class LeaveProvider with ChangeNotifier {
   bool _isLoading = false;
   String? _error;
 
+  // Pagination state for leaves
+  int _currentPage = 0;
+  int _totalPages = 0;
+  int _totalElements = 0;
+  bool _hasMore = true;
+  final int _pageSize = 20;
+
   List<Leave> get leaves => _leaves;
   List<Leave> get responsibilities => _responsibilities;
   bool get isLoading => _isLoading;
   String? get error => _error;
+  int get currentPage => _currentPage;
+  int get totalPages => _totalPages;
+  int get totalElements => _totalElements;
+  bool get hasMore => _hasMore;
 
   // Apply for leave
   Future<bool> applyLeave(LeaveRequest request) async {
@@ -23,7 +34,7 @@ class LeaveProvider with ChangeNotifier {
 
     try {
       await _leaveService.applyLeave(request);
-      await fetchMyLeaves(); // Refresh leaves list
+      await refreshLeaves(); // Refresh leaves list
       _isLoading = false;
       notifyListeners();
       return true;
@@ -43,7 +54,7 @@ class LeaveProvider with ChangeNotifier {
 
     try {
       await _leaveService.updateLeave(leaveId, request);
-      await fetchMyLeaves(); // Refresh leaves list
+      await refreshLeaves(); // Refresh leaves list
       _isLoading = false;
       notifyListeners();
       return true;
@@ -63,7 +74,8 @@ class LeaveProvider with ChangeNotifier {
 
     try {
       await _leaveService.deleteLeave(leaveId);
-      await fetchMyLeaves(); // Refresh leaves list
+      _leaves.removeWhere((leave) => leave.id == leaveId);
+      _totalElements--;
       _isLoading = false;
       notifyListeners();
       return true;
@@ -75,14 +87,37 @@ class LeaveProvider with ChangeNotifier {
     }
   }
 
-  // Fetch my leaves
-  Future<void> fetchMyLeaves() async {
+  // Fetch my leaves (with pagination support)
+  Future<void> fetchMyLeaves({bool refresh = false}) async {
+    if (refresh) {
+      _currentPage = 0;
+      _leaves.clear();
+      _hasMore = true;
+    }
+
+    if (!_hasMore || _isLoading) return;
+
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      _leaves = await _leaveService.getMyLeaves();
+      final pageResponse = await _leaveService.getMyLeavesPaginated(
+        page: _currentPage,
+        size: _pageSize,
+      );
+
+      if (refresh || _currentPage == 0) {
+        _leaves = pageResponse.content;
+      } else {
+        _leaves.addAll(pageResponse.content);
+      }
+
+      _currentPage = pageResponse.number;
+      _totalPages = pageResponse.totalPages;
+      _totalElements = pageResponse.totalElements;
+      _hasMore = pageResponse.hasMore;
+
       _isLoading = false;
       notifyListeners();
     } catch (e) {
@@ -90,6 +125,17 @@ class LeaveProvider with ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  // Load more leaves (next page)
+  Future<void> loadMoreLeaves() async {
+    if (!_hasMore || _isLoading) return;
+    await fetchMyLeaves(refresh: false);
+  }
+
+  // Refresh leaves (reload from beginning)
+  Future<void> refreshLeaves() async {
+    await fetchMyLeaves(refresh: true);
   }
 
   // Fetch my responsibilities

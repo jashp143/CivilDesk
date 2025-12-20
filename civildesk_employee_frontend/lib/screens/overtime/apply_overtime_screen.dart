@@ -7,7 +7,7 @@ import '../../core/providers/overtime_provider.dart';
 class ApplyOvertimeScreen extends StatefulWidget {
   final Overtime? existingOvertime; // For editing existing overtime
 
-  const ApplyOvertimeScreen({Key? key, this.existingOvertime}) : super(key: key);
+  const ApplyOvertimeScreen({super.key, this.existingOvertime});
 
   @override
   State<ApplyOvertimeScreen> createState() => _ApplyOvertimeScreenState();

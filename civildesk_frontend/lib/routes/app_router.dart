@@ -10,7 +10,6 @@ import '../screens/admin/hr_dashboard_screen.dart';
 import '../screens/admin/employee_list_screen.dart';
 import '../screens/employee/employee_dashboard_screen.dart';
 import '../screens/attendance/face_registration_screen.dart';
-import '../screens/attendance/attendance_marking_screen.dart';
 import '../screens/attendance/admin_attendance_marking_screen.dart';
 import '../screens/attendance/daily_overview_screen.dart';
 import '../screens/attendance/face_attendance_screen.dart';

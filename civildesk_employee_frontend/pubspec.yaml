@@ -66,6 +66,21 @@ dev_dependencies:
   # JSON Serialization Code Generation
   build_runner: ^2.4.8
   json_serializable: ^6.7.1
+  
+  # App Icon Generation
+  flutter_launcher_icons: ^0.13.1
 
 flutter:
   uses-material-design: true
+  
+  assets:
+    - assets/
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/logo-app.png"
+  min_sdk_android: 21
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/logo-app.png"
+  remove_alpha_ios: true

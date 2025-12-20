@@ -136,6 +136,7 @@ class Reviewer {
   }
 }
 
+// ignore: constant_identifier_names
 enum ExpenseCategory {
   TRAVEL,
   MEALS,
@@ -176,6 +177,7 @@ extension ExpenseCategoryExtension on ExpenseCategory {
   }
 }
 
+// ignore: constant_identifier_names
 enum ExpenseStatus {
   PENDING,
   APPROVED,

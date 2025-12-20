@@ -138,8 +138,6 @@ class _EmployeeRegistrationScreenState extends State<EmployeeRegistrationScreen>
         return _dateOfBirth != null && _gender != null && _maritalStatus != null;
       case 2:
         // Identification - UAN and ESIC are conditional
-        final hasUan = _uanController.text.trim().isNotEmpty;
-        final hasEsic = _esicNumberController.text.trim().isNotEmpty;
         // If UAN is provided, it should be validated (add validation if needed)
         // If ESIC is provided, it should be validated (add validation if needed)
         return true;
@@ -700,7 +698,6 @@ class _EmployeeRegistrationScreenState extends State<EmployeeRegistrationScreen>
     final grossSalary = basic + hra + conveyance + uniform + bonus + food + other;
     
     final epfEmployeePercent = double.tryParse(_epfEmployeeController.text.trim()) ?? 0.0;
-    final epfEmployerPercent = double.tryParse(_epfEmployerController.text.trim()) ?? 0.0;
     final esicPercent = double.tryParse(_esicPercentController.text.trim()) ?? 0.0;
     final professionalTax = double.tryParse(_professionalTaxController.text.trim()) ?? 0.0;
     

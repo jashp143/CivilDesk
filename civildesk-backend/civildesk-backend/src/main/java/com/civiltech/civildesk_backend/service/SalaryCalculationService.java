@@ -8,6 +8,7 @@ import com.civiltech.civildesk_backend.model.SalarySlip;
 import com.civiltech.civildesk_backend.repository.AttendanceRepository;
 import com.civiltech.civildesk_backend.repository.EmployeeRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,6 +16,7 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Service for calculating salary based on attendance and employee salary structure.
@@ -38,6 +40,7 @@ public class SalaryCalculationService {
 
     /**
      * Calculate salary for an employee for a given month.
+     * Synchronous method for immediate calculations.
      */
     @Transactional
     public SalarySlip calculateSalary(SalaryCalculationRequest request, Long generatedByUserId) {
@@ -110,18 +113,18 @@ public class SalaryCalculationService {
         salarySlip.setEpfEmployerDeduction(deductionsCalc.epfEmployerDeduction);
         salarySlip.setEsicDeduction(deductionsCalc.esicDeduction);
         salarySlip.setProfessionalTax(deductionsCalc.professionalTax);
-        salarySlip.setTds(request.getTds() != null ? request.getTds() : 0.0);
-        salarySlip.setAdvanceSalaryRecovery(request.getAdvanceSalaryRecovery() != null ? request.getAdvanceSalaryRecovery() : 0.0);
-        salarySlip.setLoanRecovery(request.getLoanRecovery() != null ? request.getLoanRecovery() : 0.0);
-        salarySlip.setFuelAdvanceRecovery(request.getFuelAdvanceRecovery() != null ? request.getFuelAdvanceRecovery() : 0.0);
-        salarySlip.setOtherDeductions(request.getOtherDeductions() != null ? request.getOtherDeductions() : 0.0);
+        salarySlip.setTds(deductionsCalc.tds);
+        salarySlip.setAdvanceSalaryRecovery(deductionsCalc.advanceSalaryRecovery);
+        salarySlip.setLoanRecovery(deductionsCalc.loanRecovery);
+        salarySlip.setFuelAdvanceRecovery(deductionsCalc.fuelAdvanceRecovery);
+        salarySlip.setOtherDeductions(deductionsCalc.otherDeductions);
         salarySlip.setTotalStatutoryDeductions(deductionsCalc.totalStatutoryDeductions);
         salarySlip.setTotalOtherDeductions(deductionsCalc.totalOtherDeductions);
         salarySlip.setTotalDeductions(deductionsCalc.totalDeductions);
         salarySlip.setNetSalary(netSalary);
         salarySlip.setDailyRate(ratesCalc.dailyRate);
         salarySlip.setHourlyRate(ratesCalc.hourlyRate);
-        salarySlip.setOvertimeRate(employee.getOvertimeRate() != null ? employee.getOvertimeRate() : 0.0);
+        salarySlip.setOvertimeRate(ratesCalc.overtimeRate);
         salarySlip.setStatus(SalarySlip.SalarySlipStatus.DRAFT);
         salarySlip.setGeneratedBy(generatedByUserId);
         salarySlip.setGeneratedAt(java.time.LocalDateTime.now());
@@ -553,6 +556,27 @@ public class SalaryCalculationService {
             this.totalStatutoryDeductions = totalStatutoryDeductions;
             this.totalOtherDeductions = totalOtherDeductions;
             this.totalDeductions = totalDeductions;
+        }
+    }
+
+    /**
+     * Calculate salary asynchronously for background processing.
+     * Use this for bulk operations or when immediate response is not required.
+     * 
+     * @param request Salary calculation request
+     * @param generatedByUserId User ID who generated the salary slip
+     * @return CompletableFuture with calculated SalarySlip
+     */
+    @Async("computeExecutor")
+    @Transactional
+    public CompletableFuture<SalarySlip> calculateSalaryAsync(SalaryCalculationRequest request, Long generatedByUserId) {
+        try {
+            SalarySlip salarySlip = calculateSalary(request, generatedByUserId);
+            return CompletableFuture.completedFuture(salarySlip);
+        } catch (Exception e) {
+            CompletableFuture<SalarySlip> future = new CompletableFuture<>();
+            future.completeExceptionally(e);
+            return future;
         }
     }
 

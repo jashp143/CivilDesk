@@ -78,29 +78,6 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
     return MediaQuery.of(context).size.width < 768;
   }
 
-  void _showActionMenu() {
-    if (_site == null) return;
-
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => _ActionMenuBottomSheet(
-        site: _site!,
-        onEdit: () {
-          Navigator.pop(context);
-          _showSiteDialog();
-        },
-        onManageEmployees: () {
-          Navigator.pop(context);
-          _showEmployeeAssignmentDialog();
-        },
-        onDelete: () {
-          Navigator.pop(context);
-          _confirmDelete();
-        },
-      ),
-    );
-  }
-
   void _showSiteDialog() {
     showDialog(
       context: context,
@@ -144,17 +121,19 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(context);
+              final navigator = Navigator.of(context);
+              final scaffoldMessenger = ScaffoldMessenger.of(context);
               try {
                 await _siteService.deleteSite(_site!.id!);
                 if (mounted) {
-                  Navigator.pop(context, true); // Return to site list
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  navigator.pop(true); // Return to site list
+                  scaffoldMessenger.showSnackBar(
                     const SnackBar(content: Text('Site deleted successfully')),
                   );
                 }
               } catch (e) {
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  scaffoldMessenger.showSnackBar(
                     SnackBar(content: Text('Error: $e')),
                   );
                 }
@@ -276,7 +255,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                         child: Container(
                           padding: EdgeInsets.all(isMobile ? 12 : 16),
                           decoration: BoxDecoration(
-                            color: Theme.of(context).primaryColor.withOpacity(0.1),
+                            color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
                             borderRadius: const BorderRadius.only(
                               bottomLeft: Radius.circular(16),
                               bottomRight: Radius.circular(16),
@@ -344,7 +323,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
           width: isMobile ? 56 : 64,
           height: isMobile ? 56 : 64,
           decoration: BoxDecoration(
-            color: _site!.isActive ? Colors.green.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
+            color: _site!.isActive ? Colors.green.withValues(alpha: 0.1) : Colors.grey.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(
@@ -372,7 +351,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                   vertical: isMobile ? 4 : 6,
                 ),
                 decoration: BoxDecoration(
-                  color: _site!.isActive ? Colors.green.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
+                  color: _site!.isActive ? Colors.green.withValues(alpha: 0.1) : Colors.grey.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -510,7 +489,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                           return ListTile(
                             contentPadding: EdgeInsets.zero,
                             leading: CircleAvatar(
-                              backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                              backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
                               child: Icon(
                                 Icons.person,
                                 color: Theme.of(context).colorScheme.primary,
@@ -530,7 +509,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                                     padding: const EdgeInsets.only(top: 4),
                                     child: Chip(
                                       label: const Text('Primary Site'),
-                                      backgroundColor: Colors.green.withOpacity(0.1),
+                                      backgroundColor: Colors.green.withValues(alpha: 0.1),
                                       labelStyle: const TextStyle(
                                         color: Colors.green,
                                         fontSize: 11,
@@ -547,48 +526,6 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                       ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _ActionMenuBottomSheet extends StatelessWidget {
-  final Site site;
-  final VoidCallback onEdit;
-  final VoidCallback onManageEmployees;
-  final VoidCallback onDelete;
-
-  const _ActionMenuBottomSheet({
-    required this.site,
-    required this.onEdit,
-    required this.onManageEmployees,
-    required this.onDelete,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ListTile(
-            leading: const Icon(Icons.edit),
-            title: const Text('Edit Site'),
-            onTap: onEdit,
-          ),
-          ListTile(
-            leading: const Icon(Icons.people_outline),
-            title: const Text('Manage Employees'),
-            onTap: onManageEmployees,
-          ),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.delete, color: Colors.red),
-            title: const Text('Delete Site', style: TextStyle(color: Colors.red)),
-            onTap: onDelete,
-          ),
-          const SizedBox(height: 8),
-        ],
       ),
     );
   }

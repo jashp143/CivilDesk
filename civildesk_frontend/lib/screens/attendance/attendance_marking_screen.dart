@@ -1,17 +1,13 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import 'package:flutter/painting.dart';
 import 'package:camera/camera.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:path/path.dart' as path;
 import '../../core/services/attendance_service.dart';
 import '../../core/services/face_recognition_service.dart';
 import '../../models/face_recognition.dart';
 
 class AttendanceMarkingScreen extends StatefulWidget {
-  const AttendanceMarkingScreen({Key? key}) : super(key: key);
+  const AttendanceMarkingScreen({super.key});
 
   @override
   State<AttendanceMarkingScreen> createState() => _AttendanceMarkingScreenState();
@@ -53,7 +49,7 @@ class _AttendanceMarkingScreenState extends State<AttendanceMarkingScreen> {
         _startDetection();
       }
     } catch (e) {
-      print('Error initializing camera: $e');
+      debugPrint('Error initializing camera: $e');
     }
   }
 
@@ -101,7 +97,7 @@ class _AttendanceMarkingScreenState extends State<AttendanceMarkingScreen> {
       // Continue detection
       _startDetection();
     } catch (e) {
-      print('Error detecting faces: $e');
+      debugPrint('Error detecting faces: $e');
       setState(() {
         _isDetecting = false;
       });
@@ -200,7 +196,6 @@ class _AttendanceMarkingScreenState extends State<AttendanceMarkingScreen> {
             ..._lastDetection!.faces.map((face) {
               final bbox = face.bbox;
               final screenSize = MediaQuery.of(context).size;
-              final previewSize = _cameraController!.value.previewSize ?? Size(640, 480);
               final imageSize = _lastImageSize!;
               
               // Calculate the actual preview display size
@@ -257,7 +252,7 @@ class _AttendanceMarkingScreenState extends State<AttendanceMarkingScreen> {
                             child: Container(
                               padding: const EdgeInsets.all(4),
                               decoration: BoxDecoration(
-                                color: Colors.green.withOpacity(0.8),
+                                color: Colors.green.withValues(alpha: 0.8),
                                 borderRadius: const BorderRadius.only(
                                   bottomLeft: Radius.circular(4),
                                   bottomRight: Radius.circular(4),
@@ -298,7 +293,7 @@ class _AttendanceMarkingScreenState extends State<AttendanceMarkingScreen> {
                   ),
                 ),
               );
-            }).toList(),
+            }),
 
           // Processing overlay
           if (_isProcessing)

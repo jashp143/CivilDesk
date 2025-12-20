@@ -159,7 +159,7 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
                   if (stats.attendanceSummary.checkedInToday)
                     Card(
                       elevation: 2,
-                      color: AppTheme.statusApproved.withOpacity(0.1),
+                      color: AppTheme.statusApproved.withValues(alpha: 0.1),
                       child: Padding(
                         padding: const EdgeInsets.all(16.0),
                         child: Column(
@@ -193,7 +193,7 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
                   else
                     Card(
                       elevation: 2,
-                      color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                       child: Padding(
                         padding: const EdgeInsets.all(16.0),
                         child: Row(
@@ -314,11 +314,11 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
       ),
     );
 
-    if (confirmed == true && mounted) {
+    if (confirmed == true && context.mounted) {
       final authProvider = context.read<AuthProvider>();
       await authProvider.logout();
       
-      if (mounted) {
+      if (context.mounted) {
         Navigator.of(context).pushNamedAndRemoveUntil(
           AppRoutes.login,
           (route) => false,

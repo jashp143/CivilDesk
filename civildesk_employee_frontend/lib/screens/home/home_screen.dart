@@ -11,10 +11,8 @@ import '../../core/providers/theme_provider.dart';
 import '../../core/providers/holiday_provider.dart';
 import '../../core/providers/overtime_provider.dart';
 import '../../core/providers/expense_provider.dart';
-import '../../core/theme/app_theme.dart';
 import '../../models/task.dart';
 import '../../models/leave.dart';
-import '../../models/holiday.dart';
 import '../../models/overtime.dart';
 import '../../models/expense.dart';
 import '../../widgets/employee_layout.dart';
@@ -37,69 +35,63 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   late Animation<Offset> _slideAnimation;
   late Animation<double> _pulseAnimation;
   late Animation<double> _progressAnimation;
+  double _previousProgress = -1.0;
 
   @override
   void initState() {
     super.initState();
-    
+
     // Initialize animation controllers
     _fadeController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
     );
-    
+
     _slideController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 600),
     );
-    
+
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 2),
     )..repeat(reverse: true);
-    
+
     _progressController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1500),
     );
-    
+
     _quickActionsController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1200),
     );
-    
+
     // Initialize animations
     _fadeAnimation = CurvedAnimation(
       parent: _fadeController,
       curve: Curves.easeOut,
     );
-    
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(-0.3, 0),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _slideController,
-      curve: Curves.easeOutCubic,
-    ));
-    
-    _pulseAnimation = Tween<double>(
-      begin: 0.95,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _pulseController,
-      curve: Curves.easeInOut,
-    ));
-    
+
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(-0.3, 0), end: Offset.zero).animate(
+          CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic),
+        );
+
+    _pulseAnimation = Tween<double>(begin: 0.95, end: 1.0).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+
     _progressAnimation = CurvedAnimation(
       parent: _progressController,
       curve: Curves.easeOutCubic,
     );
-    
+
     // Start animations
     _fadeController.forward();
     _slideController.forward();
     _quickActionsController.forward();
-    
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadData();
     });
@@ -136,14 +128,29 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Future<void> _loadData() async {
-    final dashboardProvider = Provider.of<DashboardProvider>(context, listen: false);
-    final attendanceProvider = Provider.of<AttendanceProvider>(context, listen: false);
+    final dashboardProvider = Provider.of<DashboardProvider>(
+      context,
+      listen: false,
+    );
+    final attendanceProvider = Provider.of<AttendanceProvider>(
+      context,
+      listen: false,
+    );
     final taskProvider = Provider.of<TaskProvider>(context, listen: false);
     final leaveProvider = Provider.of<LeaveProvider>(context, listen: false);
-    final holidayProvider = Provider.of<HolidayProvider>(context, listen: false);
-    final overtimeProvider = Provider.of<OvertimeProvider>(context, listen: false);
-    final expenseProvider = Provider.of<ExpenseProvider>(context, listen: false);
-    
+    final holidayProvider = Provider.of<HolidayProvider>(
+      context,
+      listen: false,
+    );
+    final overtimeProvider = Provider.of<OvertimeProvider>(
+      context,
+      listen: false,
+    );
+    final expenseProvider = Provider.of<ExpenseProvider>(
+      context,
+      listen: false,
+    );
+
     await Future.wait([
       dashboardProvider.fetchDashboardStats(),
       attendanceProvider.fetchTodayAttendance(),
@@ -174,20 +181,33 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       title: const Text('CivilDesk Employee'),
       child: RefreshIndicator(
         onRefresh: _loadData,
-        child: dashboardProvider.isLoading && dashboardProvider.dashboardStats == null
+        child:
+            dashboardProvider.isLoading &&
+                dashboardProvider.dashboardStats == null
             ? const Center(child: CircularProgressIndicator())
             : SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(10, 12, 10, 12),
-        child: Column(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Welcome Card with Profile
-                    _buildWelcomeCard(context, authProvider, dashboardProvider, colorScheme, themeProvider),
+                    _buildWelcomeCard(
+                      context,
+                      authProvider,
+                      dashboardProvider,
+                      colorScheme,
+                      themeProvider,
+                    ),
                     const SizedBox(height: 8),
 
                     // Today's Attendance Card
-                    _buildTodayAttendanceCard(context, attendanceProvider, colorScheme, themeProvider),
+                    _buildTodayAttendanceCard(
+                      context,
+                      attendanceProvider,
+                      colorScheme,
+                      themeProvider,
+                    ),
                     const SizedBox(height: 8),
 
                     // Quick Actions
@@ -196,7 +216,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
                     // Upcoming Holidays
                     if (holidayProvider.upcomingHolidays.isNotEmpty)
-                      _buildUpcomingHolidays(context, holidayProvider, colorScheme),
+                      _buildUpcomingHolidays(
+                        context,
+                        holidayProvider,
+                        colorScheme,
+                      ),
                     const SizedBox(height: 8),
 
                     // Pending Tasks
@@ -211,14 +235,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
                     // Recent Overtime
                     if (overtimeProvider.overtimes.isNotEmpty)
-                      _buildRecentOvertimes(context, overtimeProvider, colorScheme),
+                      _buildRecentOvertimes(
+                        context,
+                        overtimeProvider,
+                        colorScheme,
+                      ),
                     const SizedBox(height: 8),
 
                     // Recent Expenses
                     if (expenseProvider.expenses.isNotEmpty)
-                      _buildRecentExpenses(context, expenseProvider, colorScheme),
+                      _buildRecentExpenses(
+                        context,
+                        expenseProvider,
+                        colorScheme,
+                      ),
                     const SizedBox(height: 8),
-
                   ],
                 ),
               ),
@@ -290,14 +321,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   ) {
     final user = authProvider.user;
     final userName = authProvider.userName ?? 'Employee';
-    final profilePhotoUrl = user?['profilePhotoUrl'] ?? user?['employee']?['profilePhotoUrl'];
-    final department = user?['department'] ?? user?['employee']?['department'] ?? '';
-    final designation = user?['designation'] ?? user?['employee']?['designation'] ?? '';
+    final profilePhotoUrl =
+        user?['profilePhotoUrl'] ?? user?['employee']?['profilePhotoUrl'];
+    final department =
+        user?['department'] ?? user?['employee']?['department'] ?? '';
+    final designation =
+        user?['designation'] ?? user?['employee']?['designation'] ?? '';
     final personalInfo = dashboardProvider.dashboardStats?.personalInfo;
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final gradientColors = _getGradientColors(themeProvider.colorPalette, isDark);
-    
+    final gradientColors = _getGradientColors(
+      themeProvider.colorPalette,
+      isDark,
+    );
+
     // Get designation from personalInfo or user data
     final displayDesignation = personalInfo?.designation.isNotEmpty == true
         ? personalInfo!.designation
@@ -322,13 +359,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 colors: [
                   gradientColors[0],
                   gradientColors[1],
-                  gradientColors[2].withOpacity(0.8),
+                  gradientColors[2].withValues(alpha: 0.8),
                 ],
                 stops: const [0.0, 0.5, 1.0],
               ),
               boxShadow: [
                 BoxShadow(
-                  color: gradientColors[0].withOpacity(0.3),
+                  color: gradientColors[0].withValues(alpha: 0.3),
                   blurRadius: 20,
                   offset: const Offset(0, 8),
                 ),
@@ -343,7 +380,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     builder: (context, child) {
                       return CustomPaint(
                         painter: _WelcomeCardPainter(
-                          color: Colors.white.withOpacity(0.05 * _pulseAnimation.value),
+                          color: Colors.white.withValues(
+                            alpha: 0.05 * _pulseAnimation.value,
+                          ),
                         ),
                       );
                     },
@@ -371,12 +410,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                       opacity: _fadeAnimation.value * 0.9,
                                       child: Text(
                                         _getGreeting(),
-                                        style: theme.textTheme.bodyMedium?.copyWith(
-                                          color: Colors.white.withOpacity(0.85),
-                                          fontSize: 14,
-                                          letterSpacing: 0.5,
-                                          fontWeight: FontWeight.w500,
-                                        ),
+                                        style: theme.textTheme.bodyMedium
+                                            ?.copyWith(
+                                              color: Colors.white.withValues(
+                                                alpha: 0.85,
+                                              ),
+                                              fontSize: 14,
+                                              letterSpacing: 0.5,
+                                              fontWeight: FontWeight.w500,
+                                            ),
                                       ),
                                     );
                                   },
@@ -395,13 +437,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                         opacity: _slideController.value,
                                         child: Text(
                                           userName,
-                                          style: theme.textTheme.headlineMedium?.copyWith(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.w700,
-                                            fontSize: 28,
-                                            letterSpacing: -0.5,
-                                            height: 1.2,
-                                          ),
+                                          style: theme.textTheme.headlineMedium
+                                              ?.copyWith(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: 28,
+                                                letterSpacing: -0.5,
+                                                height: 1.2,
+                                              ),
                                         ),
                                       ),
                                     );
@@ -417,12 +460,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                         opacity: _fadeAnimation.value * 0.9,
                                         child: Text(
                                           displayDesignation,
-                                          style: theme.textTheme.bodyLarge?.copyWith(
-                                            color: Colors.white.withOpacity(0.9),
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.w500,
-                                            letterSpacing: 0.2,
-                                          ),
+                                          style: theme.textTheme.bodyLarge
+                                              ?.copyWith(
+                                                color: Colors.white.withValues(
+                                                  alpha: 0.9,
+                                                ),
+                                                fontSize: 15,
+                                                fontWeight: FontWeight.w500,
+                                                letterSpacing: 0.2,
+                                              ),
                                         ),
                                       );
                                     },
@@ -443,36 +489,50 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
                                     border: Border.all(
-                                      color: Colors.white.withOpacity(0.3),
+                                      color: Colors.white.withValues(
+                                        alpha: 0.3,
+                                      ),
                                       width: 2,
                                     ),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: Colors.white.withOpacity(0.2),
+                                        color: Colors.white.withValues(
+                                          alpha: 0.2,
+                                        ),
                                         blurRadius: 12,
                                         spreadRadius: 2,
                                       ),
                                     ],
                                   ),
-                                  child: profilePhotoUrl != null && profilePhotoUrl.isNotEmpty
+                                  child:
+                                      profilePhotoUrl != null &&
+                                          profilePhotoUrl.isNotEmpty
                                       ? ClipOval(
                                           child: CachedProfileImage(
                                             imageUrl: profilePhotoUrl,
                                             radius: 30,
-                                            fallbackInitials: userName.isNotEmpty
+                                            fallbackInitials:
+                                                userName.isNotEmpty
                                                 ? userName
-                                                    .split(' ')
-                                                    .map((n) => n.isNotEmpty ? n[0] : '')
-                                                    .take(2)
-                                                    .join()
+                                                      .split(' ')
+                                                      .map(
+                                                        (n) => n.isNotEmpty
+                                                            ? n[0]
+                                                            : '',
+                                                      )
+                                                      .take(2)
+                                                      .join()
                                                 : 'E',
-                                            backgroundColor: Colors.white.withOpacity(0.2),
+                                            backgroundColor: Colors.white
+                                                .withValues(alpha: 0.2),
                                             foregroundColor: Colors.white,
                                           ),
                                         )
                                       : Container(
                                           decoration: BoxDecoration(
-                                            color: Colors.white.withOpacity(0.2),
+                                            color: Colors.white.withValues(
+                                              alpha: 0.2,
+                                            ),
                                             shape: BoxShape.circle,
                                           ),
                                           child: const Icon(
@@ -490,7 +550,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       const SizedBox(height: 16),
                       // Department (if available and different from designation)
                       if (personalInfo != null) ...[
-                        if (personalInfo.department.isNotEmpty && 
+                        if (personalInfo.department.isNotEmpty &&
                             personalInfo.department != displayDesignation)
                           AnimatedBuilder(
                             animation: _fadeAnimation,
@@ -498,28 +558,36 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               return Opacity(
                                 opacity: _fadeAnimation.value,
                                 child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
+                                  ),
                                   decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.15),
+                                    color: Colors.white.withValues(alpha: 0.15),
                                     borderRadius: BorderRadius.circular(20),
                                   ),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
+                                    children: [
+                                      Icon(
                                         Icons.business_center,
                                         size: 14,
-                                        color: Colors.white.withOpacity(0.9),
+                                        color: Colors.white.withValues(
+                                          alpha: 0.9,
+                                        ),
                                       ),
                                       const SizedBox(width: 6),
                                       Flexible(
                                         child: Text(
                                           personalInfo.department,
-                                          style: theme.textTheme.bodySmall?.copyWith(
-                                            color: Colors.white.withOpacity(0.9),
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w500,
-                                          ),
+                                          style: theme.textTheme.bodySmall
+                                              ?.copyWith(
+                                                color: Colors.white.withValues(
+                                                  alpha: 0.9,
+                                                ),
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w500,
+                                              ),
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                         ),
@@ -530,16 +598,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               );
                             },
                           ),
-                      ] else if (department.isNotEmpty && department != displayDesignation) ...[
+                      ] else if (department.isNotEmpty &&
+                          department != displayDesignation) ...[
                         AnimatedBuilder(
                           animation: _fadeAnimation,
                           builder: (context, child) {
                             return Opacity(
                               opacity: _fadeAnimation.value,
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.15),
+                                  color: Colors.white.withValues(alpha: 0.15),
                                   borderRadius: BorderRadius.circular(20),
                                 ),
                                 child: Row(
@@ -548,17 +620,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                     Icon(
                                       Icons.business_center,
                                       size: 14,
-                                      color: Colors.white.withOpacity(0.9),
+                                      color: Colors.white.withValues(
+                                        alpha: 0.9,
+                                      ),
                                     ),
                                     const SizedBox(width: 6),
                                     Flexible(
                                       child: Text(
                                         department,
-                                        style: theme.textTheme.bodySmall?.copyWith(
-                                          color: Colors.white.withOpacity(0.9),
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w500,
-                                        ),
+                                        style: theme.textTheme.bodySmall
+                                            ?.copyWith(
+                                              color: Colors.white.withValues(
+                                                alpha: 0.9,
+                                              ),
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w500,
+                                            ),
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                       ),
@@ -582,13 +659,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 Icon(
                                   Icons.calendar_today,
                                   size: 14,
-                                  color: Colors.white.withOpacity(0.8),
+                                  color: Colors.white.withValues(alpha: 0.8),
                                 ),
                                 const SizedBox(width: 6),
                                 Text(
-                                  DateFormat('EEEE, MMMM d, y').format(DateTime.now()),
+                                  DateFormat(
+                                    'EEEE, MMMM d, y',
+                                  ).format(DateTime.now()),
                                   style: theme.textTheme.bodySmall?.copyWith(
-                                    color: Colors.white.withOpacity(0.85),
+                                    color: Colors.white.withValues(alpha: 0.85),
                                     fontSize: 12,
                                     fontWeight: FontWeight.w400,
                                   ),
@@ -620,35 +699,41 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final isDark = theme.brightness == Brightness.dark;
     final progress = _calculateAttendanceProgress(todayAttendance);
     final completedSteps = _getCompletedSteps(todayAttendance);
-    
-    // Start progress animation
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _progressController.animateTo(progress);
-    });
 
-    final gradientColors = _getGradientColors(themeProvider.colorPalette, isDark);
+    // Update progress animation when progress value changes
+    if ((progress - _previousProgress).abs() > 0.001) {
+      _previousProgress = progress;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_progressController.value != progress) {
+          _progressController.animateTo(progress);
+        }
+      });
+    }
+
+    final gradientColors = _getGradientColors(
+      themeProvider.colorPalette,
+      isDark,
+    );
 
     return FadeTransition(
       opacity: _fadeAnimation,
       child: Card(
         elevation: 0,
         margin: EdgeInsets.zero,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
             color: isDark ? theme.colorScheme.surface : Colors.white,
             border: Border.all(
               color: isDark
-                  ? theme.colorScheme.outline.withOpacity(0.1)
+                  ? theme.colorScheme.outline.withValues(alpha: 0.1)
                   : Colors.grey.shade200,
               width: 1,
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -665,7 +750,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: gradientColors[0].withOpacity(0.1),
+                        color: gradientColors[0].withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
@@ -688,7 +773,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            '${completedSteps} of 4 completed',
+                            '$completedSteps of 4 completed',
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: Colors.grey[600],
                               fontSize: 12,
@@ -720,7 +805,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 ),
                               ),
                               Text(
-                                '${(progress * 100).toInt()}%',
+                                '${(_progressAnimation.value * 100).toInt()}%',
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   fontWeight: FontWeight.bold,
                                   color: gradientColors[0],
@@ -733,9 +818,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       },
                     ),
                   ],
-            ),
-            const SizedBox(height: 24),
-                
+                ),
+                const SizedBox(height: 24),
+
                 // Progress timeline - always show, even if no attendance marked
                 _buildProgressTimeline(
                   context,
@@ -744,12 +829,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   isDark,
                 ),
                 const SizedBox(height: 20),
-                
+
                 // Working hours summary - only show if available
                 if (todayAttendance != null &&
                     (todayAttendance.formattedWorkingHours != null ||
                         todayAttendance.formattedOvertimeHours != null))
-                  _buildHoursSummary(context, todayAttendance, gradientColors, isDark),
+                  _buildHoursSummary(
+                    context,
+                    todayAttendance,
+                    gradientColors,
+                    isDark,
+                  ),
               ],
             ),
           ),
@@ -835,7 +925,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     int index,
   ) {
     final theme = Theme.of(context);
-    final delay = index * 0.1;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -856,7 +945,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 boxShadow: isCompleted
                     ? [
                         BoxShadow(
-                          color: color.withOpacity(0.3),
+                          color: color.withValues(alpha: 0.3),
                           blurRadius: 8,
                           spreadRadius: 2,
                         ),
@@ -875,7 +964,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 width: 2,
                 height: 30,
                 color: isCompleted
-                    ? color.withOpacity(0.3)
+                    ? color.withValues(alpha: 0.3)
                     : (isDark ? Colors.grey.shade800 : Colors.grey.shade300),
               ),
           ],
@@ -889,12 +978,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               color: isCompleted
-                  ? color.withOpacity(0.1)
+                  ? color.withValues(alpha: 0.1)
                   : (isDark ? Colors.grey.shade900 : Colors.grey.shade50),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: isCompleted
-                    ? color.withOpacity(0.3)
+                    ? color.withValues(alpha: 0.3)
                     : (isDark ? Colors.grey.shade700 : Colors.grey.shade200),
                 width: 1.5,
               ),
@@ -905,13 +994,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-            Text(
+                      Text(
                         label,
                         style: theme.textTheme.bodyMedium?.copyWith(
                           fontWeight: FontWeight.w600,
                           color: isCompleted
                               ? color
-                              : (isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+                              : (isDark
+                                    ? Colors.grey.shade400
+                                    : Colors.grey.shade600),
                           fontSize: 14,
                         ),
                       ),
@@ -923,9 +1014,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: isCompleted
                               ? color
-                              : (isDark ? Colors.grey.shade500 : Colors.grey.shade400),
+                              : (isDark
+                                    ? Colors.grey.shade500
+                                    : Colors.grey.shade400),
                           fontSize: 13,
-                          fontWeight: isCompleted ? FontWeight.w600 : FontWeight.normal,
+                          fontWeight: isCompleted
+                              ? FontWeight.w600
+                              : FontWeight.normal,
                         ),
                       ),
                     ],
@@ -935,14 +1030,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   Container(
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color: color.withOpacity(0.2),
+                      color: color.withValues(alpha: 0.2),
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(
-                      Icons.check_rounded,
-                      color: color,
-                      size: 16,
-                    ),
+                    child: Icon(Icons.check_rounded, color: color, size: 16),
                   ),
               ],
             ),
@@ -958,8 +1049,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     List<Color> gradientColors,
     bool isDark,
   ) {
-    final theme = Theme.of(context);
-
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -967,13 +1056,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            gradientColors[0].withOpacity(0.1),
-            gradientColors[1].withOpacity(0.05),
+            gradientColors[0].withValues(alpha: 0.1),
+            gradientColors[1].withValues(alpha: 0.05),
           ],
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: gradientColors[0].withOpacity(0.2),
+          color: gradientColors[0].withValues(alpha: 0.2),
           width: 1.5,
         ),
       ),
@@ -993,7 +1082,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               Container(
                 width: 1,
                 height: 40,
-                color: gradientColors[0].withOpacity(0.2),
+                color: gradientColors[0].withValues(alpha: 0.2),
                 margin: const EdgeInsets.symmetric(horizontal: 12),
               ),
           ],
@@ -1030,7 +1119,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             Text(
               label,
               style: theme.textTheme.bodySmall?.copyWith(
-                    color: Colors.grey[600],
+                color: Colors.grey[600],
                 fontSize: 12,
               ),
             ),
@@ -1040,16 +1129,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         Text(
           value,
           style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.bold,
             color: color,
             fontSize: 20,
-                  ),
-            ),
+          ),
+        ),
       ],
     );
   }
-
-
 
   Widget _buildQuickActions(BuildContext context, ColorScheme colorScheme) {
     final theme = Theme.of(context);
@@ -1122,14 +1209,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           builder: (context, constraints) {
             // Calculate responsive grid parameters
             final screenWidth = MediaQuery.of(context).size.width;
-            final padding = 16.0;
-            
+
             // Determine cross axis count based on screen width
             int crossAxisCount;
             double childAspectRatio;
             double mainAxisSpacing;
             double crossAxisSpacing;
-            
+
             if (screenWidth < 360) {
               // Very small screens - 2 columns
               crossAxisCount = 2;
@@ -1149,7 +1235,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               mainAxisSpacing = 12;
               crossAxisSpacing = 12;
             }
-            
+
             return GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -1192,24 +1278,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   ) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    
+
     // Responsive sizing based on screen width
     final isSmallScreen = screenWidth < 360;
     final isMediumScreen = screenWidth >= 360 && screenWidth < 600;
-    
+
     final cardPadding = isSmallScreen ? 10.0 : (isMediumScreen ? 12.0 : 14.0);
     final iconPadding = isSmallScreen ? 10.0 : (isMediumScreen ? 12.0 : 14.0);
     final iconSize = isSmallScreen ? 24.0 : (isMediumScreen ? 28.0 : 32.0);
     final spacing = isSmallScreen ? 8.0 : (isMediumScreen ? 10.0 : 12.0);
     final fontSize = isSmallScreen ? 10.0 : (isMediumScreen ? 11.0 : 12.0);
     final borderRadius = isSmallScreen ? 12.0 : 14.0;
-    
+
     // Staggered animation delay
     final delay = index * 0.1;
-    final animation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(
+    final animation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _quickActionsController,
         curve: Interval(
@@ -1243,32 +1326,27 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           borderRadius: BorderRadius.circular(borderRadius),
           child: Container(
             decoration: BoxDecoration(
-              color: isDark 
-                  ? colorScheme.surface
-                  : Colors.white,
+              color: isDark ? colorScheme.surface : Colors.white,
               borderRadius: BorderRadius.circular(borderRadius),
-              border: Border.all(
-                color: color.withOpacity(0.3),
-                width: 2,
-              ),
+              border: Border.all(color: color.withValues(alpha: 0.3), width: 2),
               boxShadow: [
                 // Colored shadow matching the action color
                 BoxShadow(
-                  color: color.withOpacity(0.25),
+                  color: color.withValues(alpha: 0.25),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                   spreadRadius: 0,
                 ),
                 // Deeper shadow for depth
                 BoxShadow(
-                  color: Colors.black.withOpacity(isDark ? 0.4 : 0.1),
+                  color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.1),
                   blurRadius: 16,
                   offset: const Offset(0, 6),
                   spreadRadius: -2,
                 ),
                 // Inner shadow for paper-like effect
                 BoxShadow(
-                  color: Colors.white.withOpacity(isDark ? 0.0 : 0.8),
+                  color: Colors.white.withValues(alpha: isDark ? 0.0 : 0.8),
                   blurRadius: 0,
                   offset: const Offset(0, -1),
                   spreadRadius: 0,
@@ -1282,12 +1360,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    isDark 
-                        ? colorScheme.surface
-                        : Colors.white,
-                    isDark 
-                        ? colorScheme.surface.withOpacity(0.95)
-                        : Colors.white.withOpacity(0.95),
+                    isDark ? colorScheme.surface : Colors.white,
+                    isDark
+                        ? colorScheme.surface.withValues(alpha: 0.95)
+                        : Colors.white.withValues(alpha: 0.95),
                   ],
                 ),
               ),
@@ -1303,18 +1379,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       child: Container(
                         padding: EdgeInsets.all(iconPadding),
                         decoration: BoxDecoration(
-                          color: color.withOpacity(0.15),
+                          color: color.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(borderRadius - 2),
                           border: Border.all(
-                            color: color.withOpacity(0.3),
+                            color: color.withValues(alpha: 0.3),
                             width: 1.5,
                           ),
                         ),
-                        child: Icon(
-                          icon,
-                          size: iconSize,
-                          color: color,
-                        ),
+                        child: Icon(icon, size: iconSize, color: color),
                       ),
                     ),
                     SizedBox(height: spacing),
@@ -1323,7 +1395,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       child: Text(
                         title,
                         style: theme.textTheme.bodyMedium?.copyWith(
-                          color: isDark 
+                          color: isDark
                               ? colorScheme.onSurface
                               : Colors.grey.shade800,
                           fontSize: fontSize,
@@ -1381,78 +1453,90 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ],
         ),
         const SizedBox(height: 12),
-        ...pendingTasks.map((task) => Card(
-              elevation: 1,
-              margin: const EdgeInsets.only(bottom: 8),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: InkWell(
-                onTap: () {
-                  Navigator.of(context).pushNamed(AppRoutes.tasks);
-                },
-                borderRadius: BorderRadius.circular(10),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: _getTaskStatusColor(task.statusDisplay).withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Icon(
-                          Icons.task_alt,
-                          color: _getTaskStatusColor(task.statusDisplay),
-                          size: 20,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              task.location.isNotEmpty ? task.location : 'Task',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              task.description,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: _getTaskStatusColor(task.statusDisplay).withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
+        ...pendingTasks.map(
+          (task) => Card(
+            elevation: 1,
+            margin: const EdgeInsets.only(bottom: 8),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: InkWell(
+              onTap: () {
+                Navigator.of(context).pushNamed(AppRoutes.tasks);
+              },
+              borderRadius: BorderRadius.circular(10),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  vertical: 12,
+                  horizontal: 16,
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: _getTaskStatusColor(
                           task.statusDisplay,
-                          style: TextStyle(
-                            color: _getTaskStatusColor(task.statusDisplay),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
+                        ).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        Icons.task_alt,
+                        color: _getTaskStatusColor(task.statusDisplay),
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            task.location.isNotEmpty ? task.location : 'Task',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
                           ),
+                          const SizedBox(height: 4),
+                          Text(
+                            task.description,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _getTaskStatusColor(
+                          task.statusDisplay,
+                        ).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        task.statusDisplay,
+                        style: TextStyle(
+                          color: _getTaskStatusColor(task.statusDisplay),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
-            )),
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -1485,7 +1569,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           final daysUntil = holiday.date.difference(DateTime.now()).inDays;
           final isToday = daysUntil == 0;
           final isTomorrow = daysUntil == 1;
-          
+
           return Card(
             elevation: 1,
             margin: const EdgeInsets.only(bottom: 8),
@@ -1499,19 +1583,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: isToday
-                      ? [
-                          Colors.orange.shade400,
-                          Colors.orange.shade600,
-                        ]
+                      ? [Colors.orange.shade400, Colors.orange.shade600]
                       : isTomorrow
-                          ? [
-                              Colors.blue.shade400,
-                              Colors.blue.shade600,
-                            ]
-                          : [
-                              isDark ? colorScheme.surface : Colors.white,
-                              isDark ? colorScheme.surface : Colors.white,
-                            ],
+                      ? [Colors.blue.shade400, Colors.blue.shade600]
+                      : [
+                          isDark ? colorScheme.surface : Colors.white,
+                          isDark ? colorScheme.surface : Colors.white,
+                        ],
                 ),
               ),
               child: InkWell(
@@ -1524,10 +1602,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           color: isToday
-                              ? Colors.white.withOpacity(0.3)
+                              ? Colors.white.withValues(alpha: 0.3)
                               : isTomorrow
-                                  ? Colors.white.withOpacity(0.3)
-                                  : Colors.orange.withOpacity(0.15),
+                              ? Colors.white.withValues(alpha: 0.3)
+                              : Colors.orange.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Icon(
@@ -1553,7 +1631,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                     : theme.textTheme.titleLarge?.color,
                               ),
                             ),
-                            if (holiday.description != null && holiday.description!.isNotEmpty) ...[
+                            if (holiday.description != null &&
+                                holiday.description!.isNotEmpty) ...[
                               const SizedBox(height: 4),
                               Text(
                                 holiday.description!,
@@ -1562,7 +1641,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: isToday || isTomorrow
-                                      ? Colors.white.withOpacity(0.9)
+                                      ? Colors.white.withValues(alpha: 0.9)
                                       : Colors.grey[600],
                                 ),
                               ),
@@ -1574,17 +1653,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   Icons.calendar_today_rounded,
                                   size: 14,
                                   color: isToday || isTomorrow
-                                      ? Colors.white.withOpacity(0.9)
+                                      ? Colors.white.withValues(alpha: 0.9)
                                       : Colors.grey[600],
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
-                                  DateFormat('dd MMM yyyy').format(holiday.date),
+                                  DateFormat(
+                                    'dd MMM yyyy',
+                                  ).format(holiday.date),
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w500,
                                     color: isToday || isTomorrow
-                                        ? Colors.white.withOpacity(0.9)
+                                        ? Colors.white.withValues(alpha: 0.9)
                                         : Colors.grey[700],
                                   ),
                                 ),
@@ -1594,23 +1675,26 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                         decoration: BoxDecoration(
                           color: isToday
-                              ? Colors.white.withOpacity(0.3)
+                              ? Colors.white.withValues(alpha: 0.3)
                               : isTomorrow
-                                  ? Colors.white.withOpacity(0.3)
-                                  : Colors.orange.withOpacity(0.15),
+                              ? Colors.white.withValues(alpha: 0.3)
+                              : Colors.orange.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
                           isToday
                               ? 'Today'
                               : isTomorrow
-                                  ? 'Tomorrow'
-                                  : daysUntil > 0
-                                      ? '$daysUntil days'
-                                      : 'Past',
+                              ? 'Tomorrow'
+                              : daysUntil > 0
+                              ? '$daysUntil days'
+                              : 'Past',
                           style: TextStyle(
                             color: isToday || isTomorrow
                                 ? Colors.white
@@ -1636,17 +1720,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     LeaveProvider leaveProvider,
     ColorScheme colorScheme,
   ) {
-    final recentLeaves = leaveProvider.leaves
-        .where((leave) => leave.createdAt.isAfter(
-            DateTime.now().subtract(const Duration(days: 30))))
-        .toList()
-      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    
+    final recentLeaves =
+        leaveProvider.leaves
+            .where(
+              (leave) => leave.createdAt.isAfter(
+                DateTime.now().subtract(const Duration(days: 30)),
+              ),
+            )
+            .toList()
+          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
     final displayLeaves = recentLeaves.take(3).toList();
     if (displayLeaves.isEmpty) return const SizedBox.shrink();
 
     final theme = Theme.of(context);
-    final isDark = colorScheme.brightness == Brightness.dark;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1689,7 +1776,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: statusColor.withOpacity(0.15),
+                        color: statusColor.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
@@ -1743,9 +1830,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
-                        color: statusColor.withOpacity(0.15),
+                        color: statusColor.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
@@ -1772,17 +1862,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     OvertimeProvider overtimeProvider,
     ColorScheme colorScheme,
   ) {
-    final recentOvertimes = overtimeProvider.overtimes
-        .where((overtime) => overtime.createdAt.isAfter(
-            DateTime.now().subtract(const Duration(days: 30))))
-        .toList()
-      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    
+    final recentOvertimes =
+        overtimeProvider.overtimes
+            .where(
+              (overtime) => overtime.createdAt.isAfter(
+                DateTime.now().subtract(const Duration(days: 30)),
+              ),
+            )
+            .toList()
+          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
     final displayOvertimes = recentOvertimes.take(3).toList();
     if (displayOvertimes.isEmpty) return const SizedBox.shrink();
 
     final theme = Theme.of(context);
-    final isDark = colorScheme.brightness == Brightness.dark;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1825,7 +1918,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: statusColor.withOpacity(0.15),
+                        color: statusColor.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
@@ -1880,9 +1973,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
-                        color: statusColor.withOpacity(0.15),
+                        color: statusColor.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
@@ -1909,17 +2005,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     ExpenseProvider expenseProvider,
     ColorScheme colorScheme,
   ) {
-    final recentExpenses = expenseProvider.expenses
-        .where((expense) => expense.createdAt.isAfter(
-            DateTime.now().subtract(const Duration(days: 30))))
-        .toList()
-      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    
+    final recentExpenses =
+        expenseProvider.expenses
+            .where(
+              (expense) => expense.createdAt.isAfter(
+                DateTime.now().subtract(const Duration(days: 30)),
+              ),
+            )
+            .toList()
+          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
     final displayExpenses = recentExpenses.take(3).toList();
     if (displayExpenses.isEmpty) return const SizedBox.shrink();
 
     final theme = Theme.of(context);
-    final isDark = colorScheme.brightness == Brightness.dark;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1962,7 +2061,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: statusColor.withOpacity(0.15),
+                        color: statusColor.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
@@ -2007,7 +2106,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               ),
                               const SizedBox(width: 4),
                               Text(
-                                DateFormat('dd MMM yyyy').format(expense.expenseDate),
+                                DateFormat(
+                                  'dd MMM yyyy',
+                                ).format(expense.expenseDate),
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: Colors.grey[600],
@@ -2031,9 +2132,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
-                        color: statusColor.withOpacity(0.15),
+                        color: statusColor.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
@@ -2055,123 +2159,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildUpcomingLeaves(
-    BuildContext context,
-    LeaveProvider leaveProvider,
-    ColorScheme colorScheme,
-  ) {
-    final upcomingLeaves = leaveProvider.leaves
-        .where((leave) =>
-            leave.status == LeaveStatus.APPROVED &&
-            leave.startDate.isAfter(DateTime.now().subtract(const Duration(days: 1))))
-        .take(3)
-        .toList();
-
-    if (upcomingLeaves.isEmpty) return const SizedBox.shrink();
-
-    final theme = Theme.of(context);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Upcoming Leaves',
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pushNamed(AppRoutes.leaves);
-              },
-              child: const Text('View All'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        ...upcomingLeaves.map((leave) => Card(
-              elevation: 1,
-              margin: const EdgeInsets.only(bottom: 8),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: InkWell(
-                onTap: () {
-                  Navigator.of(context).pushNamed(AppRoutes.leaves);
-                },
-                borderRadius: BorderRadius.circular(10),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.orange.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(
-                          Icons.event_busy,
-                          color: Colors.orange,
-                          size: 20,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              leave.leaveTypeDisplay,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '${DateFormat('MMM d').format(leave.startDate)} - ${DateFormat('MMM d, y').format(leave.endDate)}',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.green.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Text(
-                          'Approved',
-                          style: TextStyle(
-                            color: Colors.green,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            )),
-      ],
-    );
-  }
-
   Widget _buildUpcomingEvents(
     BuildContext context,
     DashboardProvider dashboardProvider,
     ColorScheme colorScheme,
   ) {
-    final events = dashboardProvider.dashboardStats!.upcomingEvents.events.take(3).toList();
+    final events = dashboardProvider.dashboardStats!.upcomingEvents.events
+        .take(3)
+        .toList();
     final theme = Theme.of(context);
 
     return Column(
@@ -2184,37 +2179,30 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
         ),
         const SizedBox(height: 12),
-        ...events.map((event) => Card(
-              elevation: 1,
-              margin: const EdgeInsets.only(bottom: 8),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+        ...events.map(
+          (event) => Card(
+            elevation: 1,
+            margin: const EdgeInsets.only(bottom: 8),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: ListTile(
+              leading: CircleAvatar(
+                backgroundColor: Colors.blue.withValues(alpha: 0.2),
+                child: const Icon(Icons.event, color: Colors.blue, size: 20),
               ),
-              child: ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: Colors.blue.withOpacity(0.2),
-                  child: const Icon(
-                    Icons.event,
-                    color: Colors.blue,
-                    size: 20,
-                  ),
-                ),
-                title: Text(
-                  event.title,
-                  style: const TextStyle(fontWeight: FontWeight.w500),
-                ),
-                subtitle: Text(
-                  DateFormat('MMM d, y').format(event.date),
-                ),
-                trailing: Text(
-                  event.type,
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontSize: 12,
-                  ),
-                ),
+              title: Text(
+                event.title,
+                style: const TextStyle(fontWeight: FontWeight.w500),
               ),
-            )),
+              subtitle: Text(DateFormat('MMM d, y').format(event.date)),
+              trailing: Text(
+                event.type,
+                style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -2223,7 +2211,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final statusUpper = status.toUpperCase();
     if (statusUpper.contains('PENDING')) {
       return Colors.orange;
-    } else if (statusUpper.contains('PROGRESS') || statusUpper.contains('IN_PROGRESS')) {
+    } else if (statusUpper.contains('PROGRESS') ||
+        statusUpper.contains('IN_PROGRESS')) {
       return Colors.blue;
     } else if (statusUpper.contains('COMPLETED')) {
       return Colors.green;
@@ -2284,7 +2273,7 @@ class _WelcomeCardPainter extends CustomPainter {
     // Draw subtle circles in the background
     final center1 = Offset(size.width * 0.85, size.height * 0.2);
     final center2 = Offset(size.width * 0.15, size.height * 0.8);
-    
+
     canvas.drawCircle(center1, size.width * 0.15, paint);
     canvas.drawCircle(center2, size.width * 0.12, paint);
   }
@@ -2292,4 +2281,3 @@ class _WelcomeCardPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
-

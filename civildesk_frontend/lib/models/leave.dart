@@ -152,6 +152,7 @@ class Reviewer {
   }
 }
 
+// ignore: constant_identifier_names
 enum LeaveType {
   SICK_LEAVE,
   CASUAL_LEAVE,
@@ -189,6 +190,7 @@ extension LeaveTypeExtension on LeaveType {
   }
 }
 
+// ignore: constant_identifier_names
 enum HalfDayPeriod {
   FIRST_HALF,
   SECOND_HALF,
@@ -205,6 +207,7 @@ extension HalfDayPeriodExtension on HalfDayPeriod {
   }
 }
 
+// ignore: constant_identifier_names
 enum LeaveStatus {
   PENDING,
   APPROVED,

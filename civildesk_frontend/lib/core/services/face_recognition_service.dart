@@ -1,11 +1,9 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import '../constants/app_constants.dart';
-import 'api_service.dart';
 
 class FaceRecognitionService {
-  final ApiService _apiService = ApiService();
   late Dio _faceServiceDio;
 
   FaceRecognitionService() {
@@ -159,7 +157,7 @@ class FaceRecognitionService {
 
       return response.data as Uint8List;
     } catch (e) {
-      print('Error getting annotated image: $e');
+      debugPrint('Error getting annotated image: $e');
       return null;
     }
   }

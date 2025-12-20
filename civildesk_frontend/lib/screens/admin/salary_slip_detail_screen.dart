@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../models/salary_slip.dart';
 import '../../core/services/salary_service.dart';
-import '../../widgets/admin_layout.dart';
 
 class SalarySlipDetailScreen extends StatelessWidget {
   final SalarySlip salarySlip;
@@ -122,8 +121,8 @@ class SalarySlipDetailScreen extends StatelessWidget {
                         Chip(
                           label: Text(salarySlip.status),
                           backgroundColor: salarySlip.status == 'FINALIZED'
-                              ? Colors.green.withOpacity(0.2)
-                              : Colors.orange.withOpacity(0.2),
+                              ? Colors.green.withValues(alpha: 0.2)
+                              : Colors.orange.withValues(alpha: 0.2),
                         ),
                       ],
                     ),
@@ -413,9 +412,9 @@ class _SummaryCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [

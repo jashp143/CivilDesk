@@ -1,16 +1,12 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:path/path.dart' as path;
 import '../../core/services/face_recognition_service.dart';
-import '../../core/services/api_service.dart';
-import '../../core/constants/app_constants.dart';
 
 class FaceRegistrationScreen extends StatefulWidget {
   final String employeeId;
 
-  const FaceRegistrationScreen({Key? key, required this.employeeId}) : super(key: key);
+  const FaceRegistrationScreen({super.key, required this.employeeId});
 
   @override
   State<FaceRegistrationScreen> createState() => _FaceRegistrationScreenState();
@@ -50,7 +46,7 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
         setState(() {});
       }
     } catch (e) {
-      print('Error initializing camera: $e');
+      debugPrint('Error initializing camera: $e');
     }
   }
 
@@ -73,7 +69,7 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
       // Start timer
       _startTimer();
     } catch (e) {
-      print('Error starting recording: $e');
+      debugPrint('Error starting recording: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -123,7 +119,7 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
         throw Exception('Video file not found at path: $_videoPath');
       }
     } catch (e) {
-      print('Error stopping recording: $e');
+      debugPrint('Error stopping recording: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -308,7 +304,7 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        'Recording: ${_recordingDuration}/15s',
+                        'Recording: $_recordingDuration/15s',
                         style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,

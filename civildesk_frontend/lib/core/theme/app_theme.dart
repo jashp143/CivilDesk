@@ -35,31 +35,31 @@ class AppThemeColors {
 class WelcomeColors {
   // Light Theme Welcome Colors
   static Color getLightGradientStart() => Colors.blue[50]!; // #EFF6FF
-  static Color getLightGradientEnd() => Colors.blue[100]!.withOpacity(0.5);
-  static Color getLightBorder() => Colors.blue[200]!.withOpacity(0.5);
+  static Color getLightGradientEnd() => Colors.blue[100]!.withValues(alpha: 0.5);
+  static Color getLightBorder() => Colors.blue[200]!.withValues(alpha: 0.5);
   static List<Color> getLightIconGradient() => [
         Colors.blue[500]!,
         Colors.blue[700]!,
       ];
   static Color getLightGreetingText() => Colors.blue[700]!;
-  static Color getLightDateBadgeBackground() => Colors.blue[200]!.withOpacity(0.5);
+  static Color getLightDateBadgeBackground() => Colors.blue[200]!.withValues(alpha: 0.5);
   static Color getLightDateBadgeText() => Colors.blue[700]!;
   static Color getLightTrendingIcon() => Colors.blue[600]!;
-  static Color getLightSubtitleText() => Colors.blue[700]!.withOpacity(0.8);
+  static Color getLightSubtitleText() => Colors.blue[700]!.withValues(alpha: 0.8);
 
   // Dark Theme Welcome Colors
-  static Color getDarkGradientStart() => Colors.blue[900]!.withOpacity(0.3);
-  static Color getDarkGradientEnd() => Colors.blue[800]!.withOpacity(0.2);
-  static Color getDarkBorder() => Colors.blue[700]!.withOpacity(0.3);
+  static Color getDarkGradientStart() => Colors.blue[900]!.withValues(alpha: 0.3);
+  static Color getDarkGradientEnd() => Colors.blue[800]!.withValues(alpha: 0.2);
+  static Color getDarkBorder() => Colors.blue[700]!.withValues(alpha: 0.3);
   static List<Color> getDarkIconGradient() => [
         Colors.blue[600]!,
         Colors.blue[800]!,
       ];
   static Color getDarkGreetingText() => Colors.blue[200]!;
-  static Color getDarkDateBadgeBackground() => Colors.blue[800]!.withOpacity(0.3);
+  static Color getDarkDateBadgeBackground() => Colors.blue[800]!.withValues(alpha: 0.3);
   static Color getDarkDateBadgeText() => Colors.blue[300]!;
   static Color getDarkTrendingIcon() => Colors.blue[300]!;
-  static Color getDarkSubtitleText() => Colors.blue[200]!.withOpacity(0.8);
+  static Color getDarkSubtitleText() => Colors.blue[200]!.withValues(alpha: 0.8);
 }
 
 // Shadow Helpers
@@ -67,12 +67,12 @@ class AppThemeShadows {
   // Welcome Section Shadows (Light)
   static List<BoxShadow> getLightWelcomeShadows() => [
         BoxShadow(
-          color: Colors.blue.withOpacity(0.15),
+          color: Colors.blue.withValues(alpha: 0.15),
           blurRadius: 24,
           offset: const Offset(0, 8),
         ),
         BoxShadow(
-          color: Colors.black.withOpacity(0.05),
+          color: Colors.black.withValues(alpha: 0.05),
           blurRadius: 12,
           offset: const Offset(0, 4),
         ),
@@ -81,12 +81,12 @@ class AppThemeShadows {
   // Welcome Section Shadows (Dark)
   static List<BoxShadow> getDarkWelcomeShadows() => [
         BoxShadow(
-          color: Colors.blue.withOpacity(0.2),
+          color: Colors.blue.withValues(alpha: 0.2),
           blurRadius: 24,
           offset: const Offset(0, 8),
         ),
         BoxShadow(
-          color: Colors.black.withOpacity(0.3),
+          color: Colors.black.withValues(alpha: 0.3),
           blurRadius: 12,
           offset: const Offset(0, 4),
         ),
@@ -94,21 +94,21 @@ class AppThemeShadows {
 
   // Icon Shadow (Welcome Section)
   static BoxShadow getIconShadow() => BoxShadow(
-        color: Colors.blue.withOpacity(0.4),
+        color: Colors.blue.withValues(alpha: 0.4),
         blurRadius: 16,
         offset: const Offset(0, 6),
       );
 
   // Statistics Card Shadow (Light) - Color-specific
   static BoxShadow getStatCardShadowLight(Color color) => BoxShadow(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         blurRadius: 20,
         offset: const Offset(0, 4),
       );
 
   // Statistics Card Shadow (Dark)
   static BoxShadow getStatCardShadowDark() => BoxShadow(
-        color: Colors.black.withOpacity(0.2),
+        color: Colors.black.withValues(alpha: 0.2),
         blurRadius: 20,
         offset: const Offset(0, 4),
       );
@@ -193,7 +193,7 @@ class AppTheme {
           borderSide: const BorderSide(color: Colors.red, width: 1),
         ),
         labelStyle: const TextStyle(color: Colors.black),
-        hintStyle: TextStyle(color: Colors.black.withOpacity(0.6)),
+        hintStyle: TextStyle(color: Colors.black.withValues(alpha: 0.6)),
       ),
 
       // Buttons
@@ -325,7 +325,7 @@ class AppTheme {
           borderSide: const BorderSide(color: Colors.red, width: 1),
         ),
         labelStyle: const TextStyle(color: Colors.white),
-        hintStyle: TextStyle(color: Colors.white.withOpacity(0.6)),
+        hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
       ),
 
       // Buttons

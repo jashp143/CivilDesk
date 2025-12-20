@@ -177,7 +177,6 @@ class _EmployeeLayoutState extends State<EmployeeLayout> {
     // Get user data
     final user = authProvider.user;
     final fullName = authProvider.userName ?? 'Employee';
-    final department = user?['department'] ?? user?['employee']?['department'] ?? '';
     final designation = user?['designation'] ?? user?['employee']?['designation'] ?? '';
     final profilePhotoUrl = user?['profilePhotoUrl'] ?? user?['employee']?['profilePhotoUrl'];
     
@@ -194,12 +193,12 @@ class _EmployeeLayoutState extends State<EmployeeLayout> {
         ? colorScheme.onSurfaceVariant
         : const Color(0xFF6B7280);
     final dividerColor = isDark
-        ? colorScheme.outline.withOpacity(0.2)
+        ? colorScheme.outline.withValues(alpha: 0.2)
         : const Color(0xFFE5E7EB);
     // Dark background for header
     final headerBgColor = colorScheme.primary;
     final headerTextColor = colorScheme.onPrimary;
-    final headerSecondaryTextColor = colorScheme.onPrimary.withOpacity(0.8);
+    final headerSecondaryTextColor = colorScheme.onPrimary.withValues(alpha: 0.8);
 
     return Drawer(
       backgroundColor: isDark ? colorScheme.surface : const Color(0xFFF9FAFB),
@@ -227,7 +226,7 @@ class _EmployeeLayoutState extends State<EmployeeLayout> {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: colorScheme.onPrimary.withOpacity(0.3),
+                        color: colorScheme.onPrimary.withValues(alpha: 0.3),
                         width: 1.5,
                       ),
                     ),
@@ -431,8 +430,8 @@ class _EmployeeLayoutState extends State<EmployeeLayout> {
       height: size,
       decoration: BoxDecoration(
         color: isInHeader 
-            ? colorScheme.onPrimary.withOpacity(0.2)
-            : colorScheme.primaryContainer.withOpacity(0.3),
+            ? colorScheme.onPrimary.withValues(alpha: 0.2)
+            : colorScheme.primaryContainer.withValues(alpha: 0.3),
         shape: BoxShape.circle,
       ),
       child: Center(

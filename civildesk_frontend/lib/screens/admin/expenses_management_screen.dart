@@ -8,7 +8,7 @@ import '../../models/expense.dart';
 import 'expense_detail_screen.dart';
 
 class ExpensesManagementScreen extends StatefulWidget {
-  const ExpensesManagementScreen({Key? key}) : super(key: key);
+  const ExpensesManagementScreen({super.key});
 
   @override
   State<ExpensesManagementScreen> createState() => _ExpensesManagementScreenState();
@@ -19,16 +19,36 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen> {
     return MediaQuery.of(context).size.shortestSide < 600;
   }
 
+  late ScrollController _scrollController;
+
   @override
   void initState() {
     super.initState();
+    _scrollController = ScrollController();
+    _scrollController.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<ExpenseProvider>(context, listen: false).fetchAllExpenses();
+      Provider.of<ExpenseProvider>(context, listen: false).refreshExpenses();
     });
   }
 
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= 
+        _scrollController.position.maxScrollExtent * 0.9) {
+      final provider = Provider.of<ExpenseProvider>(context, listen: false);
+      if (provider.hasMore && !provider.isLoading) {
+        provider.loadMoreExpenses();
+      }
+    }
+  }
+
   Future<void> _refreshExpenses() async {
-    await Provider.of<ExpenseProvider>(context, listen: false).fetchAllExpenses();
+    await Provider.of<ExpenseProvider>(context, listen: false).refreshExpenses();
   }
 
   void _showFilterDialog() {
@@ -52,7 +72,7 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen> {
                   ),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
-                    value: provider.selectedStatus,
+                    initialValue: provider.selectedStatus,
                     decoration: const InputDecoration(
                       border: OutlineInputBorder(),
                       hintText: 'All Statuses',
@@ -80,7 +100,7 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen> {
                   ),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
-                    value: provider.selectedCategory,
+                    initialValue: provider.selectedCategory,
                     decoration: const InputDecoration(
                       border: OutlineInputBorder(),
                       hintText: 'All Categories',
@@ -108,7 +128,7 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen> {
                   ),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
-                    value: provider.selectedDepartment,
+                    initialValue: provider.selectedDepartment,
                     decoration: const InputDecoration(
                       border: OutlineInputBorder(),
                       hintText: 'All Departments',
@@ -375,11 +395,18 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen> {
                       final isMobile = constraints.maxWidth < 600;
                       
                       if (isMobile) {
-                        // Card view for mobile
+                        // Card view for mobile with pagination
                         return ListView.builder(
+                          controller: _scrollController,
                           padding: const EdgeInsets.all(16),
-                          itemCount: provider.expenses.length,
+                          itemCount: provider.expenses.length + (provider.hasMore ? 1 : 0),
                           itemBuilder: (context, index) {
+                            if (index == provider.expenses.length) {
+                              return const Padding(
+                                padding: EdgeInsets.all(16.0),
+                                child: Center(child: CircularProgressIndicator()),
+                              );
+                            }
                             final expense = provider.expenses[index];
                             return Padding(
                               padding: const EdgeInsets.only(bottom: 16),
@@ -389,7 +416,7 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen> {
                         );
                       } else {
                         // Table view for tablet/desktop
-                        return _buildExpensesTable(provider.expenses);
+                        return _buildExpensesTable(provider.expenses, provider.hasMore);
                       }
                     },
                   ),
@@ -472,7 +499,7 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.15),
+                      color: statusColor.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Row(
@@ -503,7 +530,7 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
-                      color: Colors.blue.withOpacity(0.1),
+                      color: Colors.blue.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -518,7 +545,7 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -628,7 +655,7 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen> {
               Divider(
                 height: 1,
                 thickness: 1,
-                color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
               ),
               
               const SizedBox(height: 12),
@@ -687,77 +714,107 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen> {
     );
   }
 
-  Widget _buildExpensesTable(List<Expense> expenses) {
+  Widget _buildExpensesTable(List<Expense> expenses, bool hasMore) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final tableWidth = constraints.maxWidth > 1000 ? constraints.maxWidth - 32 : 1000.0;
         
-        return SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
+        return NotificationListener<ScrollNotification>(
+          onNotification: (notification) {
+            if (notification is ScrollEndNotification) {
+              final provider = Provider.of<ExpenseProvider>(context, listen: false);
+              if (notification.metrics.pixels >= notification.metrics.maxScrollExtent * 0.9) {
+                if (provider.hasMore && !provider.isLoading) {
+                  provider.loadMoreExpenses();
+                }
+              }
+            }
+            return false;
+          },
           child: SingleChildScrollView(
-            scrollDirection: Axis.vertical,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Card(
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surface,
-                    ),
-                    child: SizedBox(
-                      width: tableWidth,
-                      child: Table(
-                        columnWidths: const {
-                          0: FlexColumnWidth(2.5),
-                          1: FlexColumnWidth(1.2),
-                          2: FlexColumnWidth(1.5),
-                          3: FlexColumnWidth(1.5),
-                          4: FlexColumnWidth(1.8),
-                          5: FlexColumnWidth(2.0),
-                        },
-                        border: TableBorder(
-                          horizontalInside: BorderSide(
-                            color: Theme.of(context).colorScheme.outline.withOpacity(0.1),
-                            width: 1,
+            scrollDirection: Axis.horizontal,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.vertical,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Card(
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surface,
+                      ),
+                      child: SizedBox(
+                        width: tableWidth,
+                        child: Table(
+                          columnWidths: const {
+                            0: FlexColumnWidth(2.5),
+                            1: FlexColumnWidth(1.2),
+                            2: FlexColumnWidth(1.5),
+                            3: FlexColumnWidth(1.5),
+                            4: FlexColumnWidth(1.8),
+                            5: FlexColumnWidth(2.0),
+                          },
+                          border: TableBorder(
+                            horizontalInside: BorderSide(
+                              color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.1),
+                              width: 1,
+                            ),
+                            bottom: BorderSide(
+                              color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.1),
+                              width: 1,
+                            ),
                           ),
-                          bottom: BorderSide(
-                            color: Theme.of(context).colorScheme.outline.withOpacity(0.1),
-                            width: 1,
-                          ),
-                        ),
-                        children: [
-                          // Table Header
-                          TableRow(
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
-                              border: Border(
-                                bottom: BorderSide(
-                                  color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
-                                  width: 2,
+                          children: [
+                            // Table Header
+                            TableRow(
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
+                                border: Border(
+                                  bottom: BorderSide(
+                                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
+                                    width: 2,
+                                  ),
                                 ),
                               ),
+                              children: [
+                                _buildTableHeaderCell('Employee', Icons.person),
+                                _buildTableHeaderCell('Status', Icons.info),
+                                _buildTableHeaderCell('Category', Icons.category),
+                                _buildTableHeaderCell('Amount', Icons.currency_rupee),
+                                _buildTableHeaderCell('Date', Icons.calendar_today),
+                                _buildTableHeaderCell('Actions', Icons.more_vert),
+                              ],
                             ),
-                            children: [
-                              _buildTableHeaderCell('Employee', Icons.person),
-                              _buildTableHeaderCell('Status', Icons.info),
-                              _buildTableHeaderCell('Category', Icons.category),
-                              _buildTableHeaderCell('Amount', Icons.currency_rupee),
-                              _buildTableHeaderCell('Date', Icons.calendar_today),
-                              _buildTableHeaderCell('Actions', Icons.more_vert),
-                            ],
-                          ),
-                          // Table Rows with alternating colors
-                          ...expenses.asMap().entries.map((entry) {
-                            final index = entry.key;
-                            final expense = entry.value;
-                            return _buildExpenseTableRow(expense, index);
-                          }),
-                        ],
+                            // Table Rows with alternating colors
+                            ...expenses.asMap().entries.map((entry) {
+                              final index = entry.key;
+                              final expense = entry.value;
+                              return _buildExpenseTableRow(expense, index);
+                            }),
+                            // Loading indicator row
+                            if (hasMore)
+                              TableRow(
+                                children: [
+                                  TableCell(
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(16.0),
+                                      child: const Center(child: CircularProgressIndicator()),
+                                    ),
+                                  ),
+                                  const TableCell(child: SizedBox()),
+                                  const TableCell(child: SizedBox()),
+                                  const TableCell(child: SizedBox()),
+                                  const TableCell(child: SizedBox()),
+                                  const TableCell(child: SizedBox()),
+                                ],
+                              ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -821,7 +878,7 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen> {
     final isEven = index % 2 == 0;
     final rowColor = isEven
         ? Colors.transparent
-        : Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.2);
+        : Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.2);
 
     return TableRow(
       decoration: BoxDecoration(
@@ -904,10 +961,10 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.15),
+                color: statusColor.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: statusColor.withOpacity(0.3),
+                  color: statusColor.withValues(alpha: 0.3),
                   width: 1,
                 ),
               ),
@@ -943,10 +1000,10 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: Colors.blue.withOpacity(0.15),
+                color: Colors.blue.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: Colors.blue.withOpacity(0.3),
+                  color: Colors.blue.withValues(alpha: 0.3),
                   width: 1,
                 ),
               ),
@@ -995,7 +1052,7 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+                color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Row(

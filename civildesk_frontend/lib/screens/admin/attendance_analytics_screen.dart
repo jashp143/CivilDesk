@@ -122,8 +122,8 @@ class _AttendanceAnalyticsScreenState extends State<AttendanceAnalyticsScreen> {
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
           color: isDark
-              ? colorScheme.outline.withOpacity(0.3)
-              : colorScheme.outlineVariant.withOpacity(0.5),
+              ? colorScheme.outline.withValues(alpha: 0.3)
+              : colorScheme.outlineVariant.withValues(alpha: 0.5),
           width: 1,
         ),
       ),
@@ -205,7 +205,7 @@ class _AttendanceAnalyticsScreenState extends State<AttendanceAnalyticsScreen> {
             ),
             const SizedBox(height: 4),
             DropdownButtonFormField<Employee>(
-              value: _selectedEmployee,
+              initialValue: _selectedEmployee,
               decoration: InputDecoration(
                 hintText: 'Choose an employee',
                 prefixIcon: Icon(Icons.person_outline, size: 18),
@@ -213,21 +213,21 @@ class _AttendanceAnalyticsScreenState extends State<AttendanceAnalyticsScreen> {
                   borderRadius: BorderRadius.circular(8),
                   borderSide: BorderSide(
                     color: isDark
-                        ? colorScheme.outline.withOpacity(0.5)
-                        : colorScheme.outline.withOpacity(0.3),
+                        ? colorScheme.outline.withValues(alpha:0.5)
+                        : colorScheme.outline.withValues(alpha:0.3),
                   ),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                   borderSide: BorderSide(
                     color: isDark
-                        ? colorScheme.outline.withOpacity(0.5)
-                        : colorScheme.outline.withOpacity(0.3),
+                        ? colorScheme.outline.withValues(alpha:0.5)
+                        : colorScheme.outline.withValues(alpha:0.3),
                   ),
                 ),
                 filled: true,
                 fillColor: isDark
-                    ? colorScheme.surfaceVariant.withOpacity(0.3)
+                    ? colorScheme.surfaceContainerHighest.withValues(alpha:0.3)
                     : colorScheme.surface,
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 12,
@@ -260,7 +260,6 @@ class _AttendanceAnalyticsScreenState extends State<AttendanceAnalyticsScreen> {
 
   Widget _buildDateRangeSelector() {
     final dateFormat = DateFormat('MMM dd, yyyy');
-    final isMobile = _isMobile(context);
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
@@ -318,13 +317,13 @@ class _AttendanceAnalyticsScreenState extends State<AttendanceAnalyticsScreen> {
               decoration: BoxDecoration(
                 border: Border.all(
                   color: isDark
-                      ? colorScheme.outline.withOpacity(0.5)
-                      : colorScheme.outline.withOpacity(0.3),
+                      ? colorScheme.outline.withValues(alpha: 0.5)
+                      : colorScheme.outline.withValues(alpha: 0.3),
                   width: 1,
                 ),
                 borderRadius: BorderRadius.circular(8),
                 color: isDark
-                    ? colorScheme.surfaceVariant.withOpacity(0.3)
+                    ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.3)
                     : colorScheme.surface,
               ),
               child: Container(
@@ -356,7 +355,7 @@ class _AttendanceAnalyticsScreenState extends State<AttendanceAnalyticsScreen> {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: colorScheme.primaryContainer.withOpacity(0.4),
+                          color: colorScheme.primaryContainer.withValues(alpha: 0.4),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
@@ -401,15 +400,15 @@ class _AttendanceAnalyticsScreenState extends State<AttendanceAnalyticsScreen> {
             color: isSelected
                 ? colorScheme.primaryContainer
                 : isDark
-                ? colorScheme.surfaceVariant.withOpacity(0.2)
-                : colorScheme.surfaceVariant.withOpacity(0.3),
+                ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.2)
+                : colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
             borderRadius: BorderRadius.circular(6),
             border: Border.all(
               color: isSelected
-                  ? colorScheme.primary.withOpacity(0.6)
+                  ? colorScheme.primary.withValues(alpha: 0.6)
                   : isDark
-                  ? colorScheme.outline.withOpacity(0.3)
-                  : colorScheme.outline.withOpacity(0.2),
+                  ? colorScheme.outline.withValues(alpha: 0.3)
+                  : colorScheme.outline.withValues(alpha: 0.2),
               width: isSelected ? 1 : 0.5,
             ),
           ),
@@ -573,7 +572,7 @@ class _AttendanceAnalyticsScreenState extends State<AttendanceAnalyticsScreen> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(
-          color: Theme.of(context).colorScheme.error.withOpacity(0.3),
+          color: Theme.of(context).colorScheme.error.withValues(alpha: 0.3),
           width: 1,
         ),
       ),
@@ -675,13 +674,13 @@ class _AttendanceAnalyticsScreenState extends State<AttendanceAnalyticsScreen> {
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
           color: isDark
-              ? colorScheme.outline.withOpacity(0.2)
-              : colorScheme.outline.withOpacity(0.1),
+              ? colorScheme.outline.withValues(alpha: 0.2)
+              : colorScheme.outline.withValues(alpha: 0.1),
           width: 1,
         ),
       ),
       color: isDark
-          ? colorScheme.surfaceVariant.withOpacity(0.2)
+          ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.2)
           : colorScheme.surface,
       child: Padding(
         padding: EdgeInsets.all(isMobile ? 16 : 20),
@@ -813,13 +812,13 @@ class _AttendanceAnalyticsScreenState extends State<AttendanceAnalyticsScreen> {
             borderRadius: BorderRadius.circular(12),
             side: BorderSide(
               color: isDark
-                  ? colorScheme.outline.withOpacity(0.2)
-                  : colorScheme.outline.withOpacity(0.1),
+                  ? colorScheme.outline.withValues(alpha: 0.2)
+                  : colorScheme.outline.withValues(alpha: 0.1),
               width: 1,
             ),
           ),
           color: isDark
-              ? colorScheme.surfaceVariant.withOpacity(0.2)
+              ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.2)
               : colorScheme.surface,
           child: Padding(
             padding: EdgeInsets.all(isMobile ? 16 : 20),
@@ -899,7 +898,7 @@ class _AttendanceAnalyticsScreenState extends State<AttendanceAnalyticsScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: color.withOpacity(isDark ? 0.1 : 0.05),
+        color: color.withValues(alpha: isDark ? 0.1 : 0.05),
         borderRadius: BorderRadius.circular(8),
         border: Border(
           left: BorderSide(
@@ -978,13 +977,13 @@ class _AttendanceAnalyticsScreenState extends State<AttendanceAnalyticsScreen> {
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
           color: isDark
-              ? colorScheme.outline.withOpacity(0.2)
-              : colorScheme.outline.withOpacity(0.1),
+              ? colorScheme.outline.withValues(alpha: 0.2)
+              : colorScheme.outline.withValues(alpha: 0.1),
           width: 1,
         ),
       ),
       color: isDark
-          ? colorScheme.surfaceVariant.withOpacity(0.2)
+          ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.2)
           : colorScheme.surface,
       child: Column(
         children: [
@@ -992,8 +991,8 @@ class _AttendanceAnalyticsScreenState extends State<AttendanceAnalyticsScreen> {
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: isDark
-                  ? colorScheme.surfaceVariant.withOpacity(0.3)
-                  : colorScheme.surfaceVariant.withOpacity(0.2),
+                  ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.3)
+                  : colorScheme.surfaceContainerHighest.withValues(alpha: 0.2),
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(12),
                 topRight: Radius.circular(12),
@@ -1090,7 +1089,7 @@ class _AttendanceAnalyticsScreenState extends State<AttendanceAnalyticsScreen> {
           Divider(
             height: 1,
             thickness: 1,
-            color: colorScheme.outline.withOpacity(0.1),
+            color: colorScheme.outline.withValues(alpha: 0.1),
           ),
           if (logs.isEmpty)
             Padding(
@@ -1191,13 +1190,13 @@ class _AttendanceAnalyticsScreenState extends State<AttendanceAnalyticsScreen> {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: isDark
-            ? colorScheme.surfaceVariant.withOpacity(0.2)
+            ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.2)
             : colorScheme.surface,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: isDark
-              ? colorScheme.outline.withOpacity(0.2)
-              : colorScheme.outline.withOpacity(0.1),
+              ? colorScheme.outline.withValues(alpha: 0.2)
+              : colorScheme.outline.withValues(alpha: 0.1),
           width: 1,
         ),
       ),
@@ -1230,8 +1229,8 @@ class _AttendanceAnalyticsScreenState extends State<AttendanceAnalyticsScreen> {
                         ),
                         decoration: BoxDecoration(
                           color: isDark
-                              ? Colors.purple.withOpacity(0.2)
-                              : Colors.purple.withOpacity(0.1),
+                              ? Colors.purple.withValues(alpha: 0.2)
+                              : Colors.purple.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
@@ -1252,7 +1251,7 @@ class _AttendanceAnalyticsScreenState extends State<AttendanceAnalyticsScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(isDark ? 0.2 : 0.15),
+                  color: statusColor.withValues(alpha: isDark ? 0.2 : 0.15),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
@@ -1373,10 +1372,10 @@ class _AttendanceAnalyticsScreenState extends State<AttendanceAnalyticsScreen> {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: color.withOpacity(isDark ? 0.15 : 0.1),
+        color: color.withValues(alpha: isDark ? 0.15 : 0.1),
         borderRadius: BorderRadius.circular(6),
         border: Border.all(
-          color: color.withOpacity(0.3),
+          color: color.withValues(alpha: 0.3),
           width: 1,
         ),
       ),
@@ -1445,8 +1444,8 @@ class _AttendanceAnalyticsScreenState extends State<AttendanceAnalyticsScreen> {
       decoration: BoxDecoration(
         color: isSunday
             ? (isDark
-                  ? Colors.purple.withOpacity(0.1)
-                  : Colors.purple.withOpacity(0.05))
+                  ? Colors.purple.withValues(alpha: 0.1)
+                  : Colors.purple.withValues(alpha: 0.05))
             : null,
       ),
       child: Row(
@@ -1475,8 +1474,8 @@ class _AttendanceAnalyticsScreenState extends State<AttendanceAnalyticsScreen> {
                     ),
                     decoration: BoxDecoration(
                       color: isDark
-                          ? Colors.purple.withOpacity(0.2)
-                          : Colors.purple.withOpacity(0.1),
+                          ? Colors.purple.withValues(alpha: 0.2)
+                          : Colors.purple.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
@@ -1536,11 +1535,11 @@ class _AttendanceAnalyticsScreenState extends State<AttendanceAnalyticsScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
                 color: (isDark ? Colors.blue.shade300 : Colors.blue.shade700)
-                    .withOpacity(isDark ? 0.15 : 0.1),
+                    .withValues(alpha: isDark ? 0.15 : 0.1),
                 borderRadius: BorderRadius.circular(6),
                 border: Border.all(
                   color: (isDark ? Colors.blue.shade300 : Colors.blue.shade700)
-                      .withOpacity(0.3),
+                      .withValues(alpha: 0.3),
                   width: 1,
                 ),
               ),
@@ -1566,7 +1565,7 @@ class _AttendanceAnalyticsScreenState extends State<AttendanceAnalyticsScreen> {
                         : log.overtimeHours != null && log.overtimeHours! > 0
                             ? (isDark ? Colors.orange.shade300 : Colors.orange.shade700)
                             : colorScheme.onSurfaceVariant)
-                    .withOpacity(isDark ? 0.15 : 0.1),
+                    .withValues(alpha: isDark ? 0.15 : 0.1),
                 borderRadius: BorderRadius.circular(6),
                 border: Border.all(
                   color: (isSunday
@@ -1574,7 +1573,7 @@ class _AttendanceAnalyticsScreenState extends State<AttendanceAnalyticsScreen> {
                           : log.overtimeHours != null && log.overtimeHours! > 0
                               ? (isDark ? Colors.orange.shade300 : Colors.orange.shade700)
                               : colorScheme.onSurfaceVariant)
-                      .withOpacity(0.3),
+                      .withValues(alpha: 0.3),
                   width: 1,
                 ),
               ),
@@ -1600,7 +1599,7 @@ class _AttendanceAnalyticsScreenState extends State<AttendanceAnalyticsScreen> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(isDark ? 0.2 : 0.15),
+                  color: statusColor.withValues(alpha: isDark ? 0.2 : 0.15),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(

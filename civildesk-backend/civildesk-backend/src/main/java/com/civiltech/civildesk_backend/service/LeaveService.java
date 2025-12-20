@@ -13,6 +13,10 @@ import com.civiltech.civildesk_backend.repository.EmployeeRepository;
 import com.civiltech.civildesk_backend.repository.LeaveRepository;
 import com.civiltech.civildesk_backend.security.SecurityUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +26,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -35,6 +40,7 @@ public class LeaveService {
     private EmployeeRepository employeeRepository;
 
     // Apply for leave
+    @CacheEvict(value = "leaves", allEntries = true)
     public LeaveResponse applyLeave(LeaveRequest request) {
         User currentUser = SecurityUtils.getCurrentUser();
         
@@ -91,7 +97,11 @@ public class LeaveService {
     }
 
     // Update leave (only if status is PENDING)
-    public LeaveResponse updateLeave(Long leaveId, LeaveRequest request) {
+    @Caching(evict = {
+        @CacheEvict(value = "leaves", key = "#leaveId"),
+        @CacheEvict(value = "leaves", allEntries = true)
+    })
+    public LeaveResponse updateLeave(@NonNull Long leaveId, LeaveRequest request) {
         User currentUser = SecurityUtils.getCurrentUser();
         
         Leave leave = leaveRepository.findById(leaveId)
@@ -155,7 +165,11 @@ public class LeaveService {
     }
 
     // Delete leave (only if status is PENDING)
-    public void deleteLeave(Long leaveId) {
+    @Caching(evict = {
+        @CacheEvict(value = "leaves", key = "#leaveId"),
+        @CacheEvict(value = "leaves", allEntries = true)
+    })
+    public void deleteLeave(@NonNull Long leaveId) {
         User currentUser = SecurityUtils.getCurrentUser();
         
         Leave leave = leaveRepository.findById(leaveId)
@@ -177,6 +191,8 @@ public class LeaveService {
     }
 
     // Get all leaves for current employee
+    @Cacheable(value = "leaves", key = "'my-leaves:' + T(com.civiltech.civildesk_backend.security.SecurityUtils).getCurrentUserId()")
+    @Transactional(readOnly = true)
     public List<LeaveResponse> getMyLeaves() {
         User currentUser = SecurityUtils.getCurrentUser();
         
@@ -191,6 +207,8 @@ public class LeaveService {
     }
 
     // Get responsibilities assigned to current employee
+    @Cacheable(value = "leaves", key = "'my-responsibilities:' + T(com.civiltech.civildesk_backend.security.SecurityUtils).getCurrentUserId()")
+    @Transactional(readOnly = true)
     public List<LeaveResponse> getMyResponsibilities() {
         User currentUser = SecurityUtils.getCurrentUser();
         
@@ -210,6 +228,8 @@ public class LeaveService {
     }
 
     // Get all leaves (Admin/HR only)
+    @Cacheable(value = "leaves", key = "'all-leaves'")
+    @Transactional(readOnly = true)
     public List<LeaveResponse> getAllLeaves() {
         User currentUser = SecurityUtils.getCurrentUser();
         
@@ -226,6 +246,8 @@ public class LeaveService {
     }
 
     // Get leaves by status (Admin/HR only)
+    @Cacheable(value = "leaves", key = "'leaves-status:' + #status")
+    @Transactional(readOnly = true)
     public List<LeaveResponse> getLeavesByStatus(Leave.LeaveStatus status) {
         User currentUser = SecurityUtils.getCurrentUser();
         
@@ -274,7 +296,9 @@ public class LeaveService {
     }
 
     // Get leave by ID
-    public LeaveResponse getLeaveById(Long leaveId) {
+    @Cacheable(value = "leaves", key = "#leaveId")
+    @Transactional(readOnly = true)
+    public LeaveResponse getLeaveById(@NonNull Long leaveId) {
         User currentUser = SecurityUtils.getCurrentUser();
         
         Leave leave = leaveRepository.findById(leaveId)
@@ -293,7 +317,11 @@ public class LeaveService {
     }
 
     // Review leave (Approve/Reject) - Admin/HR only
-    public LeaveResponse reviewLeave(Long leaveId, LeaveReviewRequest request) {
+    @Caching(evict = {
+        @CacheEvict(value = "leaves", key = "#leaveId"),
+        @CacheEvict(value = "leaves", allEntries = true)
+    })
+    public LeaveResponse reviewLeave(@NonNull Long leaveId, LeaveReviewRequest request) {
         User currentUser = SecurityUtils.getCurrentUser();
         
         // Check if user has admin or HR role
@@ -385,7 +413,7 @@ public class LeaveService {
 
             List<LeaveResponse.HandoverEmployeeInfo> handoverEmployees = new ArrayList<>();
             for (Long empId : employeeIds) {
-                employeeRepository.findById(empId).ifPresent(emp -> {
+                employeeRepository.findById(Objects.requireNonNull(empId, "Employee ID cannot be null")).ifPresent(emp -> {
                     if (emp.getId() != null) {
                         LeaveResponse.HandoverEmployeeInfo info = new LeaveResponse.HandoverEmployeeInfo();
                         info.setId(emp.getId());

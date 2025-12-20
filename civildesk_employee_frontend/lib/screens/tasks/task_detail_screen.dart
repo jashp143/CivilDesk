@@ -81,29 +81,31 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 note.isEmpty ? null : note,
               );
 
-              if (mounted) {
-                if (success) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        status == TaskStatus.approved
-                            ? 'Task approved successfully'
-                            : 'Task rejected successfully',
-                      ),
-                      backgroundColor: Colors.green,
+              if (!mounted) return;
+              if (success) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      status == TaskStatus.approved
+                          ? 'Task approved successfully'
+                          : 'Task rejected successfully',
                     ),
-                  );
-                  Navigator.pop(context, true);
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        provider.error ?? 'Failed to review task',
-                      ),
-                      backgroundColor: Colors.red,
+                    backgroundColor: Colors.green,
+                  ),
+                );
+                if (!mounted) return;
+                Navigator.pop(context, true);
+              } else {
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      provider.error ?? 'Failed to review task',
                     ),
-                  );
-                }
+                    backgroundColor: Colors.red,
+                  ),
+                );
               }
             },
             style: ElevatedButton.styleFrom(
@@ -153,7 +155,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           children: [
             // Status Card
             Card(
-              color: statusColor.withOpacity(0.1),
+              color: statusColor.withValues(alpha: 0.1),
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Row(
@@ -378,7 +380,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(icon, color: color),

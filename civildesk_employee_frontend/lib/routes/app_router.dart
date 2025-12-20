@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../core/constants/app_routes.dart';
 import '../screens/common/login_screen.dart';
 import '../screens/common/splash_screen.dart';
-import '../screens/dashboard/dashboard_screen.dart';
 import '../screens/home/home_screen.dart';
 import '../screens/attendance/my_attendance_screen.dart';
 import '../screens/salary/my_salary_slips_screen.dart';

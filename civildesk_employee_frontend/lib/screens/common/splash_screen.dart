@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -12,14 +11,15 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMixin {
+class _SplashScreenState extends State<SplashScreen>
+    with TickerProviderStateMixin {
   late AnimationController _fadeController;
   late AnimationController _scaleController;
   late AnimationController _floatController;
   late AnimationController _rotateController;
   late AnimationController _pulseController;
   late AnimationController _shimmerController;
-  
+
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
   late Animation<double> _floatAnimation;
@@ -30,7 +30,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   @override
   void initState() {
     super.initState();
-    
+
     // Fade animation for logo
     _fadeController = AnimationController(
       vsync: this,
@@ -64,9 +64,10 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
       vsync: this,
       duration: const Duration(seconds: 15),
     )..repeat();
-    _rotateAnimation = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _rotateController, curve: Curves.linear),
-    );
+    _rotateAnimation = Tween<double>(
+      begin: 0,
+      end: 1,
+    ).animate(CurvedAnimation(parent: _rotateController, curve: Curves.linear));
 
     // Pulse animation
     _pulseController = AnimationController(
@@ -89,7 +90,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     // Start animations
     _fadeController.forward();
     _scaleController.forward();
-    
+
     _navigateToNextScreen();
   }
 
@@ -106,7 +107,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
 
   Future<void> _navigateToNextScreen() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    
+
     // Wait for auth data to finish loading
     while (authProvider.isLoading) {
       await Future.delayed(const Duration(milliseconds: 100));
@@ -137,17 +138,14 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              colorScheme.surface,
-              colorScheme.surfaceVariant,
-            ],
+            colors: [colorScheme.surface, colorScheme.surfaceContainerHighest],
           ),
         ),
         child: Stack(
           children: [
             // Decorative background elements
             ..._buildDecorativeBackground(context, colorScheme, isDark),
-            
+
             // Main content
             SafeArea(
               child: Center(
@@ -165,26 +163,43 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                             return Transform.translate(
                               offset: Offset(0, _floatAnimation.value),
                               child: Container(
-                                padding: const EdgeInsets.all(30),
+                                width: 180,
+                                height: 180,
+                                padding: const EdgeInsets.all(8),
                                 decoration: BoxDecoration(
-                                  color: colorScheme.primaryContainer.withOpacity(0.2),
+                                  color: colorScheme.primaryContainer
+                                      .withValues(alpha: 0.1),
                                   shape: BoxShape.circle,
                                   border: Border.all(
-                                    color: colorScheme.primary.withOpacity(0.3),
+                                    color: colorScheme.primary.withValues(
+                                      alpha: 0.2,
+                                    ),
                                     width: 2,
                                   ),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: colorScheme.primary.withOpacity(0.2),
+                                      color: colorScheme.primary.withValues(
+                                        alpha: 0.15,
+                                      ),
                                       blurRadius: 30,
                                       spreadRadius: 5,
                                     ),
                                   ],
                                 ),
-                                child: Icon(
-                                  Icons.person_rounded,
-                                  size: 80,
-                                  color: colorScheme.primary,
+                                child: ClipOval(
+                                  child: Image.asset(
+                                    'assets/logo-app.png',
+                                    width: 130,
+                                    height: 130,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Icon(
+                                        Icons.business_rounded,
+                                        size: 80,
+                                        color: colorScheme.primary,
+                                      );
+                                    },
+                                  ),
                                 ),
                               ),
                             );
@@ -266,9 +281,13 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     );
   }
 
-  List<Widget> _buildDecorativeBackground(BuildContext context, ColorScheme colorScheme, bool isDark) {
+  List<Widget> _buildDecorativeBackground(
+    BuildContext context,
+    ColorScheme colorScheme,
+    bool isDark,
+  ) {
     final screenSize = MediaQuery.of(context).size;
-    
+
     return [
       // Large animated circles with gradients
       AnimatedBuilder(
@@ -286,8 +305,8 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                   shape: BoxShape.circle,
                   gradient: RadialGradient(
                     colors: [
-                      colorScheme.primary.withOpacity(0.3),
-                      colorScheme.primary.withOpacity(0.1),
+                      colorScheme.primary.withValues(alpha: 0.3),
+                      colorScheme.primary.withValues(alpha: 0.1),
                       Colors.transparent,
                     ],
                   ),
@@ -312,8 +331,8 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                   shape: BoxShape.circle,
                   gradient: RadialGradient(
                     colors: [
-                      colorScheme.secondary.withOpacity(0.3),
-                      colorScheme.secondary.withOpacity(0.1),
+                      colorScheme.secondary.withValues(alpha: 0.3),
+                      colorScheme.secondary.withValues(alpha: 0.1),
                       Colors.transparent,
                     ],
                   ),
@@ -323,7 +342,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
           );
         },
       ),
-      
+
       // Rotating geometric shapes
       AnimatedBuilder(
         animation: _rotateAnimation,
@@ -337,10 +356,10 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                 width: 150,
                 height: 150,
                 decoration: BoxDecoration(
-                  color: colorScheme.primaryContainer.withOpacity(0.2),
+                  color: colorScheme.primaryContainer.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(25),
                   border: Border.all(
-                    color: colorScheme.primary.withOpacity(0.3),
+                    color: colorScheme.primary.withValues(alpha: 0.3),
                     width: 2.5,
                   ),
                 ),
@@ -349,7 +368,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
           );
         },
       ),
-      
+
       // Floating diamond/square
       AnimatedBuilder(
         animation: _floatAnimation,
@@ -363,10 +382,10 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                 width: 100,
                 height: 100,
                 decoration: BoxDecoration(
-                  color: colorScheme.secondaryContainer.withOpacity(0.25),
+                  color: colorScheme.secondaryContainer.withValues(alpha: 0.25),
                   borderRadius: BorderRadius.circular(15),
                   border: Border.all(
-                    color: colorScheme.secondary.withOpacity(0.4),
+                    color: colorScheme.secondary.withValues(alpha: 0.4),
                     width: 2,
                   ),
                 ),
@@ -375,7 +394,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
           );
         },
       ),
-      
+
       // Triangle shape
       Positioned(
         top: screenSize.height * 0.25,
@@ -388,14 +407,14 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
               child: CustomPaint(
                 size: const Size(180, 180),
                 painter: _TrianglePainter(
-                  color: colorScheme.primary.withOpacity(0.25),
+                  color: colorScheme.primary.withValues(alpha: 0.25),
                 ),
               ),
             );
           },
         ),
       ),
-      
+
       // Hexagon shape
       Positioned(
         top: screenSize.height * 0.55,
@@ -408,7 +427,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
               child: CustomPaint(
                 size: const Size(120, 120),
                 painter: _HexagonPainter(
-                  color: colorScheme.secondary.withOpacity(0.3),
+                  color: colorScheme.secondary.withValues(alpha: 0.3),
                 ),
               ),
             );
@@ -462,43 +481,6 @@ class _HexagonPainter extends CustomPainter {
 
     for (int i = 0; i < 6; i++) {
       final angle = (i * math.pi / 3) - (math.pi / 6);
-      final x = center.dx + radius * math.cos(angle);
-      final y = center.dy + radius * math.sin(angle);
-      if (i == 0) {
-        path.moveTo(x, y);
-      } else {
-        path.lineTo(x, y);
-      }
-    }
-    path.close();
-
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-// Custom painter for star
-class _StarPainter extends CustomPainter {
-  final Color color;
-
-  _StarPainter({required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
-
-    final path = Path();
-    final center = Offset(size.width / 2, size.height / 2);
-    final outerRadius = size.width / 2;
-    final innerRadius = outerRadius * 0.4;
-
-    for (int i = 0; i < 10; i++) {
-      final angle = (i * math.pi / 5) - (math.pi / 2);
-      final radius = i % 2 == 0 ? outerRadius : innerRadius;
       final x = center.dx + radius * math.cos(angle);
       final y = center.dy + radius * math.sin(angle);
       if (i == 0) {

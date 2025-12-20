@@ -13,7 +13,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 @RestController
 @RequestMapping("/api/salary")
@@ -30,6 +33,49 @@ public class SalaryController {
         SalaryCalculationResponse response = salaryService.calculateAndGenerateSlip(request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Salary slip calculated and generated successfully", response));
+    }
+
+    /**
+     * Generate salary slips in bulk for multiple employees.
+     * This endpoint processes salary calculations asynchronously and returns immediately.
+     * Use the status endpoint to check progress if needed.
+     * 
+     * @param requests List of salary calculation requests
+     * @return Response with job status and count of requests submitted
+     */
+    @PostMapping("/bulk-generate")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('HR_MANAGER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> bulkGenerateSalarySlips(
+            @Valid @RequestBody List<SalaryCalculationRequest> requests) {
+        try {
+            if (requests == null || requests.isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("Request list cannot be empty"));
+            }
+
+            if (requests.size() > 1000) {
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("Maximum 1000 salary slips can be generated in one batch"));
+            }
+
+            // Start async processing (fire-and-forget)
+            @SuppressWarnings("unused")
+            CompletableFuture<List<com.civiltech.civildesk_backend.model.SalarySlip>> future = 
+                salaryService.generateBulkSalarySlipsAsync(requests);
+
+            // Return immediately with job information
+            Map<String, Object> response = new HashMap<>();
+            response.put("status", "PROCESSING");
+            response.put("total_requests", requests.size());
+            response.put("message", "Bulk salary slip generation started. Processing will continue in background.");
+
+            return ResponseEntity.accepted()
+                    .body(ApiResponse.success("Bulk salary slip generation started", response));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Error starting bulk salary slip generation: " + e.getMessage(), 
+                            HttpStatus.INTERNAL_SERVER_ERROR.value()));
+        }
     }
 
     @GetMapping("/slip/{id}")

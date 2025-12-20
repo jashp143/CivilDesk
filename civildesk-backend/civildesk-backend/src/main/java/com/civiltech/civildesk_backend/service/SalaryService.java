@@ -11,10 +11,13 @@ import com.civiltech.civildesk_backend.repository.EmployeeRepository;
 import com.civiltech.civildesk_backend.repository.SalarySlipRepository;
 import com.civiltech.civildesk_backend.security.SecurityUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 @Service
@@ -30,9 +33,11 @@ public class SalaryService {
     private EmployeeRepository employeeRepository;
 
     @Transactional
+    @SuppressWarnings("null") // Spring Data JPA save() always returns a non-null entity
     public SalaryCalculationResponse calculateAndGenerateSlip(SalaryCalculationRequest request) {
         Long currentUserId = SecurityUtils.getCurrentUserId();
         SalarySlip salarySlip = calculationService.calculateSalary(request, currentUserId);
+        // Spring Data JPA save() always returns a non-null entity
         salarySlip = salarySlipRepository.save(salarySlip);
         
         // Reload with Employee to ensure it's properly initialized
@@ -187,6 +192,50 @@ public class SalaryService {
         
         salarySlip.setDeleted(true);
         salarySlipRepository.save(salarySlip);
+    }
+
+    /**
+     * Generate salary slips in bulk for multiple employees asynchronously.
+     * This method processes salary calculations in batches to avoid blocking the main thread.
+     * 
+     * @param requests List of salary calculation requests
+     * @return CompletableFuture with list of generated salary slips
+     */
+    @Async("computeExecutor")
+    @Transactional
+    public CompletableFuture<List<SalarySlip>> generateBulkSalarySlipsAsync(List<SalaryCalculationRequest> requests) {
+        List<SalarySlip> salarySlips = new ArrayList<>();
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        
+        int batchSize = 50;
+        for (int i = 0; i < requests.size(); i++) {
+            SalaryCalculationRequest request = requests.get(i);
+            try {
+                SalarySlip salarySlip = calculationService.calculateSalary(request, currentUserId);
+                // Spring Data JPA save() always returns a non-null entity
+                @SuppressWarnings("null")
+                SalarySlip savedSlip = salarySlipRepository.save(salarySlip);
+                salarySlips.add(savedSlip);
+                
+                // Flush and clear every batchSize to manage memory
+                if ((i + 1) % batchSize == 0) {
+                    salarySlipRepository.flush();
+                }
+            } catch (Exception e) {
+                // Log error but continue with other employees
+                String employeeId = request != null ? request.getEmployeeId() : "unknown";
+                System.err.println("Error calculating salary for employee " + 
+                    employeeId + ": " + e.getMessage());
+                // Continue with next employee
+            }
+        }
+        
+        // Final flush
+        if (!salarySlips.isEmpty()) {
+            salarySlipRepository.flush();
+        }
+        
+        return CompletableFuture.completedFuture(salarySlips);
     }
 
     private SalaryCalculationResponse buildCalculationResponse(SalarySlip salarySlip) {

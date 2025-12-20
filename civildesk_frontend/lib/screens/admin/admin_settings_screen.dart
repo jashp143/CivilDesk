@@ -354,8 +354,8 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen>
             borderRadius: BorderRadius.circular(isMobile ? 16 : 20),
             side: BorderSide(
               color: isDark
-                  ? colorScheme.outline.withOpacity(0.2)
-                  : colorScheme.outline.withOpacity(0.1),
+                  ? colorScheme.outline.withValues(alpha: 0.2)
+                  : colorScheme.outline.withValues(alpha: 0.1),
               width: 1,
             ),
           ),
@@ -369,7 +369,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen>
                       end: Alignment.bottomRight,
                       colors: [
                         colorScheme.surface,
-                        colorScheme.surface.withOpacity(0.95),
+                        colorScheme.surface.withValues(alpha: 0.95),
                       ],
                     ),
             ),
@@ -382,8 +382,8 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen>
                     padding: EdgeInsets.all(isMobile ? 16 : 20),
                     decoration: BoxDecoration(
                       color: isDark
-                          ? colorScheme.surfaceContainerHighest.withOpacity(0.3)
-                          : colorScheme.primaryContainer.withOpacity(0.2),
+                          ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.3)
+                          : colorScheme.primaryContainer.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(isMobile ? 12 : 16),
                     ),
                     child: Row(
@@ -393,7 +393,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen>
                             shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
-                                color: colorScheme.primary.withOpacity(0.3),
+                                color: colorScheme.primary.withValues(alpha: 0.3),
                                 blurRadius: 12,
                                 spreadRadius: 2,
                               ),
@@ -458,7 +458,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen>
                         Divider(
                           height: 1,
                           thickness: 1,
-                          color: colorScheme.outline.withOpacity(0.2),
+                          color: colorScheme.outline.withValues(alpha: 0.2),
                         ),
                         SizedBox(height: isMobile ? 20 : 24),
                       ],
@@ -611,7 +611,6 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen>
     bool isDark,
     ThemeProvider themeProvider,
   ) {
-    final cardPadding = _getCardPadding(context);
     final isMobile = _isMobile(context);
 
     return Column(
@@ -630,8 +629,8 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen>
             borderRadius: BorderRadius.circular(isMobile ? 16 : 20),
             side: BorderSide(
               color: isDark
-                  ? colorScheme.outline.withOpacity(0.2)
-                  : colorScheme.outline.withOpacity(0.1),
+                  ? colorScheme.outline.withValues(alpha: 0.2)
+                  : colorScheme.outline.withValues(alpha: 0.1),
               width: 1,
             ),
           ),
@@ -645,60 +644,69 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen>
                       end: Alignment.bottomRight,
                       colors: [
                         colorScheme.surface,
-                        colorScheme.surface.withOpacity(0.95),
+                        colorScheme.surface.withValues(alpha: 0.95),
                       ],
                     ),
             ),
-            child: Column(
-              children: [
-                _buildThemeOption(
-                  context,
-                  theme,
-                  colorScheme,
-                  isDark,
-                  Icons.brightness_6,
-                  'System',
-                  'Follow system theme',
-                  ThemeMode.system,
-                  themeProvider.themeMode,
-                ),
-                Divider(
-                  height: 1,
-                  thickness: 1,
-                  indent: 16,
-                  endIndent: 16,
-                  color: colorScheme.outline.withOpacity(0.2),
-                ),
-                _buildThemeOption(
-                  context,
-                  theme,
-                  colorScheme,
-                  isDark,
-                  Icons.light_mode,
-                  'Light',
-                  'Always use light theme',
-                  ThemeMode.light,
-                  themeProvider.themeMode,
-                ),
-                Divider(
-                  height: 1,
-                  thickness: 1,
-                  indent: 16,
-                  endIndent: 16,
-                  color: colorScheme.outline.withOpacity(0.2),
-                ),
-                _buildThemeOption(
-                  context,
-                  theme,
-                  colorScheme,
-                  isDark,
-                  Icons.dark_mode,
-                  'Dark',
-                  'Always use dark theme',
-                  ThemeMode.dark,
-                  themeProvider.themeMode,
-                ),
-              ],
+            child: RadioGroup<ThemeMode>(
+              groupValue: themeProvider.themeMode,
+              onChanged: (ThemeMode? newValue) {
+                if (newValue != null) {
+                  Provider.of<ThemeProvider>(context, listen: false)
+                      .setThemeMode(newValue);
+                }
+              },
+              child: Column(
+                children: [
+                  _buildThemeOption(
+                    context,
+                    theme,
+                    colorScheme,
+                    isDark,
+                    Icons.brightness_6,
+                    'System',
+                    'Follow system theme',
+                    ThemeMode.system,
+                    themeProvider.themeMode,
+                  ),
+                  Divider(
+                    height: 1,
+                    thickness: 1,
+                    indent: 16,
+                    endIndent: 16,
+                    color: colorScheme.outline.withValues(alpha: 0.2),
+                  ),
+                  _buildThemeOption(
+                    context,
+                    theme,
+                    colorScheme,
+                    isDark,
+                    Icons.light_mode,
+                    'Light',
+                    'Always use light theme',
+                    ThemeMode.light,
+                    themeProvider.themeMode,
+                  ),
+                  Divider(
+                    height: 1,
+                    thickness: 1,
+                    indent: 16,
+                    endIndent: 16,
+                    color: colorScheme.outline.withValues(alpha: 0.2),
+                  ),
+                  _buildThemeOption(
+                    context,
+                    theme,
+                    colorScheme,
+                    isDark,
+                    Icons.dark_mode,
+                    'Dark',
+                    'Always use dark theme',
+                    ThemeMode.dark,
+                    themeProvider.themeMode,
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -732,8 +740,8 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen>
           decoration: BoxDecoration(
             color: isSelected
                 ? (isDark
-                    ? colorScheme.primaryContainer.withOpacity(0.3)
-                    : colorScheme.primaryContainer.withOpacity(0.2))
+                    ? colorScheme.primaryContainer.withValues(alpha: 0.3)
+                    : colorScheme.primaryContainer.withValues(alpha: 0.2))
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(12),
           ),
@@ -744,7 +752,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen>
                 decoration: BoxDecoration(
                   color: isSelected
                       ? colorScheme.primaryContainer
-                      : colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                      : colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
@@ -781,13 +789,6 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen>
               ),
               Radio<ThemeMode>(
                 value: value,
-                groupValue: groupValue,
-                onChanged: (newValue) {
-                  if (newValue != null) {
-                    Provider.of<ThemeProvider>(context, listen: false)
-                        .setThemeMode(newValue);
-                  }
-                },
               ),
             ],
           ),
@@ -802,7 +803,6 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen>
     ColorScheme colorScheme,
     bool isDark,
   ) {
-    final cardPadding = _getCardPadding(context);
     final isMobile = _isMobile(context);
 
     return Column(
@@ -821,8 +821,8 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen>
             borderRadius: BorderRadius.circular(isMobile ? 16 : 20),
             side: BorderSide(
               color: isDark
-                  ? colorScheme.outline.withOpacity(0.2)
-                  : colorScheme.outline.withOpacity(0.1),
+                  ? colorScheme.outline.withValues(alpha: 0.2)
+                  : colorScheme.outline.withValues(alpha: 0.1),
               width: 1,
             ),
           ),
@@ -836,7 +836,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen>
                       end: Alignment.bottomRight,
                       colors: [
                         colorScheme.surface,
-                        colorScheme.surface.withOpacity(0.95),
+                        colorScheme.surface.withValues(alpha: 0.95),
                       ],
                     ),
             ),
@@ -872,7 +872,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen>
                   thickness: 1,
                   indent: 16,
                   endIndent: 16,
-                  color: colorScheme.outline.withOpacity(0.2),
+                  color: colorScheme.outline.withValues(alpha: 0.2),
                 ),
                 _buildAppInfoTile(
                   context,
@@ -895,7 +895,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen>
                   thickness: 1,
                   indent: 16,
                   endIndent: 16,
-                  color: colorScheme.outline.withOpacity(0.2),
+                  color: colorScheme.outline.withValues(alpha: 0.2),
                 ),
                 _buildAppInfoTile(
                   context,
@@ -945,7 +945,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen>
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                  color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
@@ -997,7 +997,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen>
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: colorScheme.primaryContainer.withOpacity(0.3),
+            color: colorScheme.primaryContainer.withValues(alpha: 0.3),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(
@@ -1038,7 +1038,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen>
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: colorScheme.primaryContainer.withOpacity(0.3),
+                  color: colorScheme.primaryContainer.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
@@ -1090,7 +1090,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen>
         Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: colorScheme.primaryContainer.withOpacity(0.3),
+            color: colorScheme.primaryContainer.withValues(alpha: 0.3),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(

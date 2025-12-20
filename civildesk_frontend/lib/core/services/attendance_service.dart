@@ -20,7 +20,7 @@ class AttendanceService {
       });
 
       final response = await _apiService.post(
-        AppConstants.attendanceEndpoint + '/mark',
+        '${AppConstants.attendanceEndpoint}/mark',
         data: formData,
       );
 
@@ -38,7 +38,7 @@ class AttendanceService {
       });
       
       final response = await _apiService.post(
-        AppConstants.attendanceEndpoint + '/mark',
+        '${AppConstants.attendanceEndpoint}/mark',
         data: formData,
       );
 
@@ -56,7 +56,7 @@ class AttendanceService {
       });
       
       final response = await _apiService.post(
-        AppConstants.attendanceEndpoint + '/checkout',
+        '${AppConstants.attendanceEndpoint}/checkout',
         data: formData,
       );
 

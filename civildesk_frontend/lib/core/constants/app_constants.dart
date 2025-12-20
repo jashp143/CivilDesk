@@ -8,16 +8,19 @@ class AppConstants {
   //   - HTTPS with domain: 'https://your-domain.com'
   //   - HTTPS with IP: 'https://123.456.789.0'
   //   - HTTP only: 'http://your-server-ip:8080' (if Nginx is not configured)
-  static const String _productionBackendUrl = 'https://civildesk-api.devopsinfos.live'; // TODO: Replace with your actual backend URL
-  static const String _productionFaceServiceUrl = 'https://your-aws-face-service-url.com'; // TODO: Replace with your face service URL (or leave as is if not using face service)
-  
+  static const String _productionBackendUrl =
+      'https://civildesk-api.devopsinfos.live'; // TODO: Replace with your actual backend URL
+  static const String _productionFaceServiceUrl =
+      'https://your-aws-face-service-url.com'; // TODO: Replace with your face service URL (or leave as is if not using face service)
+
   // Development URLs (for local testing)
   static const String _devBackendUrl = 'http://192.168.0.193:8080/api';
   static const String _devFaceServiceUrl = 'http://192.168.0.193:8000';
-  
+
   // Set to true for production, false for local development
-  static const bool _isProduction = true; // TODO: Set to false for local development
-  
+  static const bool _isProduction =
+      false; // TODO: Set to false for local development
+
   static String get baseUrl {
     if (_isProduction) {
       // Production: Use deployed backend URL
@@ -110,9 +113,8 @@ class AppConstants {
   static const int maxPasswordLength = 50;
   static const int minNameLength = 2;
   static const int maxNameLength = 100;
-  
+
   // Aadhar & PAN validation
   static const int aadharLength = 12;
   static const int panLength = 10;
 }
-

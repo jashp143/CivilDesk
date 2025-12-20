@@ -16,18 +16,37 @@ class LeavesScreen extends StatefulWidget {
 
 class _LeavesScreenState extends State<LeavesScreen> {
   String? _selectedStatusFilter; // null means 'All'
+  late ScrollController _scrollController;
 
   @override
   void initState() {
     super.initState();
     _selectedStatusFilter = null; // Show all by default
+    _scrollController = ScrollController();
+    _scrollController.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<LeaveProvider>(context, listen: false).fetchMyLeaves();
+      Provider.of<LeaveProvider>(context, listen: false).refreshLeaves();
     });
   }
 
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= 
+        _scrollController.position.maxScrollExtent * 0.9) {
+      final provider = Provider.of<LeaveProvider>(context, listen: false);
+      if (provider.hasMore && !provider.isLoading) {
+        provider.loadMoreLeaves();
+      }
+    }
+  }
+
   Future<void> _refreshLeaves() async {
-    await Provider.of<LeaveProvider>(context, listen: false).fetchMyLeaves();
+    await Provider.of<LeaveProvider>(context, listen: false).refreshLeaves();
   }
 
   void _navigateToApplyLeave() async {
@@ -88,18 +107,19 @@ class _LeavesScreenState extends State<LeavesScreen> {
               Navigator.pop(context);
               final provider = Provider.of<LeaveProvider>(context, listen: false);
               final success = await provider.deleteLeave(leave.id);
-              if (mounted) {
-                if (success) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Leave deleted successfully')),
-                  );
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(provider.error ?? 'Failed to delete leave'),
-                    ),
-                  );
-                }
+              if (!mounted) return;
+              
+              final messenger = ScaffoldMessenger.of(context);
+              if (success) {
+                messenger.showSnackBar(
+                  const SnackBar(content: Text('Leave deleted successfully')),
+                );
+              } else {
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text(provider.error ?? 'Failed to delete leave'),
+                  ),
+                );
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
@@ -142,7 +162,7 @@ class _LeavesScreenState extends State<LeavesScreen> {
                     width: 40,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: colorScheme.onSurfaceVariant.withOpacity(0.3),
+                      color: colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -153,7 +173,7 @@ class _LeavesScreenState extends State<LeavesScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: leaveTypeColor.withOpacity(0.15),
+                  color: leaveTypeColor.withValues(alpha: 0.15),
                   borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(24),
                     topRight: Radius.circular(24),
@@ -166,7 +186,7 @@ class _LeavesScreenState extends State<LeavesScreen> {
                       width: 40,
                       height: 40,
                       decoration: BoxDecoration(
-                        color: leaveTypeColor.withOpacity(0.2),
+                        color: leaveTypeColor.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Icon(
@@ -202,10 +222,10 @@ class _LeavesScreenState extends State<LeavesScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
-                        color: statusColor.withOpacity(0.15),
+                        color: statusColor.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                          color: statusColor.withOpacity(0.4),
+                          color: statusColor.withValues(alpha: 0.4),
                           width: 1.5,
                         ),
                       ),
@@ -263,7 +283,7 @@ class _LeavesScreenState extends State<LeavesScreen> {
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: colorScheme.primaryContainer.withOpacity(0.3),
+                              color: colorScheme.primaryContainer.withValues(alpha: 0.3),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Column(
@@ -281,7 +301,7 @@ class _LeavesScreenState extends State<LeavesScreen> {
                                         width: 32,
                                         height: 32,
                                         decoration: BoxDecoration(
-                                          color: const Color(0xFF4CAF50).withOpacity(0.1),
+                                          color: const Color(0xFF4CAF50).withValues(alpha: 0.1),
                                           borderRadius: BorderRadius.circular(8),
                                         ),
                                         child: const Icon(
@@ -330,7 +350,7 @@ class _LeavesScreenState extends State<LeavesScreen> {
                                         width: 32,
                                         height: 32,
                                         decoration: BoxDecoration(
-                                          color: const Color(0xFFE57373).withOpacity(0.1),
+                                          color: const Color(0xFFE57373).withValues(alpha: 0.1),
                                           borderRadius: BorderRadius.circular(8),
                                         ),
                                         child: const Icon(
@@ -379,7 +399,7 @@ class _LeavesScreenState extends State<LeavesScreen> {
                                         width: 32,
                                         height: 32,
                                         decoration: BoxDecoration(
-                                          color: colorScheme.primaryContainer.withOpacity(0.3),
+                                          color: colorScheme.primaryContainer.withValues(alpha: 0.3),
                                           borderRadius: BorderRadius.circular(8),
                                         ),
                                         child: Icon(
@@ -476,7 +496,7 @@ class _LeavesScreenState extends State<LeavesScreen> {
                                   width: 32,
                                   height: 32,
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF4CAF50).withOpacity(0.1),
+                                    color: const Color(0xFF4CAF50).withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: const Icon(
@@ -548,8 +568,8 @@ class _LeavesScreenState extends State<LeavesScreen> {
                                       : 'Reviewed',
                               '${DateFormat('MMM dd, yyyy').format(leave.reviewedAt!)} • ${DateFormat('hh:mm a').format(leave.reviewedAt!)}',
                               leave.status == LeaveStatus.APPROVED
-                                  ? _getStatusColor(LeaveStatus.APPROVED, colorScheme).withOpacity(0.2)
-                                  : _getStatusColor(LeaveStatus.REJECTED, colorScheme).withOpacity(0.2),
+                                  ? _getStatusColor(LeaveStatus.APPROVED, colorScheme).withValues(alpha: 0.2)
+                                  : _getStatusColor(LeaveStatus.REJECTED, colorScheme).withValues(alpha: 0.2),
                               false,
                             ),
                           ],
@@ -692,7 +712,7 @@ class _LeavesScreenState extends State<LeavesScreen> {
                                     Container(
                                       padding: const EdgeInsets.all(12),
                                       decoration: BoxDecoration(
-                                        color: colorScheme.surfaceVariant.withOpacity(0.5),
+                                        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: Row(
@@ -755,7 +775,7 @@ class _LeavesScreenState extends State<LeavesScreen> {
           border: Border.all(
             color: isSelected
                 ? colorScheme.primary
-                : colorScheme.outline.withOpacity(0.3),
+                : colorScheme.outline.withValues(alpha: 0.3),
             width: 1,
           ),
         ),
@@ -785,7 +805,7 @@ class _LeavesScreenState extends State<LeavesScreen> {
     Color iconColor;
     if (iconBackgroundColor == colorScheme.primaryContainer) {
       iconColor = colorScheme.primary;
-    } else if (iconBackgroundColor == _getStatusColor(LeaveStatus.APPROVED, colorScheme).withOpacity(0.2)) {
+    } else if (iconBackgroundColor == _getStatusColor(LeaveStatus.APPROVED, colorScheme).withValues(alpha: 0.2)) {
       iconColor = _getStatusColor(LeaveStatus.APPROVED, colorScheme);
     } else {
       iconColor = _getStatusColor(LeaveStatus.REJECTED, colorScheme);
@@ -820,7 +840,7 @@ class _LeavesScreenState extends State<LeavesScreen> {
                 Container(
                   width: 2,
                   height: 20,
-                  color: colorScheme.outline.withOpacity(0.3),
+                  color: colorScheme.outline.withValues(alpha: 0.3),
                 ),
               ],
             ],
@@ -883,36 +903,6 @@ class _LeavesScreenState extends State<LeavesScreen> {
         const SizedBox(height: 12),
         ...children,
       ],
-    );
-  }
-
-  Widget _buildDetailCard(ThemeData theme, ColorScheme colorScheme, String title, List<Widget> children) {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: colorScheme.outline.withOpacity(0.12),
-          width: 1,
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: colorScheme.onSurface,
-                  ),
-            ),
-            const SizedBox(height: 16),
-            ...children,
-          ],
-        ),
-      ),
     );
   }
 
@@ -979,10 +969,10 @@ class _LeavesScreenState extends State<LeavesScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: colorScheme.surfaceVariant.withOpacity(0.3),
+              color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
               border: Border(
                 bottom: BorderSide(
-                  color: colorScheme.outline.withOpacity(0.1),
+                  color: colorScheme.outline.withValues(alpha: 0.1),
                   width: 1,
                 ),
               ),
@@ -1101,13 +1091,13 @@ class _LeavesScreenState extends State<LeavesScreen> {
                             Container(
                               padding: const EdgeInsets.all(24),
                               decoration: BoxDecoration(
-                                color: colorScheme.surfaceVariant.withOpacity(0.5),
+                                color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                                 shape: BoxShape.circle,
                               ),
                               child: Icon(
                                 Icons.event_busy_outlined,
                                 size: 64,
-                                color: colorScheme.onSurfaceVariant.withOpacity(0.6),
+                                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
                               ),
                             ),
                         const SizedBox(height: 24),
@@ -1153,7 +1143,7 @@ class _LeavesScreenState extends State<LeavesScreen> {
                               Icon(
                                 Icons.filter_alt_off_rounded,
                                 size: 64,
-                                color: colorScheme.onSurfaceVariant.withOpacity(0.6),
+                                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
                               ),
                               const SizedBox(height: 16),
                               Text(
@@ -1166,16 +1156,23 @@ class _LeavesScreenState extends State<LeavesScreen> {
                           ),
                         )
                       : ListView.builder(
+                          controller: _scrollController,
                           padding: const EdgeInsets.fromLTRB(6, 6, 6, 0),
-                          itemCount: filteredLeaves.length,
-                    itemBuilder: (context, index) {
+                          itemCount: filteredLeaves.length + (provider.hasMore ? 1 : 0),
+                          itemBuilder: (context, index) {
+                            if (index == filteredLeaves.length) {
+                              return const Padding(
+                                padding: EdgeInsets.all(16.0),
+                                child: Center(child: CircularProgressIndicator()),
+                              );
+                            }
                             final leave = filteredLeaves[index];
                             return Padding(
                               padding: const EdgeInsets.only(bottom: 0),
                               child: _buildLeaveCard(leave),
                             );
-                    },
-                  ),
+                          },
+                        ),
                 );
               },
             ),
@@ -1202,15 +1199,15 @@ class _LeavesScreenState extends State<LeavesScreen> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: colorScheme.outline.withOpacity(0.12),
+          color: colorScheme.outline.withValues(alpha: 0.12),
           width: 1,
         ),
       ),
       child: InkWell(
         onTap: () => _viewLeaveDetails(leave),
         borderRadius: BorderRadius.circular(12),
-        splashColor: colorScheme.primary.withOpacity(0.1),
-        highlightColor: colorScheme.primary.withOpacity(0.05),
+        splashColor: colorScheme.primary.withValues(alpha: 0.1),
+        highlightColor: colorScheme.primary.withValues(alpha: 0.05),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -1230,7 +1227,7 @@ class _LeavesScreenState extends State<LeavesScreen> {
                           width: 40,
                           height: 40,
                           decoration: BoxDecoration(
-                            color: leaveTypeColor.withOpacity(0.2),
+                            color: leaveTypeColor.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Icon(
@@ -1281,10 +1278,10 @@ class _LeavesScreenState extends State<LeavesScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.15),
+                      color: statusColor.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: statusColor.withOpacity(0.4),
+                        color: statusColor.withValues(alpha: 0.4),
                         width: 1.5,
                       ),
                     ),
@@ -1317,7 +1314,7 @@ class _LeavesScreenState extends State<LeavesScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: colorScheme.surfaceVariant.withOpacity(0.5),
+                  color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Row(
@@ -1437,10 +1434,10 @@ class _LeavesScreenState extends State<LeavesScreen> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: colorScheme.primaryContainer.withOpacity(0.3),
+                    color: colorScheme.primaryContainer.withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: colorScheme.primary.withOpacity(0.2),
+                      color: colorScheme.primary.withValues(alpha: 0.2),
                       width: 1,
                     ),
                   ),
@@ -1508,7 +1505,7 @@ class _LeavesScreenState extends State<LeavesScreen> {
                 Divider(
                   height: 1,
                   thickness: 1,
-                  color: colorScheme.outline.withOpacity(0.2),
+                  color: colorScheme.outline.withValues(alpha: 0.2),
                 ),
                 const SizedBox(height: 12),
                 Row(
@@ -1525,7 +1522,7 @@ class _LeavesScreenState extends State<LeavesScreen> {
                             borderRadius: BorderRadius.circular(20),
                           ),
                           side: BorderSide(
-                            color: colorScheme.outline.withOpacity(0.5),
+                            color: colorScheme.outline.withValues(alpha: 0.5),
                             width: 1,
                           ),
                         ),

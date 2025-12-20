@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
@@ -30,7 +31,8 @@ public interface LeaveRepository extends JpaRepository<Leave, Long> {
     
     // Override findById to include employee details
     @EntityGraph(attributePaths = {"employee"})
-    Optional<Leave> findById(Long id);
+    @NonNull
+    Optional<Leave> findById(@NonNull Long id);
 
     // Find leaves where employee is assigned responsibilities
     @Query("SELECT l FROM Leave l WHERE l.handoverEmployeeIds LIKE %:employeeId% AND l.deleted = false")

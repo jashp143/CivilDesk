@@ -110,6 +110,7 @@ class _EditPunchTimesDialogState extends State<EditPunchTimesDialog>
     if (pickedDate == null) return;
 
     // Then select time
+    if (!mounted) return;
     final TimeOfDay? pickedTime = await showTimePicker(
       context: context,
       initialTime: currentTime != null
@@ -357,7 +358,7 @@ class _EditPunchTimesDialogState extends State<EditPunchTimesDialog>
         side: isUpdating
             ? BorderSide(color: color, width: 2)
             : BorderSide(
-                color: colorScheme.outline.withOpacity(0.2),
+                color: colorScheme.outline.withValues(alpha: 0.2),
                 width: 1,
               ),
       ),
@@ -367,10 +368,10 @@ class _EditPunchTimesDialogState extends State<EditPunchTimesDialog>
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
           color: isUpdating 
-              ? color.withOpacity(0.05) 
+              ? color.withValues(alpha: 0.05)
               : colorScheme.surface,
           border: Border.all(
-            color: colorScheme.outline.withOpacity(0.2),
+            color: colorScheme.outline.withValues(alpha: 0.2),
             width: 1,
           ),
         ),
@@ -382,7 +383,7 @@ class _EditPunchTimesDialogState extends State<EditPunchTimesDialog>
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
+                    color: color.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
@@ -430,7 +431,7 @@ class _EditPunchTimesDialogState extends State<EditPunchTimesDialog>
                 else
                   Container(
                     decoration: BoxDecoration(
-                      color: color.withOpacity(0.1),
+                      color: color.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Material(
@@ -452,7 +453,7 @@ class _EditPunchTimesDialogState extends State<EditPunchTimesDialog>
                             Icons.edit_outlined,
                             size: isTablet ? 22 : 18,
                             color: isDisabled 
-                                ? colorScheme.onSurfaceVariant.withOpacity(0.5)
+                                ? colorScheme.onSurfaceVariant.withValues(alpha: 0.5)
                                 : color,
                           ),
                         ),
@@ -465,10 +466,10 @@ class _EditPunchTimesDialogState extends State<EditPunchTimesDialog>
             Container(
               padding: EdgeInsets.all(isTablet ? 14 : 12),
               decoration: BoxDecoration(
-                color: colorScheme.surfaceVariant.withOpacity(0.3),
+                color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                  color: colorScheme.outline.withOpacity(0.2),
+                  color: colorScheme.outline.withValues(alpha: 0.2),
                   width: 1,
                 ),
               ),
@@ -554,8 +555,8 @@ class _EditPunchTimesDialogState extends State<EditPunchTimesDialog>
             boxShadow: [
               BoxShadow(
                 color: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.black.withOpacity(0.3)
-                    : Colors.black.withOpacity(0.1),
+                    ? Colors.black.withValues(alpha: 0.3)
+                    : Colors.black.withValues(alpha: 0.1),
                 blurRadius: 20,
                 offset: const Offset(0, 10),
               ),
@@ -575,7 +576,7 @@ class _EditPunchTimesDialogState extends State<EditPunchTimesDialog>
                   ),
                   border: Border(
                     bottom: BorderSide(
-                      color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                      color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
                       width: 1,
                     ),
                   ),
@@ -585,7 +586,7 @@ class _EditPunchTimesDialogState extends State<EditPunchTimesDialog>
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Icon(
@@ -641,10 +642,10 @@ class _EditPunchTimesDialogState extends State<EditPunchTimesDialog>
                       Container(
                         padding: EdgeInsets.all(isTablet ? 20 : 16),
                         decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+                          color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                            color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
                             width: 1,
                           ),
                         ),
@@ -826,10 +827,10 @@ class _EditPunchTimesDialogState extends State<EditPunchTimesDialog>
                         Container(
                           padding: EdgeInsets.all(isTablet ? 16 : 14),
                           decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.errorContainer.withOpacity(0.3),
+                            color: Theme.of(context).colorScheme.errorContainer.withValues(alpha: 0.3),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: Theme.of(context).colorScheme.error.withOpacity(0.3),
+                              color: Theme.of(context).colorScheme.error.withValues(alpha: 0.3),
                               width: 1,
                             ),
                           ),
@@ -862,14 +863,14 @@ class _EditPunchTimesDialogState extends State<EditPunchTimesDialog>
               Container(
                 padding: EdgeInsets.all(isTablet ? 20 : 16),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                   borderRadius: const BorderRadius.only(
                     bottomLeft: Radius.circular(16),
                     bottomRight: Radius.circular(16),
                   ),
                   border: Border(
                     top: BorderSide(
-                      color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                      color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
                       width: 1,
                     ),
                   ),
@@ -917,10 +918,10 @@ class _EditPunchTimesDialogState extends State<EditPunchTimesDialog>
     
     return Container(
       decoration: BoxDecoration(
-        color: colorScheme.surfaceVariant.withOpacity(0.3),
+        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: color.withOpacity(isDark ? 0.4 : 0.3),
+          color: color.withValues(alpha: isDark ? 0.4 : 0.3),
           width: 1,
         ),
       ),
@@ -931,7 +932,7 @@ class _EditPunchTimesDialogState extends State<EditPunchTimesDialog>
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.15),
+                color: color.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(
@@ -954,7 +955,7 @@ class _EditPunchTimesDialogState extends State<EditPunchTimesDialog>
               label,
               style: TextStyle(
                 fontSize: isTablet ? 14 : 12,
-                color: color.withOpacity(0.8),
+                color: color.withValues(alpha: 0.8),
                 fontWeight: FontWeight.w600,
               ),
             ),

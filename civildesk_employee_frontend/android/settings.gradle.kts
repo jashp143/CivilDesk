@@ -24,3 +24,4 @@ plugins {
 }
 
 include(":app")
+rootProject.name = "civildesk_employee_frontend"

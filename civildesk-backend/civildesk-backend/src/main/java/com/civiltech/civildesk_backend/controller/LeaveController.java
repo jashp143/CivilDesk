@@ -11,6 +11,7 @@ import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.lang.NonNull;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -34,7 +35,7 @@ public class LeaveController {
     // Update leave
     @PutMapping("/{leaveId}")
     public ResponseEntity<ApiResponse<LeaveResponse>> updateLeave(
-            @PathVariable Long leaveId,
+            @PathVariable @NonNull Long leaveId,
             @Valid @RequestBody LeaveRequest request) {
         LeaveResponse response = leaveService.updateLeave(leaveId, request);
         return ResponseEntity.ok(ApiResponse.success("Leave updated successfully", response));
@@ -42,7 +43,7 @@ public class LeaveController {
 
     // Delete leave
     @DeleteMapping("/{leaveId}")
-    public ResponseEntity<ApiResponse<Void>> deleteLeave(@PathVariable Long leaveId) {
+    public ResponseEntity<ApiResponse<Void>> deleteLeave(@PathVariable @NonNull Long leaveId) {
         leaveService.deleteLeave(leaveId);
         return ResponseEntity.ok(ApiResponse.success("Leave deleted successfully", null));
     }
@@ -98,7 +99,7 @@ public class LeaveController {
 
     // Get leave by ID
     @GetMapping("/{leaveId}")
-    public ResponseEntity<ApiResponse<LeaveResponse>> getLeaveById(@PathVariable Long leaveId) {
+    public ResponseEntity<ApiResponse<LeaveResponse>> getLeaveById(@PathVariable @NonNull Long leaveId) {
         LeaveResponse leave = leaveService.getLeaveById(leaveId);
         return ResponseEntity.ok(ApiResponse.success("Leave fetched successfully", leave));
     }
@@ -107,7 +108,7 @@ public class LeaveController {
     @PutMapping("/{leaveId}/review")
     @RequiresRole({"ADMIN", "HR_MANAGER"})
     public ResponseEntity<ApiResponse<LeaveResponse>> reviewLeave(
-            @PathVariable Long leaveId,
+            @PathVariable @NonNull Long leaveId,
             @Valid @RequestBody LeaveReviewRequest request) {
         LeaveResponse response = leaveService.reviewLeave(leaveId, request);
         return ResponseEntity.ok(ApiResponse.success("Leave reviewed successfully", response));

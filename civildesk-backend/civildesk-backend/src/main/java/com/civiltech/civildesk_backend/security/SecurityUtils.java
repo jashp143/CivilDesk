@@ -39,7 +39,7 @@ public class SecurityUtils {
     public static Long getCurrentUserId() {
         String email = getCurrentUsername();
         if (email != null && userRepository != null) {
-            return userRepository.findByEmail(email)
+            return userRepository.findByEmailAndDeletedFalse(email)
                     .map(User::getId)
                     .orElse(null);
         }
@@ -52,7 +52,7 @@ public class SecurityUtils {
     public static User getCurrentUser() {
         String email = getCurrentUsername();
         if (email != null && userRepository != null) {
-            return userRepository.findByEmail(email).orElse(null);
+            return userRepository.findByEmailAndDeletedFalse(email).orElse(null);
         }
         return null;
     }

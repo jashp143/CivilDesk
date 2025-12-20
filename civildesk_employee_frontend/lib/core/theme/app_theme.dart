@@ -105,7 +105,7 @@ class AppTheme {
         secondary: secondary,
         secondaryContainer: accent,
         surface: palette == ColorPalette.palette2 ? Color(0xFFFFFFFF) : lightSurface,
-        surfaceVariant: palette == ColorPalette.palette2 ? Color(0xFFF2F2F2) : lightBackground,
+        surfaceContainerHighest: palette == ColorPalette.palette2 ? Color(0xFFF2F2F2) : lightBackground,
         error: lightError,
         onPrimary: Colors.white,
         onSecondary: Colors.white,
@@ -146,7 +146,7 @@ class AppTheme {
       cardTheme: CardThemeData(
         color: palette == ColorPalette.palette2 ? Color(0xFFFFFFFF) : lightSurface,
         elevation: 2.0,
-        shadowColor: primary.withOpacity(0.1),
+        shadowColor: primary.withValues(alpha: 0.1),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12.0),
         ),
@@ -200,11 +200,11 @@ class AppTheme {
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10.0),
-          borderSide: BorderSide(color: lightTextSecondary.withOpacity(0.3)),
+          borderSide: BorderSide(color: lightTextSecondary.withValues(alpha: 0.3)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10.0),
-          borderSide: BorderSide(color: lightTextSecondary.withOpacity(0.3)),
+          borderSide: BorderSide(color: lightTextSecondary.withValues(alpha: 0.3)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10.0),
@@ -219,7 +219,7 @@ class AppTheme {
           borderSide: const BorderSide(color: lightError, width: 2.0),
         ),
         labelStyle: TextStyle(color: lightTextSecondary),
-        hintStyle: TextStyle(color: lightTextSecondary.withOpacity(0.6)),
+        hintStyle: TextStyle(color: lightTextSecondary.withValues(alpha: 0.6)),
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: primary,
@@ -230,7 +230,7 @@ class AppTheme {
         ),
       ),
       dividerTheme: DividerThemeData(
-        color: lightTextSecondary.withOpacity(0.2),
+        color: lightTextSecondary.withValues(alpha: 0.2),
         thickness: 1.0,
         space: 1.0,
       ),
@@ -262,7 +262,7 @@ class AppTheme {
       ),
       listTileTheme: ListTileThemeData(
         selectedColor: primary,
-        selectedTileColor: primary.withOpacity(0.1),
+        selectedTileColor: primary.withValues(alpha: 0.1),
         iconColor: palette == ColorPalette.palette2 ? Color(0xFF2B2B2B) : lightTextPrimary,
         textColor: palette == ColorPalette.palette2 ? Color(0xFF2B2B2B) : lightTextPrimary,
       ),
@@ -308,7 +308,7 @@ class AppTheme {
         secondary: secondary,
         secondaryContainer: accent,
         surface: palette == ColorPalette.palette2 ? Color(0xFF2B2B2B) : darkSurface,
-        surfaceVariant: palette == ColorPalette.palette2 ? Color(0xFF1A1A1A) : darkBackground,
+        surfaceContainerHighest: palette == ColorPalette.palette2 ? Color(0xFF1A1A1A) : darkBackground,
         error: darkError,
         onPrimary: Colors.white,
         onSecondary: Colors.white,
@@ -349,7 +349,7 @@ class AppTheme {
       cardTheme: CardThemeData(
         color: palette == ColorPalette.palette2 ? Color(0xFF2B2B2B) : darkSurface,
         elevation: 2.0,
-        shadowColor: Colors.black.withOpacity(0.3),
+        shadowColor: Colors.black.withValues(alpha: 0.3),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12.0),
         ),
@@ -422,7 +422,7 @@ class AppTheme {
           borderSide: const BorderSide(color: darkError, width: 2.0),
         ),
         labelStyle: const TextStyle(color: darkTextSecondary),
-        hintStyle: TextStyle(color: darkTextSecondary.withOpacity(0.6)),
+        hintStyle: TextStyle(color: darkTextSecondary.withValues(alpha: 0.6)),
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: primary,
@@ -465,7 +465,7 @@ class AppTheme {
       ),
       listTileTheme: ListTileThemeData(
         selectedColor: primary,
-        selectedTileColor: primary.withOpacity(0.2),
+        selectedTileColor: primary.withValues(alpha: 0.2),
         iconColor: darkTextPrimary,
         textColor: darkTextPrimary,
       ),

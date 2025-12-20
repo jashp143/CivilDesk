@@ -9,11 +9,22 @@ class TaskProvider with ChangeNotifier {
   bool _isLoading = false;
   String? _error;
   TaskStatus? _selectedStatusFilter;
+  
+  // Pagination state
+  int _currentPage = 0;
+  int _totalPages = 0;
+  int _totalElements = 0;
+  bool _hasMore = true;
+  final int _pageSize = 20;
 
   List<Task> get tasks => _tasks;
   bool get isLoading => _isLoading;
   String? get error => _error;
   TaskStatus? get selectedStatusFilter => _selectedStatusFilter;
+  int get currentPage => _currentPage;
+  int get totalPages => _totalPages;
+  int get totalElements => _totalElements;
+  bool get hasMore => _hasMore;
 
   // Get filtered tasks
   List<Task> get filteredTasks {
@@ -35,14 +46,37 @@ class TaskProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // Fetch my tasks
-  Future<void> fetchMyTasks() async {
+  // Fetch my tasks (with pagination support)
+  Future<void> fetchMyTasks({bool refresh = false}) async {
+    if (refresh) {
+      _currentPage = 0;
+      _tasks.clear();
+      _hasMore = true;
+    }
+
+    if (!_hasMore || _isLoading) return;
+
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      _tasks = await _taskService.getMyTasks();
+      final pageResponse = await _taskService.getMyTasksPaginated(
+        page: _currentPage,
+        size: _pageSize,
+      );
+
+      if (refresh || _currentPage == 0) {
+        _tasks = pageResponse.content;
+      } else {
+        _tasks.addAll(pageResponse.content);
+      }
+
+      _currentPage = pageResponse.number;
+      _totalPages = pageResponse.totalPages;
+      _totalElements = pageResponse.totalElements;
+      _hasMore = pageResponse.hasMore;
+
       _isLoading = false;
       notifyListeners();
     } catch (e) {
@@ -50,6 +84,17 @@ class TaskProvider with ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  // Load more tasks (next page)
+  Future<void> loadMoreTasks() async {
+    if (!_hasMore || _isLoading) return;
+    await fetchMyTasks(refresh: false);
+  }
+
+  // Refresh tasks (reload from beginning)
+  Future<void> refreshTasks() async {
+    await fetchMyTasks(refresh: true);
   }
 
   // Get task by ID
@@ -79,7 +124,7 @@ class TaskProvider with ChangeNotifier {
 
     try {
       await _taskService.reviewTask(taskId, status, reviewNote);
-      await fetchMyTasks(); // Refresh tasks list
+      await refreshTasks(); // Refresh tasks list
       _isLoading = false;
       notifyListeners();
       return true;

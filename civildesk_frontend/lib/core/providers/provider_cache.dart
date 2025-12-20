@@ -1,6 +1,3 @@
-import 'dart:async';
-import 'package:flutter/foundation.dart';
-
 /// Provider Cache Manager
 /// Phase 4 Optimization - State Management
 /// 
@@ -67,7 +64,6 @@ class ProviderCache {
   
   /// Get cache statistics
   CacheStats getStats() {
-    final now = DateTime.now();
     int valid = 0;
     int expired = 0;
     

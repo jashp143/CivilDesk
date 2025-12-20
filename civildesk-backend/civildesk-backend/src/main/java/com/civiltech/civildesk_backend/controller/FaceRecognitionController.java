@@ -11,6 +11,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.Objects;
+
 @RestController
 @RequestMapping("/api/face")
 @CrossOrigin(origins = "*")
@@ -78,7 +80,7 @@ public class FaceRecognitionController {
             
             if (annotatedImage != null) {
                 return ResponseEntity.ok()
-                        .contentType(MediaType.IMAGE_JPEG)
+                        .contentType(Objects.requireNonNull(MediaType.IMAGE_JPEG, "MediaType.IMAGE_JPEG cannot be null"))
                         .body(annotatedImage);
             } else {
                 return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();

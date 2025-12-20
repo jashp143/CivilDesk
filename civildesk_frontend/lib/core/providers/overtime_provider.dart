@@ -10,6 +10,13 @@ class OvertimeProvider with ChangeNotifier {
   bool _isLoading = false;
   String? _error;
 
+  // Pagination state
+  int _currentPage = 0;
+  int _totalPages = 0;
+  int _totalElements = 0;
+  bool _hasMore = true;
+  final int _pageSize = 20;
+
   // Filters
   String? _selectedStatus;
   String? _selectedDepartment;
@@ -18,18 +25,47 @@ class OvertimeProvider with ChangeNotifier {
   List<Overtime> get overtimes => _filteredOvertimes;
   bool get isLoading => _isLoading;
   String? get error => _error;
+  int get currentPage => _currentPage;
+  int get totalPages => _totalPages;
+  int get totalElements => _totalElements;
+  bool get hasMore => _hasMore;
   String? get selectedStatus => _selectedStatus;
   String? get selectedDepartment => _selectedDepartment;
   List<String> get departments => _departments;
 
-  // Fetch all overtimes
-  Future<void> fetchAllOvertimes() async {
+  // Fetch all overtimes (with pagination support)
+  Future<void> fetchAllOvertimes({bool refresh = false}) async {
+    if (refresh) {
+      _currentPage = 0;
+      _overtimes.clear();
+      _hasMore = true;
+    }
+
+    if (!_hasMore || _isLoading) return;
+
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      _overtimes = await _overtimeService.getAllOvertimes();
+      final pageResponse = await _overtimeService.getAllOvertimesPaginated(
+        status: _selectedStatus,
+        department: _selectedDepartment,
+        page: _currentPage,
+        size: _pageSize,
+      );
+
+      if (refresh || _currentPage == 0) {
+        _overtimes = pageResponse.content;
+      } else {
+        _overtimes.addAll(pageResponse.content);
+      }
+
+      _currentPage = pageResponse.number;
+      _totalPages = pageResponse.totalPages;
+      _totalElements = pageResponse.totalElements;
+      _hasMore = pageResponse.hasMore;
+
       _applyFilters();
       _isLoading = false;
       notifyListeners();
@@ -38,6 +74,17 @@ class OvertimeProvider with ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  // Load more overtimes (next page)
+  Future<void> loadMoreOvertimes() async {
+    if (!_hasMore || _isLoading) return;
+    await fetchAllOvertimes(refresh: false);
+  }
+
+  // Refresh overtimes (reload from beginning)
+  Future<void> refreshOvertimes() async {
+    await fetchAllOvertimes(refresh: true);
   }
 
   // Apply filters
@@ -69,23 +116,20 @@ class OvertimeProvider with ChangeNotifier {
   // Set status filter
   void setStatusFilter(String? status) {
     _selectedStatus = status;
-    _applyFilters();
-    notifyListeners();
+    refreshOvertimes(); // Reload with new filter
   }
 
   // Set department filter
   void setDepartmentFilter(String? department) {
     _selectedDepartment = department;
-    _applyFilters();
-    notifyListeners();
+    refreshOvertimes(); // Reload with new filter
   }
 
   // Clear all filters
   void clearFilters() {
     _selectedStatus = null;
     _selectedDepartment = null;
-    _applyFilters();
-    notifyListeners();
+    refreshOvertimes(); // Reload without filters
   }
 
   // Review overtime
@@ -100,7 +144,7 @@ class OvertimeProvider with ChangeNotifier {
         reviewNote: note,
       );
       await _overtimeService.reviewOvertime(overtimeId, request);
-      await fetchAllOvertimes(); // Refresh overtimes list
+      await refreshOvertimes(); // Refresh overtimes list
       _isLoading = false;
       notifyListeners();
       return true;

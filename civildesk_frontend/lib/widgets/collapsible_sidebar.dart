@@ -142,7 +142,7 @@ class _CollapsibleSidebarState extends State<CollapsibleSidebar>
           automaticallyImplyLeading: false,
         ),
         drawer: Drawer(
-          backgroundColor: Theme.of(context).colorScheme.background,
+          backgroundColor: Theme.of(context).colorScheme.surface,
           child: Column(
             children: [
               _buildAdminInfoHeader(context),
@@ -160,7 +160,7 @@ class _CollapsibleSidebarState extends State<CollapsibleSidebar>
                           Divider(
                             color: Theme.of(
                               context,
-                            ).colorScheme.outline.withOpacity(0.2),
+                            ).colorScheme.outline.withValues(alpha: 0.2),
                           ),
                           _MobileDrawerMenuItem(
                             item: widget.logoutItem!,
@@ -215,7 +215,7 @@ class _CollapsibleSidebarState extends State<CollapsibleSidebar>
                   color: Theme.of(context).colorScheme.surface,
                   border: Border(
                     right: BorderSide(
-                      color: Theme.of(context).colorScheme.outline.withOpacity(0.12),
+                      color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.12),
                       width: 1,
                     ),
                   ),
@@ -240,13 +240,13 @@ class _CollapsibleSidebarState extends State<CollapsibleSidebar>
                         color: Theme.of(context).colorScheme.surface,
                         border: Border(
                           bottom: BorderSide(
-                            color: Theme.of(context).colorScheme.outline.withOpacity(0.15),
+                            color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.15),
                             width: 1,
                           ),
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.02),
+                            color: Colors.black.withValues(alpha: 0.02),
                             blurRadius: 2,
                             offset: const Offset(0, 1),
                           ),
@@ -289,7 +289,7 @@ class _CollapsibleSidebarState extends State<CollapsibleSidebar>
                                   padding: const EdgeInsets.all(8),
                                   child: Icon(
                                     _isExpanded ? Icons.chevron_left_rounded : Icons.menu_rounded,
-                                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+                                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
                                     size: 22,
                                   ),
                                 ),
@@ -309,7 +309,7 @@ class _CollapsibleSidebarState extends State<CollapsibleSidebar>
                             Divider(
                               height: 1,
                               thickness: 1,
-                              color: Theme.of(context).colorScheme.outline.withOpacity(0.1),
+                              color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.1),
                             ),
                             // Menu items (scrollable)
                             Expanded(
@@ -338,7 +338,7 @@ class _CollapsibleSidebarState extends State<CollapsibleSidebar>
                                 decoration: BoxDecoration(
                                   border: Border(
                                     top: BorderSide(
-                                      color: Theme.of(context).colorScheme.outline.withOpacity(0.1),
+                                      color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.1),
                                       width: 1,
                                     ),
                                   ),
@@ -384,7 +384,7 @@ class _CollapsibleSidebarState extends State<CollapsibleSidebar>
                           color: Theme.of(context)
                               .colorScheme
                               .outline
-                              .withOpacity(0.12),
+                              .withValues(alpha: 0.12),
                           width: 1,
                         ),
                       ),
@@ -445,7 +445,6 @@ class _CollapsibleSidebarState extends State<CollapsibleSidebar>
 
   Widget _buildAdminInfoHeader(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
     
     return Consumer<AuthProvider>(
@@ -498,7 +497,7 @@ class _CollapsibleSidebarState extends State<CollapsibleSidebar>
                           boxShadow: [
                             BoxShadow(
                               color: (isDark ? Colors.white : Colors.black)
-                                  .withOpacity(0.3),
+                                  .withValues(alpha: 0.3),
                               blurRadius: 12,
                               spreadRadius: 2,
                             ),
@@ -533,8 +532,8 @@ class _CollapsibleSidebarState extends State<CollapsibleSidebar>
                                 user!['email'] as String? ?? '',
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   color: isDark
-                                      ? Colors.white.withOpacity(0.8)
-                                      : Colors.black.withOpacity(0.8),
+                                      ? Colors.white.withValues(alpha: 0.8)
+                                      : Colors.black.withValues(alpha: 0.8),
                                   fontSize: 12,
                                 ),
                                 maxLines: 1,
@@ -550,8 +549,8 @@ class _CollapsibleSidebarState extends State<CollapsibleSidebar>
                                 ),
                                 decoration: BoxDecoration(
                                   color: isDark
-                                      ? Colors.white.withOpacity(0.2)
-                                      : Colors.black.withOpacity(0.1),
+                                      ? Colors.white.withValues(alpha: 0.2)
+                                      : Colors.black.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(6),
                                   border: Border.all(
                                     color: isDark ? Colors.white : Colors.black,
@@ -621,10 +620,10 @@ class _SidebarMenuItem extends StatelessWidget {
               onTap: item.onTap,
               borderRadius: BorderRadius.circular(12),
               hoverColor: isLogout 
-                  ? colorScheme.error.withOpacity(isDark ? 0.15 : 0.08)
+                  ? colorScheme.error.withValues(alpha: isDark ? 0.15 : 0.08)
                   : (isActive 
-                      ? colorScheme.primary.withOpacity(isDark ? 0.2 : 0.1)
-                      : colorScheme.primary.withOpacity(isDark ? 0.1 : 0.05)),
+                      ? colorScheme.primary.withValues(alpha: isDark ? 0.2 : 0.1)
+                      : colorScheme.primary.withValues(alpha: isDark ? 0.1 : 0.05)),
               child: Container(
                 margin: EdgeInsets.symmetric(
                   horizontal: isExpanded ? 8 : 6, 
@@ -636,19 +635,19 @@ class _SidebarMenuItem extends StatelessWidget {
                 ),
                 decoration: BoxDecoration(
                   color: isActive && !isLogout
-                      ? colorScheme.primary.withOpacity(isDark ? 0.2 : 0.12)
+                      ? colorScheme.primary.withValues(alpha: isDark ? 0.2 : 0.12)
                       : Colors.transparent,
                   borderRadius: BorderRadius.circular(12),
                   border: isActive && !isLogout
                       ? Border.all(
-                          color: colorScheme.primary.withOpacity(0.5),
+                          color: colorScheme.primary.withValues(alpha: 0.5),
                           width: 1,
                         )
                       : null,
                   boxShadow: isActive && !isLogout
                       ? [
                           BoxShadow(
-                            color: colorScheme.primary.withOpacity(0.1),
+                            color: colorScheme.primary.withValues(alpha: 0.1),
                             blurRadius: 4,
                             offset: const Offset(0, 2),
                           ),
@@ -666,14 +665,14 @@ class _SidebarMenuItem extends StatelessWidget {
                       height: isExpanded ? 32 : 36,
                       decoration: BoxDecoration(
                         color: isActive && !isLogout
-                            ? colorScheme.primary.withOpacity(isDark ? 0.3 : 0.15)
+                            ? colorScheme.primary.withValues(alpha: isDark ? 0.3 : 0.15)
                             : (isLogout
-                                ? colorScheme.error.withOpacity(isDark ? 0.2 : 0.1)
-                                : colorScheme.surfaceContainerHighest.withOpacity(0.5)),
+                                ? colorScheme.error.withValues(alpha: isDark ? 0.2 : 0.1)
+                                : colorScheme.surfaceContainerHighest.withValues(alpha: 0.5)),
                         borderRadius: BorderRadius.circular(8),
                         border: isActive && !isLogout
                             ? Border.all(
-                                color: colorScheme.primary.withOpacity(0.3),
+                                color: colorScheme.primary.withValues(alpha: 0.3),
                                 width: 1,
                               )
                             : null,
@@ -741,14 +740,14 @@ class _MobileDrawerMenuItem extends StatelessWidget {
         height: 36,
         decoration: BoxDecoration(
           color: isActive && !isLogout
-              ? colorScheme.primary.withOpacity(isDark ? 0.3 : 0.15)
+              ? colorScheme.primary.withValues(alpha: isDark ? 0.3 : 0.15)
               : (isLogout
-                  ? colorScheme.error.withOpacity(isDark ? 0.2 : 0.1)
-                  : colorScheme.surfaceContainerHighest.withOpacity(0.5)),
+                  ? colorScheme.error.withValues(alpha: isDark ? 0.2 : 0.1)
+                  : colorScheme.surfaceContainerHighest.withValues(alpha: 0.5)),
           borderRadius: BorderRadius.circular(8),
           border: isActive && !isLogout
               ? Border.all(
-                  color: colorScheme.primary.withOpacity(0.3),
+                  color: colorScheme.primary.withValues(alpha: 0.3),
                   width: 1,
                 )
               : null,
@@ -771,7 +770,7 @@ class _MobileDrawerMenuItem extends StatelessWidget {
             ),
       ),
       selected: isActive && !isLogout,
-      selectedTileColor: colorScheme.primary.withOpacity(isDark ? 0.15 : 0.08),
+      selectedTileColor: colorScheme.primary.withValues(alpha: isDark ? 0.15 : 0.08),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),

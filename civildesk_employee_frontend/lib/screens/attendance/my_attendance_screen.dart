@@ -28,6 +28,7 @@ class _MyAttendanceScreenState extends State<MyAttendanceScreen> {
   ];
   bool _isStatsExpanded = false; // Statistics collapsed by default
   final Set<String> _expandedDates = {}; // Track expanded timeline items
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -39,18 +40,40 @@ class _MyAttendanceScreenState extends State<MyAttendanceScreen> {
     final lastDayOfMonth = DateTime(now.year, now.month + 1, 0);
     _endDate = lastDayOfMonth.isAfter(now) ? now : lastDayOfMonth;
     _selectedStatus = 'All';
+    _scrollController.addListener(_onScroll);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadAttendance();
     });
   }
 
-  Future<void> _loadAttendance() async {
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    // Note: This is for CustomScrollView, pagination handled differently
+  }
+
+  Future<void> _loadAttendance({bool refresh = true}) async {
     final provider = Provider.of<AttendanceProvider>(context, listen: false);
     await provider.fetchAttendanceHistory(
       startDate: _startDate,
       endDate: _endDate,
+      refresh: refresh,
     );
+  }
+
+  Future<void> _loadMoreAttendance() async {
+    final provider = Provider.of<AttendanceProvider>(context, listen: false);
+    if (provider.hasMore && !provider.isLoading) {
+      await provider.loadMoreAttendance(
+        startDate: _startDate,
+        endDate: _endDate,
+      );
+    }
   }
 
   Future<void> _selectDateRange() async {
@@ -76,7 +99,7 @@ class _MyAttendanceScreenState extends State<MyAttendanceScreen> {
         _startDate = picked.start;
         _endDate = picked.end;
       });
-      _loadAttendance();
+      _loadAttendance(refresh: true);
     }
   }
 
@@ -196,7 +219,7 @@ class _MyAttendanceScreenState extends State<MyAttendanceScreen> {
                 color: Theme.of(context).colorScheme.surface,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withValues(alpha: 0.05),
                     blurRadius: 4,
                     offset: const Offset(0, 2),
                   ),
@@ -318,7 +341,7 @@ class _MyAttendanceScreenState extends State<MyAttendanceScreen> {
                   color: Theme.of(context).colorScheme.surface,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(
+                      color: Colors.black.withValues(alpha:
                         Theme.of(context).brightness == Brightness.dark ? 0.3 : 0.04,
                       ),
                       blurRadius: 20,
@@ -406,10 +429,25 @@ class _MyAttendanceScreenState extends State<MyAttendanceScreen> {
                   padding: const EdgeInsets.all(16),
                   sliver: SliverList(
                     delegate: SliverChildBuilderDelegate((context, index) {
+                      if (index == filteredAttendance.length) {
+                        // Loading indicator at the end
+                        if (provider.hasMore) {
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            _loadMoreAttendance();
+                          });
+                          return const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(16.0),
+                              child: CircularProgressIndicator(),
+                            ),
+                          );
+                        }
+                        return const SizedBox.shrink();
+                      }
                       final attendance = filteredAttendance[index];
-                      final isLast = index == filteredAttendance.length - 1;
+                      final isLast = index == filteredAttendance.length - 1 && !provider.hasMore;
                       return _buildTimelineItem(attendance, isLast);
-                    }, childCount: filteredAttendance.length),
+                    }, childCount: filteredAttendance.length + (provider.hasMore ? 1 : 0)),
                   ),
                 ),
         ],
@@ -425,7 +463,7 @@ class _MyAttendanceScreenState extends State<MyAttendanceScreen> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(
+            color: Colors.black.withValues(alpha:
               Theme.of(context).brightness == Brightness.dark ? 0.3 : 0.04,
             ),
             blurRadius: 20,
@@ -455,7 +493,7 @@ class _MyAttendanceScreenState extends State<MyAttendanceScreen> {
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
                   overflow: TextOverflow.ellipsis,
                   maxLines: 1,
@@ -534,7 +572,7 @@ class _MyAttendanceScreenState extends State<MyAttendanceScreen> {
               color: Theme.of(context).colorScheme.surface,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
                 width: 1,
               ),
             ),
@@ -559,7 +597,7 @@ class _MyAttendanceScreenState extends State<MyAttendanceScreen> {
                 borderRadius: BorderRadius.circular(12),
                 focusColor: Theme.of(
                   context,
-                ).colorScheme.primary.withOpacity(0.1),
+                ).colorScheme.primary.withValues(alpha: 0.1),
                 autofocus: false,
                 child: Padding(
                   padding: const EdgeInsets.all(12),
@@ -587,7 +625,7 @@ class _MyAttendanceScreenState extends State<MyAttendanceScreen> {
                               vertical: 4,
                             ),
                             decoration: BoxDecoration(
-                              color: statusColor.withOpacity(0.1),
+                              color: statusColor.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(16),
                               border: Border.all(color: statusColor, width: 1),
                             ),
@@ -606,7 +644,7 @@ class _MyAttendanceScreenState extends State<MyAttendanceScreen> {
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
-                              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                             ),
                           ),
                           const SizedBox(width: 4),
@@ -617,7 +655,7 @@ class _MyAttendanceScreenState extends State<MyAttendanceScreen> {
                                   ? Icons.expand_less
                                   : Icons.expand_more,
                               size: 20,
-                              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                             ),
                           ),
                         ],
@@ -631,7 +669,7 @@ class _MyAttendanceScreenState extends State<MyAttendanceScreen> {
                             const SizedBox(height: 12),
                             Divider(
                               height: 1,
-                              color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                              color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
                             ),
                             const SizedBox(height: 12),
                             _buildCompactTimeRow(
@@ -659,7 +697,7 @@ class _MyAttendanceScreenState extends State<MyAttendanceScreen> {
                               const SizedBox(height: 12),
                               Divider(
                                 height: 1,
-                                color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                                color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
                               ),
                               const SizedBox(height: 12),
                               Row(
@@ -724,7 +762,7 @@ class _MyAttendanceScreenState extends State<MyAttendanceScreen> {
           style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w500,
-            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
           ),
         ),
         Text(
@@ -734,7 +772,7 @@ class _MyAttendanceScreenState extends State<MyAttendanceScreen> {
             fontWeight: FontWeight.w600,
             color: time != null
                 ? Theme.of(context).colorScheme.onSurface
-                : Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+                : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
           ),
         ),
       ],
@@ -836,129 +874,6 @@ class _MyAttendanceScreenState extends State<MyAttendanceScreen> {
     );
   }
 
-  void _showAttendanceDetails(Attendance attendance) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.7,
-        minChildSize: 0.5,
-        maxChildSize: 0.9,
-        expand: false,
-        builder: (context, scrollController) => SingleChildScrollView(
-          controller: scrollController,
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Attendance Details',
-                      style: Theme.of(context).textTheme.headlineSmall
-                          ?.copyWith(fontWeight: FontWeight.bold),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _getStatusColor(
-                          attendance.status,
-                        ).withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: _getStatusColor(attendance.status),
-                          width: 1.5,
-                        ),
-                      ),
-                      child: Text(
-                        _getStatusLabel(attendance.status),
-                        style: TextStyle(
-                          color: _getStatusColor(attendance.status),
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                _buildDetailRow(
-                  'Date',
-                  DateFormat('EEEE, dd MMMM yyyy').format(attendance.date),
-                ),
-                const Divider(),
-                _buildDetailRow(
-                  'Check In',
-                  attendance.checkInTime != null
-                      ? DateFormat('hh:mm a').format(attendance.checkInTime!)
-                      : 'Not marked',
-                ),
-                _buildDetailRow(
-                  'Lunch Start',
-                  attendance.lunchOutTime != null
-                      ? DateFormat('hh:mm a').format(attendance.lunchOutTime!)
-                      : 'Not marked',
-                ),
-                _buildDetailRow(
-                  'Lunch End',
-                  attendance.lunchInTime != null
-                      ? DateFormat('hh:mm a').format(attendance.lunchInTime!)
-                      : 'Not marked',
-                ),
-                _buildDetailRow(
-                  'Check Out',
-                  attendance.checkOutTime != null
-                      ? DateFormat('hh:mm a').format(attendance.checkOutTime!)
-                      : 'Not marked',
-                ),
-                if (attendance.formattedWorkingHours != null ||
-                    attendance.formattedOvertimeHours != null) ...[
-                  const Divider(),
-                  if (attendance.formattedWorkingHours != null)
-                    _buildDetailRow(
-                      'Working Hours',
-                      attendance.formattedWorkingHours!,
-                      color: Colors.blue,
-                    ),
-                  if (attendance.formattedOvertimeHours != null)
-                    _buildDetailRow(
-                      'Overtime Hours',
-                      attendance.formattedOvertimeHours!,
-                      color: Colors.orange,
-                    ),
-                ],
-                if (attendance.remarks != null &&
-                    attendance.remarks!.isNotEmpty) ...[
-                  const Divider(),
-                  _buildDetailRow('Remarks', attendance.remarks!),
-                ],
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildDetailRow(String label, String value, {Color? color}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
@@ -1020,7 +935,7 @@ class _StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
         color: Theme.of(context).colorScheme.surface,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.3 : 0.04),
+            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.04),
             blurRadius: 20,
             offset: const Offset(0, 6),
           ),

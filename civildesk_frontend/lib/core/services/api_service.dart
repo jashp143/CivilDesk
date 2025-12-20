@@ -8,11 +8,6 @@ import '../constants/app_constants.dart';
 class ApiService {
   late Dio _dio;
   static final ApiService _instance = ApiService._internal();
-  
-  // Retry configuration
-  static const int _maxRetries = 3;
-  static const Duration _retryDelay = Duration(seconds: 2);
-  static const List<int> _retryableStatusCodes = [500, 502, 503, 504];
 
   factory ApiService() {
     return _instance;

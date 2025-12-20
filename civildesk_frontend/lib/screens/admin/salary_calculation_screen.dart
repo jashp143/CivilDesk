@@ -198,7 +198,7 @@ class _SalaryCalculationScreenState extends State<SalaryCalculationScreen> {
                         Consumer<EmployeeProvider>(
                           builder: (context, provider, _) {
                             return DropdownButtonFormField<Employee>(
-                              value: _selectedEmployee,
+                              initialValue: _selectedEmployee,
                               decoration: const InputDecoration(
                                 labelText: 'Select Employee *',
                                 border: OutlineInputBorder(),

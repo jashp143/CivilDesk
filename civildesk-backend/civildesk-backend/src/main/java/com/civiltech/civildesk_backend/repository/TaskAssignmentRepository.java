@@ -29,4 +29,15 @@ public interface TaskAssignmentRepository extends JpaRepository<TaskAssignment, 
     // New method with full eager loading for task details view
     @Query("SELECT ta FROM TaskAssignment ta LEFT JOIN FETCH ta.employee LEFT JOIN FETCH ta.task t LEFT JOIN FETCH t.assignedBy WHERE ta.task.id = :taskId AND ta.deleted = false")
     List<TaskAssignment> findAllByTaskIdWithFullDetails(@Param("taskId") Long taskId);
+    
+    /**
+     * Batch query to find all assignments for multiple tasks.
+     * Used to avoid N+1 queries when converting multiple tasks to responses.
+     * 
+     * @param taskIds List of task IDs
+     * @return List of task assignments with employees eagerly loaded
+     */
+    @EntityGraph(attributePaths = {"employee"})
+    @Query("SELECT ta FROM TaskAssignment ta WHERE ta.task.id IN :taskIds AND ta.deleted = false")
+    List<TaskAssignment> findByTaskIds(@Param("taskIds") List<Long> taskIds);
 }

@@ -16,18 +16,37 @@ class OvertimeScreen extends StatefulWidget {
 
 class _OvertimeScreenState extends State<OvertimeScreen> {
   String? _selectedStatusFilter; // null means 'All'
+  late ScrollController _scrollController;
 
   @override
   void initState() {
     super.initState();
     _selectedStatusFilter = null; // Show all by default
+    _scrollController = ScrollController();
+    _scrollController.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<OvertimeProvider>(context, listen: false).fetchMyOvertimes();
+      Provider.of<OvertimeProvider>(context, listen: false).refreshOvertimes();
     });
   }
 
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= 
+        _scrollController.position.maxScrollExtent * 0.9) {
+      final provider = Provider.of<OvertimeProvider>(context, listen: false);
+      if (provider.hasMore && !provider.isLoading) {
+        provider.loadMoreOvertimes();
+      }
+    }
+  }
+
   Future<void> _refreshOvertimes() async {
-    await Provider.of<OvertimeProvider>(context, listen: false).fetchMyOvertimes();
+    await Provider.of<OvertimeProvider>(context, listen: false).refreshOvertimes();
   }
 
   void _navigateToApplyOvertime() async {
@@ -88,18 +107,19 @@ class _OvertimeScreenState extends State<OvertimeScreen> {
               Navigator.pop(context);
               final provider = Provider.of<OvertimeProvider>(context, listen: false);
               final success = await provider.deleteOvertime(overtime.id);
-              if (mounted) {
-                if (success) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Overtime deleted successfully')),
-                  );
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(provider.error ?? 'Failed to delete overtime'),
-                    ),
-                  );
-                }
+              if (!mounted) return;
+              
+              final messenger = ScaffoldMessenger.of(context);
+              if (success) {
+                messenger.showSnackBar(
+                  const SnackBar(content: Text('Overtime deleted successfully')),
+                );
+              } else {
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text(provider.error ?? 'Failed to delete overtime'),
+                  ),
+                );
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
@@ -140,7 +160,7 @@ class _OvertimeScreenState extends State<OvertimeScreen> {
                     width: 40,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: colorScheme.onSurfaceVariant.withOpacity(0.3),
+                      color: colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -151,7 +171,7 @@ class _OvertimeScreenState extends State<OvertimeScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: colorScheme.primaryContainer.withOpacity(0.15),
+                  color: colorScheme.primaryContainer.withValues(alpha: 0.15),
                   borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(24),
                     topRight: Radius.circular(24),
@@ -164,7 +184,7 @@ class _OvertimeScreenState extends State<OvertimeScreen> {
                       width: 40,
                       height: 40,
                       decoration: BoxDecoration(
-                        color: colorScheme.primaryContainer.withOpacity(0.2),
+                        color: colorScheme.primaryContainer.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Icon(
@@ -193,10 +213,10 @@ class _OvertimeScreenState extends State<OvertimeScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
-                        color: statusColor.withOpacity(0.15),
+                        color: statusColor.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                          color: statusColor.withOpacity(0.4),
+                          color: statusColor.withValues(alpha: 0.4),
                           width: 1.5,
                         ),
                       ),
@@ -254,7 +274,7 @@ class _OvertimeScreenState extends State<OvertimeScreen> {
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: colorScheme.primaryContainer.withOpacity(0.3),
+                              color: colorScheme.primaryContainer.withValues(alpha: 0.3),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Column(
@@ -272,7 +292,7 @@ class _OvertimeScreenState extends State<OvertimeScreen> {
                                         width: 32,
                                         height: 32,
                                         decoration: BoxDecoration(
-                                          color: const Color(0xFF4CAF50).withOpacity(0.1),
+                                          color: const Color(0xFF4CAF50).withValues(alpha: 0.1),
                                           borderRadius: BorderRadius.circular(8),
                                         ),
                                         child: const Icon(
@@ -321,7 +341,7 @@ class _OvertimeScreenState extends State<OvertimeScreen> {
                                         width: 32,
                                         height: 32,
                                         decoration: BoxDecoration(
-                                          color: const Color(0xFF4CAF50).withOpacity(0.1),
+                                          color: const Color(0xFF4CAF50).withValues(alpha: 0.1),
                                           borderRadius: BorderRadius.circular(8),
                                         ),
                                         child: const Icon(
@@ -370,7 +390,7 @@ class _OvertimeScreenState extends State<OvertimeScreen> {
                                         width: 32,
                                         height: 32,
                                         decoration: BoxDecoration(
-                                          color: const Color(0xFFE57373).withOpacity(0.1),
+                                          color: const Color(0xFFE57373).withValues(alpha: 0.1),
                                           borderRadius: BorderRadius.circular(8),
                                         ),
                                         child: const Icon(
@@ -479,8 +499,8 @@ class _OvertimeScreenState extends State<OvertimeScreen> {
                                   : 'Rejected',
                               '${DateFormat('MMM dd, yyyy').format(overtime.reviewedAt!)} • ${DateFormat('hh:mm a').format(overtime.reviewedAt!)}',
                               overtime.status == OvertimeStatus.APPROVED
-                                  ? _getStatusColor(OvertimeStatus.APPROVED, colorScheme).withOpacity(0.2)
-                                  : _getStatusColor(OvertimeStatus.REJECTED, colorScheme).withOpacity(0.2),
+                                  ? _getStatusColor(OvertimeStatus.APPROVED, colorScheme).withValues(alpha: 0.2)
+                                  : _getStatusColor(OvertimeStatus.REJECTED, colorScheme).withValues(alpha: 0.2),
                               false,
                             ),
                           ],
@@ -519,7 +539,7 @@ class _OvertimeScreenState extends State<OvertimeScreen> {
                                     Container(
                                       padding: const EdgeInsets.all(12),
                                       decoration: BoxDecoration(
-                                        color: colorScheme.surfaceVariant.withOpacity(0.5),
+                                        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: Row(
@@ -582,7 +602,7 @@ class _OvertimeScreenState extends State<OvertimeScreen> {
           border: Border.all(
             color: isSelected
                 ? colorScheme.primary
-                : colorScheme.outline.withOpacity(0.3),
+                : colorScheme.outline.withValues(alpha: 0.3),
             width: 1,
           ),
         ),
@@ -611,7 +631,7 @@ class _OvertimeScreenState extends State<OvertimeScreen> {
     Color iconColor;
     if (iconBackgroundColor == colorScheme.primaryContainer) {
       iconColor = colorScheme.primary;
-    } else if (iconBackgroundColor == _getStatusColor(OvertimeStatus.APPROVED, colorScheme).withOpacity(0.2)) {
+    } else if (iconBackgroundColor == _getStatusColor(OvertimeStatus.APPROVED, colorScheme).withValues(alpha: 0.2)) {
       iconColor = _getStatusColor(OvertimeStatus.APPROVED, colorScheme);
     } else {
       iconColor = _getStatusColor(OvertimeStatus.REJECTED, colorScheme);
@@ -646,7 +666,7 @@ class _OvertimeScreenState extends State<OvertimeScreen> {
                 Container(
                   width: 2,
                   height: 20,
-                  color: colorScheme.outline.withOpacity(0.3),
+                  color: colorScheme.outline.withValues(alpha: 0.3),
                 ),
               ],
             ],
@@ -773,10 +793,10 @@ class _OvertimeScreenState extends State<OvertimeScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: colorScheme.surfaceVariant.withOpacity(0.3),
+              color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
               border: Border(
                 bottom: BorderSide(
-                  color: colorScheme.outline.withOpacity(0.1),
+                  color: colorScheme.outline.withValues(alpha: 0.1),
                   width: 1,
                 ),
               ),
@@ -891,13 +911,13 @@ class _OvertimeScreenState extends State<OvertimeScreen> {
                             Container(
                               padding: const EdgeInsets.all(24),
                               decoration: BoxDecoration(
-                                color: colorScheme.surfaceVariant.withOpacity(0.5),
+                                color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                                 shape: BoxShape.circle,
                               ),
                               child: Icon(
                                 Icons.schedule_outlined,
                                 size: 64,
-                                color: colorScheme.onSurfaceVariant.withOpacity(0.6),
+                                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
                               ),
                             ),
                             const SizedBox(height: 24),
@@ -943,7 +963,7 @@ class _OvertimeScreenState extends State<OvertimeScreen> {
                               Icon(
                                 Icons.filter_alt_off_rounded,
                                 size: 64,
-                                color: colorScheme.onSurfaceVariant.withOpacity(0.6),
+                                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
                               ),
                               const SizedBox(height: 16),
                               Text(
@@ -956,9 +976,16 @@ class _OvertimeScreenState extends State<OvertimeScreen> {
                           ),
                         )
                       : ListView.builder(
+                          controller: _scrollController,
                           padding: const EdgeInsets.fromLTRB(6, 6, 6, 0),
-                          itemCount: filteredOvertimes.length,
+                          itemCount: filteredOvertimes.length + (provider.hasMore ? 1 : 0),
                           itemBuilder: (context, index) {
+                            if (index == filteredOvertimes.length) {
+                              return const Padding(
+                                padding: EdgeInsets.all(16.0),
+                                child: Center(child: CircularProgressIndicator()),
+                              );
+                            }
                             final overtime = filteredOvertimes[index];
                             return Padding(
                               padding: const EdgeInsets.only(bottom: 0),
@@ -990,15 +1017,15 @@ class _OvertimeScreenState extends State<OvertimeScreen> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: colorScheme.outline.withOpacity(0.12),
+          color: colorScheme.outline.withValues(alpha: 0.12),
           width: 1,
         ),
       ),
       child: InkWell(
         onTap: () => _viewOvertimeDetails(overtime),
         borderRadius: BorderRadius.circular(12),
-        splashColor: colorScheme.primary.withOpacity(0.1),
-        highlightColor: colorScheme.primary.withOpacity(0.05),
+        splashColor: colorScheme.primary.withValues(alpha: 0.1),
+        highlightColor: colorScheme.primary.withValues(alpha: 0.05),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -1018,7 +1045,7 @@ class _OvertimeScreenState extends State<OvertimeScreen> {
                           width: 40,
                           height: 40,
                           decoration: BoxDecoration(
-                            color: colorScheme.primaryContainer.withOpacity(0.2),
+                            color: colorScheme.primaryContainer.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Icon(
@@ -1069,10 +1096,10 @@ class _OvertimeScreenState extends State<OvertimeScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.15),
+                      color: statusColor.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: statusColor.withOpacity(0.4),
+                        color: statusColor.withValues(alpha: 0.4),
                         width: 1.5,
                       ),
                     ),
@@ -1105,7 +1132,7 @@ class _OvertimeScreenState extends State<OvertimeScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: colorScheme.surfaceVariant.withOpacity(0.5),
+                  color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Row(
@@ -1225,10 +1252,10 @@ class _OvertimeScreenState extends State<OvertimeScreen> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: colorScheme.primaryContainer.withOpacity(0.3),
+                    color: colorScheme.primaryContainer.withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: colorScheme.primary.withOpacity(0.2),
+                      color: colorScheme.primary.withValues(alpha: 0.2),
                       width: 1,
                     ),
                   ),
@@ -1296,7 +1323,7 @@ class _OvertimeScreenState extends State<OvertimeScreen> {
                 Divider(
                   height: 1,
                   thickness: 1,
-                  color: colorScheme.outline.withOpacity(0.2),
+                  color: colorScheme.outline.withValues(alpha: 0.2),
                 ),
                 const SizedBox(height: 12),
                 Row(
@@ -1313,7 +1340,7 @@ class _OvertimeScreenState extends State<OvertimeScreen> {
                             borderRadius: BorderRadius.circular(20),
                           ),
                           side: BorderSide(
-                            color: colorScheme.outline.withOpacity(0.5),
+                            color: colorScheme.outline.withValues(alpha: 0.5),
                             width: 1,
                           ),
                         ),

@@ -111,7 +111,6 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
     final isDark = theme.brightness == Brightness.dark;
     final isMobile = _isMobile(context);
     final isTablet = _isTablet(context);
-    final isDesktop = _isDesktop(context);
     final isLandscape = _isLandscape(context);
 
     // Background colors
@@ -149,8 +148,8 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: isDark
-                      ? Colors.white.withOpacity(0.03)
-                      : Colors.black.withOpacity(0.03),
+                      ? Colors.white.withValues(alpha: 0.03)
+                      : Colors.black.withValues(alpha: 0.03),
                 ),
               ),
             ),
@@ -163,8 +162,8 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: isDark
-                      ? Colors.white.withOpacity(0.02)
-                      : Colors.black.withOpacity(0.02),
+                      ? Colors.white.withValues(alpha: 0.02)
+                      : Colors.black.withValues(alpha: 0.02),
                 ),
               ),
             ),
@@ -224,18 +223,18 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
           padding: EdgeInsets.all(isMobile ? 24.0 : (isTablet ? 32.0 : 40.0)),
           decoration: BoxDecoration(
             color: isDark
-                ? Colors.white.withOpacity(0.05)
-                : Colors.black.withOpacity(0.05),
+                ? Colors.white.withValues(alpha: 0.05)
+                : Colors.black.withValues(alpha: 0.05),
             borderRadius: BorderRadius.circular(isMobile ? 24 : 32),
             border: Border.all(
-              color: borderColor.withOpacity(0.2),
+              color: borderColor.withValues(alpha: 0.2),
               width: 1.5,
             ),
             boxShadow: [
               BoxShadow(
                 color: isDark
-                    ? Colors.black.withOpacity(0.3)
-                    : Colors.black.withOpacity(0.1),
+                    ? Colors.black.withValues(alpha: 0.3)
+                    : Colors.black.withValues(alpha: 0.1),
                 blurRadius: 20,
                 offset: const Offset(0, 10),
               ),
@@ -276,11 +275,11 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
                       color: isDark
-                          ? Colors.white.withOpacity(0.1)
-                          : Colors.black.withOpacity(0.1),
+                          ? Colors.white.withValues(alpha: 0.1)
+                          : Colors.black.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: borderColor.withOpacity(0.3),
+                        color: borderColor.withValues(alpha: 0.3),
                         width: 1,
                       ),
                     ),
@@ -304,7 +303,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                   Text(
                     'Super Admin Signup',
                     style: theme.textTheme.bodyLarge?.copyWith(
-                      color: textColor.withOpacity(0.7),
+                      color: textColor.withValues(alpha: 0.7),
                       fontWeight: FontWeight.w500,
                       fontSize: isTablet ? 15 : 17,
                     ),
@@ -318,7 +317,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
           Container(
             width: 1,
             margin: EdgeInsets.symmetric(vertical: isTablet ? 16.0 : 24.0),
-            color: borderColor.withOpacity(0.2),
+            color: borderColor.withValues(alpha: 0.2),
           ),
           // Right Section: Signup Form
           Expanded(
@@ -404,7 +403,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                           _obscurePassword
                               ? Icons.visibility_outlined
                               : Icons.visibility_off_outlined,
-                          color: textColor.withOpacity(0.7),
+                          color: textColor.withValues(alpha: 0.7),
                         ),
                         onPressed: () {
                           setState(() {
@@ -429,7 +428,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                           _obscureConfirmPassword
                               ? Icons.visibility_outlined
                               : Icons.visibility_off_outlined,
-                          color: textColor.withOpacity(0.7),
+                          color: textColor.withValues(alpha: 0.7),
                         ),
                         onPressed: () {
                           setState(() {
@@ -493,7 +492,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                       child: Text(
                         'Already have an account? Login',
                         style: TextStyle(
-                          color: textColor.withOpacity(0.8),
+                          color: textColor.withValues(alpha: 0.8),
                           fontSize: isTablet ? 14 : 15,
                         ),
                       ),
@@ -530,11 +529,11 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
                     color: isDark
-                        ? Colors.white.withOpacity(0.1)
-                        : Colors.black.withOpacity(0.1),
+                        ? Colors.white.withValues(alpha: 0.1)
+                        : Colors.black.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: borderColor.withOpacity(0.3),
+                      color: borderColor.withValues(alpha: 0.3),
                       width: 1,
                     ),
                   ),
@@ -559,7 +558,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                 Text(
                   'Super Admin Signup',
                   style: theme.textTheme.bodyLarge?.copyWith(
-                    color: textColor.withOpacity(0.7),
+                    color: textColor.withValues(alpha: 0.7),
                     fontWeight: FontWeight.w500,
                     fontSize: isMobile ? 14 : 16,
                   ),
@@ -661,7 +660,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                       _obscurePassword
                           ? Icons.visibility_outlined
                           : Icons.visibility_off_outlined,
-                      color: textColor.withOpacity(0.7),
+                      color: textColor.withValues(alpha: 0.7),
                     ),
                     onPressed: () {
                       setState(() {
@@ -686,7 +685,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                       _obscureConfirmPassword
                           ? Icons.visibility_outlined
                           : Icons.visibility_off_outlined,
-                      color: textColor.withOpacity(0.7),
+                      color: textColor.withValues(alpha: 0.7),
                     ),
                     onPressed: () {
                       setState(() {
@@ -750,7 +749,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                   child: Text(
                     'Already have an account? Login',
                     style: TextStyle(
-                      color: textColor.withOpacity(0.8),
+                      color: textColor.withValues(alpha: 0.8),
                       fontSize: isMobile ? 14 : 15,
                     ),
                   ),
@@ -781,20 +780,20 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
       textCapitalization: textCapitalization,
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: TextStyle(color: textColor.withOpacity(0.7)),
+        labelStyle: TextStyle(color: textColor.withValues(alpha: 0.7)),
         prefixIcon: Icon(icon, color: textColor),
         suffixIcon: suffixIcon,
         filled: true,
         fillColor: isDark
-            ? Colors.white.withOpacity(0.05)
-            : Colors.black.withOpacity(0.05),
+            ? Colors.white.withValues(alpha: 0.05)
+            : Colors.black.withValues(alpha: 0.05),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: borderColor.withOpacity(0.3)),
+          borderSide: BorderSide(color: borderColor.withValues(alpha: 0.3)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: borderColor.withOpacity(0.3)),
+          borderSide: BorderSide(color: borderColor.withValues(alpha: 0.3)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),

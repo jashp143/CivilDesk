@@ -6,12 +6,11 @@ import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import '../../core/services/face_recognition_service.dart';
 import '../../models/face_recognition.dart';
-import '../../models/employee.dart';
 
 /// Face Attendance Screen with optimized frame processing
 /// Phase 2 Optimization - Debouncing and cancel tokens for network efficiency
 class FaceAttendanceScreen extends StatefulWidget {
-  const FaceAttendanceScreen({Key? key}) : super(key: key);
+  const FaceAttendanceScreen({super.key});
 
   @override
   State<FaceAttendanceScreen> createState() => _FaceAttendanceScreenState();
@@ -26,11 +25,13 @@ class _FaceAttendanceScreenState extends State<FaceAttendanceScreen> {
   Size? _lastImageSize;
   DetectedFace? _selectedFace;
   final FaceRecognitionService _faceService = FaceRecognitionService();
-  
+
   // Phase 2 Optimization: Debounce timer and cancel token
   Timer? _debounceTimer;
   CancelToken? _cancelToken;
-  static const Duration _detectionInterval = Duration(seconds: 2); // Increased from 1.5s
+  static const Duration _detectionInterval = Duration(
+    seconds: 2,
+  ); // Increased from 1.5s
 
   @override
   void initState() {
@@ -45,9 +46,10 @@ class _FaceAttendanceScreenState extends State<FaceAttendanceScreen> {
         // Find front-facing camera for face attendance
         CameraDescription? frontCamera = _cameras!.firstWhere(
           (camera) => camera.lensDirection == CameraLensDirection.front,
-          orElse: () => _cameras!.first, // Fallback to first camera if no front camera found
+          orElse: () => _cameras!
+              .first, // Fallback to first camera if no front camera found
         );
-        
+
         _cameraController = CameraController(
           frontCamera,
           ResolutionPreset.high,
@@ -58,7 +60,7 @@ class _FaceAttendanceScreenState extends State<FaceAttendanceScreen> {
         _startDetection();
       }
     } catch (e) {
-      print('Error initializing camera: $e');
+      debugPrint('Error initializing camera: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -77,7 +79,7 @@ class _FaceAttendanceScreenState extends State<FaceAttendanceScreen> {
 
     // Cancel any pending debounce timer
     _debounceTimer?.cancel();
-    
+
     // Use debounce timer to avoid too frequent requests
     _debounceTimer = Timer(_detectionInterval, () {
       if (mounted && !_isProcessing) {
@@ -87,8 +89,8 @@ class _FaceAttendanceScreenState extends State<FaceAttendanceScreen> {
   }
 
   Future<void> _detectFaces() async {
-    if (_cameraController == null || 
-        !_cameraController!.value.isInitialized || 
+    if (_cameraController == null ||
+        !_cameraController!.value.isInitialized ||
         _isDetecting ||
         _isProcessing) {
       return;
@@ -112,7 +114,7 @@ class _FaceAttendanceScreenState extends State<FaceAttendanceScreen> {
       final frame = await codec.getNextFrame();
       final imageSize = Size(
         frame.image.width.toDouble(),
-        frame.image.height.toDouble()
+        frame.image.height.toDouble(),
       );
 
       // Recognize faces with cancel token
@@ -120,7 +122,7 @@ class _FaceAttendanceScreenState extends State<FaceAttendanceScreen> {
         file,
         cancelToken: _cancelToken,
       );
-      
+
       if (response['success'] == true && response['faces'] != null) {
         final faces = (response['faces'] as List)
             .map((face) => DetectedFace.fromJson(face))
@@ -148,7 +150,7 @@ class _FaceAttendanceScreenState extends State<FaceAttendanceScreen> {
     } on DioException catch (e) {
       // Ignore cancelled requests
       if (e.type != DioExceptionType.cancel) {
-        print('Error detecting faces: $e');
+        debugPrint('Error detecting faces: $e');
         setState(() {
           _detectedFaces = [];
         });
@@ -158,7 +160,7 @@ class _FaceAttendanceScreenState extends State<FaceAttendanceScreen> {
       });
       _startDetection();
     } catch (e) {
-      print('Error detecting faces: $e');
+      debugPrint('Error detecting faces: $e');
       setState(() {
         _isDetecting = false;
         _detectedFaces = [];
@@ -188,13 +190,13 @@ class _FaceAttendanceScreenState extends State<FaceAttendanceScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                'Attendance marked for ${face.displayName} - ${_getPunchTypeName(punchType)}'
+                'Attendance marked for ${face.displayName} - ${_getPunchTypeName(punchType)}',
               ),
               backgroundColor: Colors.green,
               duration: const Duration(seconds: 2),
             ),
           );
-          
+
           // Clear selection after successful attendance marking
           setState(() {
             _selectedFace = null;
@@ -211,10 +213,7 @@ class _FaceAttendanceScreenState extends State<FaceAttendanceScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -284,9 +283,7 @@ class _FaceAttendanceScreenState extends State<FaceAttendanceScreen> {
   Widget build(BuildContext context) {
     if (_cameraController == null || !_cameraController!.value.isInitialized) {
       return Scaffold(
-        appBar: AppBar(
-          title: const Text('Face Recognition Attendance'),
-        ),
+        appBar: AppBar(title: const Text('Face Recognition Attendance')),
         body: const Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -332,7 +329,7 @@ class _FaceAttendanceScreenState extends State<FaceAttendanceScreen> {
           if (_detectedFaces.isNotEmpty && _lastImageSize != null)
             ..._detectedFaces.map((face) {
               return _buildFaceBoundingBox(face);
-            }).toList(),
+            }),
 
           // Processing overlay
           if (_isProcessing)
@@ -369,8 +366,8 @@ class _FaceAttendanceScreenState extends State<FaceAttendanceScreen> {
                     end: Alignment.bottomCenter,
                     colors: [
                       Colors.transparent,
-                      Colors.black.withOpacity(0.7),
-                      Colors.black.withOpacity(0.9),
+                      Colors.black.withValues(alpha: 0.7),
+                      Colors.black.withValues(alpha: 0.9),
                     ],
                   ),
                 ),
@@ -412,9 +409,9 @@ class _FaceAttendanceScreenState extends State<FaceAttendanceScreen> {
                         ],
                       ),
                     ),
-                    
+
                     const SizedBox(height: 16),
-                    
+
                     // Punch buttons
                     const Text(
                       'Select Punch Type:',
@@ -425,7 +422,7 @@ class _FaceAttendanceScreenState extends State<FaceAttendanceScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    
+
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
@@ -435,9 +432,9 @@ class _FaceAttendanceScreenState extends State<FaceAttendanceScreen> {
                         _buildPunchButton('check_out'),
                       ],
                     ),
-                    
+
                     const SizedBox(height: 12),
-                    
+
                     TextButton(
                       onPressed: () {
                         setState(() {
@@ -463,7 +460,7 @@ class _FaceAttendanceScreenState extends State<FaceAttendanceScreen> {
               child: Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.7),
+                  color: Colors.black.withValues(alpha: 0.7),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Column(
@@ -577,7 +574,7 @@ class _FaceAttendanceScreenState extends State<FaceAttendanceScreen> {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.9),
+                      color: Colors.green.withValues(alpha: 0.9),
                       borderRadius: const BorderRadius.only(
                         topLeft: Radius.circular(8),
                         topRight: Radius.circular(8),
@@ -621,9 +618,7 @@ class _FaceAttendanceScreenState extends State<FaceAttendanceScreen> {
         backgroundColor: _getPunchTypeColor(punchType),
         foregroundColor: Colors.white,
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -640,4 +635,3 @@ class _FaceAttendanceScreenState extends State<FaceAttendanceScreen> {
     );
   }
 }
-

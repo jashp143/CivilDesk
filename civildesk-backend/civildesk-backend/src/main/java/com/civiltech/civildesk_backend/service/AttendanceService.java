@@ -8,8 +8,10 @@ import com.civiltech.civildesk_backend.model.Attendance;
 import com.civiltech.civildesk_backend.model.Employee;
 import com.civiltech.civildesk_backend.repository.AttendanceRepository;
 import com.civiltech.civildesk_backend.repository.EmployeeRepository;
-import com.civiltech.civildesk_backend.repository.HolidayRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.lang.NonNull;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,9 +39,6 @@ public class AttendanceService {
 
     @Autowired
     private AbsentAttendanceService absentAttendanceService;
-
-    @Autowired
-    private HolidayRepository holidayRepository;
 
     public Employee getEmployeeByUserId(Long userId) {
         return employeeRepository.findByUserIdAndDeletedFalse(userId).orElse(null);
@@ -220,6 +219,22 @@ public class AttendanceService {
     }
 
     /**
+     * Get employee attendance for a date range with pagination.
+     * Returns only actual attendance records (no virtual responses for pagination).
+     */
+    @Transactional(readOnly = true)
+    public Page<AttendanceResponse> getEmployeeAttendancePaginated(
+            String employeeId, LocalDate startDate, LocalDate endDate, Pageable pageable) {
+        Employee employee = employeeRepository.findByEmployeeIdAndDeletedFalse(employeeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with ID: " + employeeId));
+
+        Page<Attendance> attendances = attendanceRepository.findByEmployeeIdAndDateBetween(
+                employee.getId(), startDate, endDate, pageable);
+
+        return attendances.map(this::mapToResponse);
+    }
+
+    /**
      * Get daily attendance for all employees.
      * Includes employees without attendance records (will show as absent if past date).
      * For past dates, automatically creates absent records if missing.
@@ -262,6 +277,16 @@ public class AttendanceService {
         }
         
         return responses;
+    }
+
+    /**
+     * Get daily attendance for all employees with pagination.
+     * Returns only actual attendance records (no virtual responses for pagination).
+     */
+    @Transactional(readOnly = true)
+    public Page<AttendanceResponse> getDailyAttendancePaginated(LocalDate date, Pageable pageable) {
+        Page<Attendance> attendances = attendanceRepository.findAllByDate(date, pageable);
+        return attendances.map(this::mapToResponse);
     }
 
     /**
@@ -314,7 +339,7 @@ public class AttendanceService {
     }
 
     @Transactional
-    public AttendanceResponse updatePunchTime(Long attendanceId, String punchType, LocalDateTime newTime) {
+    public AttendanceResponse updatePunchTime(@NonNull Long attendanceId, String punchType, LocalDateTime newTime) {
         Attendance attendance = attendanceRepository.findById(attendanceId)
                 .orElseThrow(() -> new ResourceNotFoundException("Attendance record not found with ID: " + attendanceId));
 

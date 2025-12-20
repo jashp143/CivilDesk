@@ -64,7 +64,7 @@ class _EmployeeDetailDialogState extends State<EmployeeDetailDialog>
       ),
     );
 
-    if (confirmed == true && mounted) {
+    if (confirmed == true && context.mounted) {
       // Show loading indicator
       showDialog(
         context: context,
@@ -82,7 +82,7 @@ class _EmployeeDetailDialogState extends State<EmployeeDetailDialog>
         // Delete employee
         final success = await provider.deleteEmployee(employee.id!);
 
-        if (mounted) {
+        if (context.mounted) {
           Navigator.of(context).pop(); // Close loading dialog
           
           if (success) {
@@ -105,7 +105,7 @@ class _EmployeeDetailDialogState extends State<EmployeeDetailDialog>
           }
         }
       } catch (e) {
-        if (mounted) {
+        if (context.mounted) {
           Navigator.of(context).pop(); // Close loading dialog
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -192,7 +192,7 @@ class _EmployeeDetailDialogState extends State<EmployeeDetailDialog>
                                 ),
                               ),
                             ).then((success) {
-                            if (success == true && mounted) {
+                            if (success == true && context.mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: const Text('Face registered successfully!'),
@@ -463,8 +463,8 @@ class _EmployeeDetailDialogState extends State<EmployeeDetailDialog>
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
                             color: employee.attendanceMethod == AttendanceMethod.gpsBased
-                                ? AppTheme.statusApproved.withOpacity(0.1)
-                                : AppTheme.statBlue.withOpacity(0.1),
+                                ? AppTheme.statusApproved.withValues(alpha: 0.1)
+                                : AppTheme.statBlue.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Icon(
@@ -514,8 +514,8 @@ class _EmployeeDetailDialogState extends State<EmployeeDetailDialog>
                             ),
                           ),
                           backgroundColor: employee.attendanceMethod == AttendanceMethod.gpsBased
-                              ? AppTheme.statusApproved.withOpacity(0.1)
-                              : AppTheme.statBlue.withOpacity(0.1),
+                              ? AppTheme.statusApproved.withValues(alpha: 0.1)
+                              : AppTheme.statBlue.withValues(alpha: 0.1),
                           labelStyle: TextStyle(
                             color: employee.attendanceMethod == AttendanceMethod.gpsBased
                                 ? AppTheme.statusApproved
@@ -630,7 +630,7 @@ class _EmployeeDetailDialogState extends State<EmployeeDetailDialog>
     
     return Card(
       elevation: 2,
-      color: Theme.of(context).colorScheme.surfaceVariant,
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -937,7 +937,7 @@ class _EmployeeDetailDialogState extends State<EmployeeDetailDialog>
       ),
     );
 
-    if (confirmed == true && mounted) {
+    if (confirmed == true && context.mounted) {
       // Show loading indicator
       showDialog(
         context: context,
@@ -949,7 +949,7 @@ class _EmployeeDetailDialogState extends State<EmployeeDetailDialog>
 
       final success = await provider.generateEmployeeCredentials(employee.id!);
 
-      if (mounted) {
+      if (context.mounted) {
         Navigator.of(context).pop(); // Close loading dialog
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -965,41 +965,6 @@ class _EmployeeDetailDialogState extends State<EmployeeDetailDialog>
         );
       }
     }
-  }
-
-  Widget _buildDocumentsTab(Employee employee) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildDocumentItem(
-            'Aadhar Document',
-            employee.aadharDocumentUrl,
-          ),
-          _buildDocumentItem(
-            'PAN Document',
-            employee.panDocumentUrl,
-          ),
-          _buildDocumentItem(
-            'Resume',
-            employee.resumeUrl,
-          ),
-          _buildDocumentItem(
-            'Offer Letter',
-            employee.offerLetterUrl,
-          ),
-          _buildDocumentItem(
-            'Appointment Letter',
-            employee.appointmentLetterUrl,
-          ),
-          _buildDocumentItem(
-            'Other Documents',
-            employee.otherDocumentsUrl,
-          ),
-        ],
-      ),
-    );
   }
 
   Widget _buildDetailCard(List<Widget> children) {
@@ -1048,26 +1013,6 @@ class _EmployeeDetailDialogState extends State<EmployeeDetailDialog>
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildDocumentItem(String label, String? url) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        title: Text(label),
-        trailing: url != null
-            ? Icon(Icons.check_circle, color: AppTheme.statusApproved)
-            : Icon(Icons.cancel, color: colorScheme.onSurfaceVariant),
-        onTap: url != null
-            ? () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Opening $label...')),
-                );
-              }
-            : null,
       ),
     );
   }

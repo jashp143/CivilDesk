@@ -13,6 +13,7 @@ import com.civiltech.civildesk_backend.repository.EmployeeRepository;
 import com.civiltech.civildesk_backend.repository.OvertimeRepository;
 import com.civiltech.civildesk_backend.security.SecurityUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -60,7 +61,7 @@ public class OvertimeService {
     }
 
     // Update overtime (only if status is PENDING)
-    public OvertimeResponse updateOvertime(Long overtimeId, OvertimeRequest request) {
+    public OvertimeResponse updateOvertime(@NonNull Long overtimeId, OvertimeRequest request) {
         User currentUser = SecurityUtils.getCurrentUser();
         
         Overtime overtime = overtimeRepository.findById(overtimeId)
@@ -94,7 +95,7 @@ public class OvertimeService {
     }
 
     // Delete overtime (only if status is PENDING)
-    public void deleteOvertime(Long overtimeId) {
+    public void deleteOvertime(@NonNull Long overtimeId) {
         User currentUser = SecurityUtils.getCurrentUser();
         
         Overtime overtime = overtimeRepository.findById(overtimeId)
@@ -178,7 +179,7 @@ public class OvertimeService {
     }
 
     // Get overtime by ID
-    public OvertimeResponse getOvertimeById(Long overtimeId) {
+    public OvertimeResponse getOvertimeById(@NonNull Long overtimeId) {
         User currentUser = SecurityUtils.getCurrentUser();
         
         Overtime overtime = overtimeRepository.findById(overtimeId)
@@ -197,7 +198,7 @@ public class OvertimeService {
     }
 
     // Review overtime (Approve/Reject) - Admin/HR only
-    public OvertimeResponse reviewOvertime(Long overtimeId, OvertimeReviewRequest request) {
+    public OvertimeResponse reviewOvertime(@NonNull Long overtimeId, OvertimeReviewRequest request) {
         User currentUser = SecurityUtils.getCurrentUser();
         
         // Check if user has admin or HR role

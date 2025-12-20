@@ -93,6 +93,7 @@ class Overtime {
   }
 }
 
+// ignore: constant_identifier_names
 enum OvertimeStatus {
   PENDING,
   APPROVED,

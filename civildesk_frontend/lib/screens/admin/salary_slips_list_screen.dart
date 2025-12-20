@@ -106,24 +106,24 @@ class _SalarySlipsListScreenState extends State<SalarySlipsListScreen> {
       ),
     );
 
-    if (confirmed == true && context.mounted) {
-      try {
-        await _salaryService.deleteSalarySlip(slip.id!);
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Salary slip deleted successfully')),
-          );
-          _loadSalarySlips();
-        }
-      } catch (e) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to delete: ${e.toString()}'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
+    if (confirmed != true) return;
+
+    try {
+      await _salaryService.deleteSalarySlip(slip.id!);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Salary slip deleted successfully')),
+        );
+        _loadSalarySlips();
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to delete: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }
@@ -330,7 +330,7 @@ class _SalarySlipsListScreenState extends State<SalarySlipsListScreen> {
                                                 children: [
                                                   Chip(
                                                     label: Text(slip.status),
-                                                    backgroundColor: _getStatusColor(slip.status).withOpacity(0.2),
+                                                    backgroundColor: _getStatusColor(slip.status).withValues(alpha: 0.2),
                                                     labelStyle: TextStyle(
                                                       color: _getStatusColor(slip.status),
                                                       fontWeight: FontWeight.w600,
@@ -424,7 +424,7 @@ class _InfoChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+        color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(

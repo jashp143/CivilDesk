@@ -13,9 +13,12 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
@@ -28,6 +31,8 @@ import java.util.Map;
 @RequestMapping("/api/auth")
 @CrossOrigin(origins = "*")
 public class AuthController {
+
+    private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
 
     @Autowired
     private AuthenticationManager authenticationManager;
@@ -53,7 +58,7 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest loginRequest, HttpServletRequest request) {
         try {
-            User user = userRepository.findByEmail(loginRequest.getEmail())
+            User user = userRepository.findByEmailAndDeletedFalse(loginRequest.getEmail())
                     .orElseThrow(() -> new BadRequestException("Invalid email or password"));
 
             // Check if email is verified (only for ADMIN and HR_MANAGER roles, employees don't need verification)
@@ -83,7 +88,11 @@ public class AuthController {
             return ResponseEntity.ok(ApiResponse.success("Login successful", authResponse));
         } catch (BadRequestException e) {
             throw e;
+        } catch (AuthenticationException e) {
+            logger.error("Authentication failed for email: {}", loginRequest.getEmail(), e);
+            throw new BadRequestException("Invalid email or password");
         } catch (Exception e) {
+            logger.error("Unexpected error during login for email: {}", loginRequest.getEmail(), e);
             throw new BadRequestException("Invalid email or password");
         }
     }
@@ -91,7 +100,7 @@ public class AuthController {
     @PostMapping("/login/admin")
     public ResponseEntity<ApiResponse<AuthResponse>> adminLogin(@Valid @RequestBody LoginRequest loginRequest, HttpServletRequest request) {
         try {
-            User user = userRepository.findByEmail(loginRequest.getEmail())
+            User user = userRepository.findByEmailAndDeletedFalse(loginRequest.getEmail())
                     .orElseThrow(() -> new BadRequestException("Invalid email or password"));
 
             // Only allow ADMIN and HR_MANAGER roles
@@ -126,7 +135,11 @@ public class AuthController {
             return ResponseEntity.ok(ApiResponse.success("Login successful", authResponse));
         } catch (BadRequestException e) {
             throw e;
+        } catch (AuthenticationException e) {
+            logger.error("Authentication failed for admin email: {}", loginRequest.getEmail(), e);
+            throw new BadRequestException("Invalid email or password");
         } catch (Exception e) {
+            logger.error("Unexpected error during admin login for email: {}", loginRequest.getEmail(), e);
             throw new BadRequestException("Invalid email or password");
         }
     }
@@ -134,7 +147,7 @@ public class AuthController {
     @PostMapping("/login/employee")
     public ResponseEntity<ApiResponse<AuthResponse>> employeeLogin(@Valid @RequestBody LoginRequest loginRequest, HttpServletRequest request) {
         try {
-            User user = userRepository.findByEmail(loginRequest.getEmail())
+            User user = userRepository.findByEmailAndDeletedFalse(loginRequest.getEmail())
                     .orElseThrow(() -> new BadRequestException("Invalid email or password"));
 
             // Only allow EMPLOYEE role
@@ -164,7 +177,11 @@ public class AuthController {
             return ResponseEntity.ok(ApiResponse.success("Login successful", authResponse));
         } catch (BadRequestException e) {
             throw e;
+        } catch (AuthenticationException e) {
+            logger.error("Authentication failed for employee email: {}", loginRequest.getEmail(), e);
+            throw new BadRequestException("Invalid email or password");
         } catch (Exception e) {
+            logger.error("Unexpected error during employee login for email: {}", loginRequest.getEmail(), e);
             throw new BadRequestException("Invalid email or password");
         }
     }
@@ -176,8 +193,8 @@ public class AuthController {
             throw new BadRequestException("Passwords do not match");
         }
 
-        // Check if email already exists
-        if (userRepository.existsByEmail(signupRequest.getEmail())) {
+        // Check if email already exists (excluding soft-deleted users)
+        if (userRepository.existsByEmailAndDeletedFalse(signupRequest.getEmail())) {
             throw new BadRequestException("Email already exists");
         }
 
@@ -206,7 +223,7 @@ public class AuthController {
 
     @PostMapping("/send-otp")
     public ResponseEntity<ApiResponse<String>> sendOtp(@Valid @RequestBody SendOtpRequest request) {
-        User user = userRepository.findByEmail(request.getEmail())
+        User user = userRepository.findByEmailAndDeletedFalse(request.getEmail())
                 .orElseThrow(() -> new BadRequestException("User not found with this email"));
 
         if (user.getEmailVerified()) {
@@ -227,7 +244,7 @@ public class AuthController {
 
     @PostMapping("/verify-otp")
     public ResponseEntity<ApiResponse<AuthResponse>> verifyOtp(@Valid @RequestBody OtpVerificationRequest request) {
-        User user = userRepository.findByEmail(request.getEmail())
+        User user = userRepository.findByEmailAndDeletedFalse(request.getEmail())
                 .orElseThrow(() -> new BadRequestException("User not found with this email"));
 
         if (user.getEmailVerified()) {
@@ -257,7 +274,7 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<AuthResponse>> register(@Valid @RequestBody RegisterRequest registerRequest) {
-        if (userRepository.existsByEmail(registerRequest.getEmail())) {
+        if (userRepository.existsByEmailAndDeletedFalse(registerRequest.getEmail())) {
             throw new BadRequestException("Email already exists");
         }
 
@@ -326,6 +343,7 @@ public class AuthController {
         } catch (BadRequestException e) {
             throw e;
         } catch (Exception e) {
+            logger.error("Unexpected error during token refresh", e);
             throw new BadRequestException("Invalid refresh token");
         }
     }

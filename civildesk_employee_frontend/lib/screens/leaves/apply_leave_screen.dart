@@ -10,7 +10,7 @@ import '../../core/services/employee_service.dart';
 class ApplyLeaveScreen extends StatefulWidget {
   final Leave? existingLeave; // For editing existing leave
 
-  const ApplyLeaveScreen({Key? key, this.existingLeave}) : super(key: key);
+  const ApplyLeaveScreen({super.key, this.existingLeave});
 
   @override
   State<ApplyLeaveScreen> createState() => _ApplyLeaveScreenState();
@@ -90,13 +90,11 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
         final leaveProvider = Provider.of<LeaveProvider>(context, listen: false);
         final url = await leaveProvider.uploadMedicalCertificate(result.files.single.path!);
         
-        if (url != null) {
+        if (url != null && mounted) {
           setState(() => _medicalCertificateUrl = url);
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Certificate uploaded successfully')),
-            );
-          }
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Certificate uploaded successfully')),
+          );
         }
       }
     } catch (e) {
@@ -227,19 +225,19 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
 
   Widget _buildLeaveTypeDropdown(ThemeData theme, ColorScheme colorScheme) {
     return DropdownButtonFormField<LeaveType>(
-      value: _selectedLeaveType,
+      initialValue: _selectedLeaveType,
       decoration: InputDecoration(
         labelText: 'Leave Type *',
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(
-            color: colorScheme.outline.withOpacity(0.3),
+            color: colorScheme.outline.withValues(alpha: 0.3),
           ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(
-            color: colorScheme.outline.withOpacity(0.3),
+            color: colorScheme.outline.withValues(alpha: 0.3),
           ),
         ),
         focusedBorder: OutlineInputBorder(
@@ -306,13 +304,13 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide(
-                    color: colorScheme.outline.withOpacity(0.3),
+                    color: colorScheme.outline.withValues(alpha: 0.3),
                   ),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide(
-                    color: colorScheme.outline.withOpacity(0.3),
+                    color: colorScheme.outline.withValues(alpha: 0.3),
                   ),
                 ),
                 focusedBorder: OutlineInputBorder(
@@ -370,13 +368,13 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide(
-                    color: colorScheme.outline.withOpacity(0.3),
+                    color: colorScheme.outline.withValues(alpha: 0.3),
                   ),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide(
-                    color: colorScheme.outline.withOpacity(0.3),
+                    color: colorScheme.outline.withValues(alpha: 0.3),
                   ),
                 ),
                 focusedBorder: OutlineInputBorder(
@@ -416,7 +414,7 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: colorScheme.outline.withOpacity(0.12),
+          color: colorScheme.outline.withValues(alpha: 0.12),
           width: 1,
         ),
       ),
@@ -434,7 +432,7 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
               ),
         ),
         value: _isHalfDay,
-        activeColor: colorScheme.primary,
+        activeThumbColor: colorScheme.primary,
         onChanged: (value) {
           setState(() {
             _isHalfDay = value;
@@ -450,19 +448,19 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
 
   Widget _buildHalfDayPeriodDropdown(ThemeData theme, ColorScheme colorScheme) {
     return DropdownButtonFormField<HalfDayPeriod>(
-      value: _halfDayPeriod,
+      initialValue: _halfDayPeriod,
       decoration: InputDecoration(
         labelText: 'Half Day Period *',
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(
-            color: colorScheme.outline.withOpacity(0.3),
+            color: colorScheme.outline.withValues(alpha: 0.3),
           ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(
-            color: colorScheme.outline.withOpacity(0.3),
+            color: colorScheme.outline.withValues(alpha: 0.3),
           ),
         ),
         focusedBorder: OutlineInputBorder(
@@ -503,13 +501,13 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(
-            color: colorScheme.outline.withOpacity(0.3),
+            color: colorScheme.outline.withValues(alpha: 0.3),
           ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(
-            color: colorScheme.outline.withOpacity(0.3),
+            color: colorScheme.outline.withValues(alpha: 0.3),
           ),
         ),
         focusedBorder: OutlineInputBorder(
@@ -556,7 +554,7 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               border: Border.all(
-                color: colorScheme.outline.withOpacity(0.3),
+                color: colorScheme.outline.withValues(alpha: 0.3),
               ),
               borderRadius: BorderRadius.circular(12),
               color: colorScheme.surface,
@@ -690,13 +688,13 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(
-            color: colorScheme.outline.withOpacity(0.3),
+            color: colorScheme.outline.withValues(alpha: 0.3),
           ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(
-            color: colorScheme.outline.withOpacity(0.3),
+            color: colorScheme.outline.withValues(alpha: 0.3),
           ),
         ),
         focusedBorder: OutlineInputBorder(

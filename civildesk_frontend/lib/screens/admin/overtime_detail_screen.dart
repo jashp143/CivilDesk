@@ -7,7 +7,7 @@ import '../../core/providers/overtime_provider.dart';
 class OvertimeDetailScreen extends StatefulWidget {
   final Overtime overtime;
 
-  const OvertimeDetailScreen({Key? key, required this.overtime}) : super(key: key);
+  const OvertimeDetailScreen({super.key, required this.overtime});
 
   @override
   State<OvertimeDetailScreen> createState() => _OvertimeDetailScreenState();
@@ -167,7 +167,7 @@ class _OvertimeDetailScreenState extends State<OvertimeDetailScreen> {
           children: [
             // Status Card
             Card(
-              color: statusColor.withOpacity(0.1),
+              color: statusColor.withValues(alpha: 0.1),
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Row(

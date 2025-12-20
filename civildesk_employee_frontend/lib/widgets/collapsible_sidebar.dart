@@ -159,7 +159,7 @@ class _CollapsibleSidebarState extends State<CollapsibleSidebar>
                   color: Theme.of(context).colorScheme.primary,
                   border: Border(
                     bottom: BorderSide(
-                      color: Colors.black.withOpacity(0.1),
+                      color: Colors.black.withValues(alpha: 0.1),
                       width: 1,
                     ),
                   ),
@@ -222,7 +222,7 @@ class _SidebarMenuItem extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             decoration: BoxDecoration(
               color: isActive
-                  ? Theme.of(context).colorScheme.primary.withOpacity(0.15)
+                  ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.15)
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(10),
               border: isActive

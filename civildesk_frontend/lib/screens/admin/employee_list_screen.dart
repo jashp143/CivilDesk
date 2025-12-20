@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_routes.dart';
 import '../../core/providers/employee_provider.dart';
@@ -155,8 +154,9 @@ class _EmployeeListScreenState extends State<EmployeeListScreen> {
               context: context,
               builder: (context) => const EmployeeRegistrationDialog(),
             ).then((result) {
-              if (result == true && mounted) {
-                context.read<EmployeeProvider>().loadEmployees(refresh: true);
+              if (result == true && context.mounted) {
+                final provider = context.read<EmployeeProvider>();
+                provider.loadEmployees(refresh: true);
               }
             });
           },
@@ -290,7 +290,7 @@ class _EmployeeListScreenState extends State<EmployeeListScreen> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
             side: BorderSide(
-              color: colorScheme.outline.withOpacity(0.2),
+              color: colorScheme.outline.withValues(alpha: 0.2),
               width: 1,
             ),
           ),
@@ -318,7 +318,7 @@ class _EmployeeListScreenState extends State<EmployeeListScreen> {
                       // Header Row
                       TableRow(
                         decoration: BoxDecoration(
-                          color: colorScheme.surfaceVariant,
+                          color: colorScheme.surfaceContainerHighest,
                           border: Border(
                             bottom: BorderSide(
                               color: colorScheme.outline,
@@ -340,7 +340,7 @@ class _EmployeeListScreenState extends State<EmployeeListScreen> {
                         final index = entry.key;
                         final employee = entry.value;
                         return _buildTableRow(context, employee, theme, index);
-                      }).toList(),
+                      }),
                     ],
                   ),
                 ),
@@ -384,10 +384,10 @@ class _EmployeeListScreenState extends State<EmployeeListScreen> {
       decoration: BoxDecoration(
         color: isEven 
             ? colorScheme.surface 
-            : colorScheme.surfaceVariant.withOpacity(0.3),
+            : colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
         border: Border(
           bottom: BorderSide(
-            color: colorScheme.outline.withOpacity(0.1),
+            color: colorScheme.outline.withValues(alpha: 0.1),
             width: 1,
           ),
         ),
@@ -444,7 +444,7 @@ class _EmployeeListScreenState extends State<EmployeeListScreen> {
       cursor: onTap != null ? SystemMouseCursors.click : SystemMouseCursors.basic,
       child: InkWell(
         onTap: onTap,
-        hoverColor: theme.colorScheme.primary.withOpacity(0.1),
+        hoverColor: theme.colorScheme.primary.withValues(alpha: 0.1),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           child: Row(
@@ -488,7 +488,7 @@ class _EmployeeListScreenState extends State<EmployeeListScreen> {
             ),
           );
         },
-        hoverColor: primaryColor.withOpacity(0.1),
+        hoverColor: primaryColor.withValues(alpha: 0.1),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
@@ -543,13 +543,13 @@ class _EmployeeListScreenState extends State<EmployeeListScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
           color: isActive
-              ? AppTheme.statusApproved.withOpacity(0.15)
-              : AppTheme.statusRejected.withOpacity(0.15),
+              ? AppTheme.statusApproved.withValues(alpha: 0.15)
+              : AppTheme.statusRejected.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isActive
-                ? AppTheme.statusApproved.withOpacity(0.3)
-                : AppTheme.statusRejected.withOpacity(0.3),
+                ? AppTheme.statusApproved.withValues(alpha: 0.3)
+                : AppTheme.statusRejected.withValues(alpha: 0.3),
             width: 1,
           ),
         ),
@@ -617,7 +617,7 @@ class _EmployeeListScreenState extends State<EmployeeListScreen> {
                 maxHeight: 36,
               ),
               style: IconButton.styleFrom(
-                backgroundColor: primaryColor.withOpacity(0.1),
+                backgroundColor: primaryColor.withValues(alpha: 0.1),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(6),
                 ),
@@ -643,7 +643,7 @@ class _EmployeeListScreenState extends State<EmployeeListScreen> {
                 maxHeight: 36,
               ),
               style: IconButton.styleFrom(
-                backgroundColor: primaryColor.withOpacity(0.1),
+                backgroundColor: primaryColor.withValues(alpha: 0.1),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(6),
                 ),
@@ -669,7 +669,7 @@ class _EmployeeListScreenState extends State<EmployeeListScreen> {
                 maxHeight: 36,
               ),
               style: IconButton.styleFrom(
-                backgroundColor: theme.colorScheme.error.withOpacity(0.1),
+                backgroundColor: theme.colorScheme.error.withValues(alpha: 0.1),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(6),
                 ),
@@ -687,8 +687,9 @@ class _EmployeeListScreenState extends State<EmployeeListScreen> {
       builder: (context) => EmployeeEditDialog(employee: employee),
     );
     
-    if (result == true && mounted) {
-      context.read<EmployeeProvider>().loadEmployees(refresh: true);
+    if (result == true && context.mounted) {
+      final provider = context.read<EmployeeProvider>();
+      provider.loadEmployees(refresh: true);
     }
   }
 
@@ -876,7 +877,6 @@ class _EmployeeListItem extends StatelessWidget {
 
   Widget _buildMobileCard(BuildContext context) {
     final theme = Theme.of(context);
-    final primaryColor = theme.colorScheme.primary;
     final colorScheme = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
     
@@ -887,8 +887,8 @@ class _EmployeeListItem extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(
           color: isDark 
-              ? Colors.white.withOpacity(0.4)
-              : Colors.black.withOpacity(0.4),
+              ? Colors.white.withValues(alpha: 0.4)
+              : Colors.black.withValues(alpha: 0.4),
           width: 1,
         ),
       ),
@@ -934,8 +934,8 @@ class _EmployeeListItem extends StatelessWidget {
                           ),
                           decoration: BoxDecoration(
                             color: employee.employmentStatus == EmploymentStatus.active
-                                ? AppTheme.statusApproved.withOpacity(0.12)
-                                : AppTheme.statusRejected.withOpacity(0.12),
+                                ? AppTheme.statusApproved.withValues(alpha: 0.12)
+                                : AppTheme.statusRejected.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Row(
@@ -1029,7 +1029,7 @@ class _EmployeeListItem extends StatelessWidget {
               Divider(
                 height: 1,
                 thickness: 1,
-                color: colorScheme.outline.withOpacity(0.15),
+                color: colorScheme.outline.withValues(alpha: 0.15),
               ),
               const SizedBox(height: 12),
               // Key Details - Clean Two-Column Layout (No Icons, No Boxes)
@@ -1223,8 +1223,8 @@ class _EmployeeListItem extends StatelessWidget {
                           ),
                           decoration: BoxDecoration(
                             color: employee.employmentStatus == EmploymentStatus.active
-                                ? AppTheme.statusApproved.withOpacity(0.1)
-                                : AppTheme.statusRejected.withOpacity(0.1),
+                                ? AppTheme.statusApproved.withValues(alpha: 0.1)
+                                : AppTheme.statusRejected.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Row(
@@ -1327,7 +1327,7 @@ class _EmployeeListItem extends StatelessWidget {
                     onPressed: () => _handleEdit(context),
                     tooltip: 'Edit Employee',
                     style: IconButton.styleFrom(
-                      backgroundColor: primaryColor.withOpacity(0.1),
+                      backgroundColor: primaryColor.withValues(alpha: 0.1),
                       padding: const EdgeInsets.all(8),
                     ),
                   ),
@@ -1340,7 +1340,7 @@ class _EmployeeListItem extends StatelessWidget {
                     onPressed: () => _handleDelete(context),
                     tooltip: 'Delete Employee',
                     style: IconButton.styleFrom(
-                      backgroundColor: Theme.of(context).colorScheme.error.withOpacity(0.1),
+                      backgroundColor: Theme.of(context).colorScheme.error.withValues(alpha: 0.1),
                       padding: const EdgeInsets.all(8),
                     ),
                   ),

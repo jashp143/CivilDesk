@@ -10,6 +10,13 @@ class LeaveProvider with ChangeNotifier {
   bool _isLoading = false;
   String? _error;
 
+  // Pagination state
+  int _currentPage = 0;
+  int _totalPages = 0;
+  int _totalElements = 0;
+  bool _hasMore = true;
+  final int _pageSize = 20;
+
   // Filters
   String? _selectedStatus;
   String? _selectedLeaveType;
@@ -19,19 +26,49 @@ class LeaveProvider with ChangeNotifier {
   List<Leave> get leaves => _filteredLeaves;
   bool get isLoading => _isLoading;
   String? get error => _error;
+  int get currentPage => _currentPage;
+  int get totalPages => _totalPages;
+  int get totalElements => _totalElements;
+  bool get hasMore => _hasMore;
   String? get selectedStatus => _selectedStatus;
   String? get selectedLeaveType => _selectedLeaveType;
   String? get selectedDepartment => _selectedDepartment;
   List<String> get departments => _departments;
 
-  // Fetch all leaves
-  Future<void> fetchAllLeaves() async {
+  // Fetch all leaves (with pagination support)
+  Future<void> fetchAllLeaves({bool refresh = false}) async {
+    if (refresh) {
+      _currentPage = 0;
+      _leaves.clear();
+      _hasMore = true;
+    }
+
+    if (!_hasMore || _isLoading) return;
+
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      _leaves = await _leaveService.getAllLeaves();
+      final pageResponse = await _leaveService.getAllLeavesPaginated(
+        status: _selectedStatus,
+        leaveType: _selectedLeaveType,
+        department: _selectedDepartment,
+        page: _currentPage,
+        size: _pageSize,
+      );
+
+      if (refresh || _currentPage == 0) {
+        _leaves = pageResponse.content;
+      } else {
+        _leaves.addAll(pageResponse.content);
+      }
+
+      _currentPage = pageResponse.number;
+      _totalPages = pageResponse.totalPages;
+      _totalElements = pageResponse.totalElements;
+      _hasMore = pageResponse.hasMore;
+
       _applyFilters();
       _isLoading = false;
       notifyListeners();
@@ -40,6 +77,17 @@ class LeaveProvider with ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  // Load more leaves (next page)
+  Future<void> loadMoreLeaves() async {
+    if (!_hasMore || _isLoading) return;
+    await fetchAllLeaves(refresh: false);
+  }
+
+  // Refresh leaves (reload from beginning)
+  Future<void> refreshLeaves() async {
+    await fetchAllLeaves(refresh: true);
   }
 
   // Apply filters
@@ -78,22 +126,19 @@ class LeaveProvider with ChangeNotifier {
   // Set status filter
   void setStatusFilter(String? status) {
     _selectedStatus = status;
-    _applyFilters();
-    notifyListeners();
+    refreshLeaves(); // Reload with new filter
   }
 
   // Set leave type filter
   void setLeaveTypeFilter(String? leaveType) {
     _selectedLeaveType = leaveType;
-    _applyFilters();
-    notifyListeners();
+    refreshLeaves(); // Reload with new filter
   }
 
   // Set department filter
   void setDepartmentFilter(String? department) {
     _selectedDepartment = department;
-    _applyFilters();
-    notifyListeners();
+    refreshLeaves(); // Reload with new filter
   }
 
   // Clear all filters
@@ -101,8 +146,7 @@ class LeaveProvider with ChangeNotifier {
     _selectedStatus = null;
     _selectedLeaveType = null;
     _selectedDepartment = null;
-    _applyFilters();
-    notifyListeners();
+    refreshLeaves(); // Reload without filters
   }
 
   // Review leave
@@ -114,7 +158,7 @@ class LeaveProvider with ChangeNotifier {
     try {
       final request = LeaveReviewRequest(status: status, reviewNote: note);
       await _leaveService.reviewLeave(leaveId, request);
-      await fetchAllLeaves(); // Refresh leaves list
+      await refreshLeaves(); // Refresh leaves list
       _isLoading = false;
       notifyListeners();
       return true;

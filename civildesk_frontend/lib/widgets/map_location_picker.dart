@@ -135,14 +135,6 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
     _mapController = controller;
   }
 
-  Future<void> _moveToCurrentLocation() async {
-    if (_selectedLocation != null && _mapController != null) {
-      await _mapController!.animateCamera(
-        CameraUpdate.newLatLngZoom(_selectedLocation!, 15.0),
-      );
-    }
-  }
-
   bool _isMobile(BuildContext context) {
     return MediaQuery.of(context).size.width < 768;
   }
@@ -210,7 +202,7 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
                     left: 16,
                     right: 16,
                     child: Card(
-                      color: Colors.white.withOpacity(0.95),
+                      color: Colors.white.withValues(alpha: 0.95),
                       child: Padding(
                         padding: const EdgeInsets.all(12),
                         child: Row(

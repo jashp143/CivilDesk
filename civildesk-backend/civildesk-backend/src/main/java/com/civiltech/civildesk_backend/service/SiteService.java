@@ -16,12 +16,14 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -70,7 +72,7 @@ public class SiteService {
         @CacheEvict(value = "site", key = "#id"),
         @CacheEvict(value = "sites", allEntries = true)
     })
-    public SiteResponse updateSite(Long id, SiteRequest request) {
+    public SiteResponse updateSite(@NonNull Long id, SiteRequest request) {
         Site site = siteRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Site not found with id: " + id));
 
@@ -83,13 +85,15 @@ public class SiteService {
         }
 
         updateSiteFromRequest(site, request);
-        site = siteRepository.save(site);
-        return SiteResponse.fromEntity(site);
+        // Spring Data JPA save() always returns a non-null entity
+        @SuppressWarnings("null")
+        Site savedSite = siteRepository.save(site);
+        return SiteResponse.fromEntity(savedSite);
     }
 
     @Transactional(readOnly = true)
     @Cacheable(value = "site", key = "#id")
-    public SiteResponse getSiteById(Long id) {
+    public SiteResponse getSiteById(@NonNull Long id) {
         Site site = siteRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Site not found with id: " + id));
         
@@ -111,20 +115,34 @@ public class SiteService {
         return response;
     }
 
+    @Transactional(readOnly = true)
     public Page<SiteResponse> getAllSites(Pageable pageable) {
-        return siteRepository.findAll(pageable).map(site -> {
+        // Use optimized query to fetch sites with employee counts in a single query
+        // This eliminates N+1 query problem
+        Page<Object[]> results = siteRepository.findAllWithEmployeeCounts(pageable);
+        
+        return results.map(result -> {
+            Site site = (Site) result[0];
+            Long employeeCount = (Long) result[1];
             SiteResponse response = SiteResponse.fromEntity(site);
-            response.setAssignedEmployeeCount(assignmentRepository.countActiveEmployeesBySiteId(site.getId()).intValue());
+            response.setAssignedEmployeeCount(employeeCount.intValue());
             return response;
         });
     }
 
+    @Transactional(readOnly = true)
     @Cacheable(value = "sites", key = "'active'")
     public List<SiteResponse> getActiveSites() {
-        return siteRepository.findByIsActiveTrue().stream()
-                .map(site -> {
+        // Use optimized query to fetch active sites with employee counts in a single query
+        // This eliminates N+1 query problem
+        List<Object[]> results = siteRepository.findActiveSitesWithEmployeeCounts();
+        
+        return results.stream()
+                .map(result -> {
+                    Site site = (Site) result[0];
+                    Long employeeCount = (Long) result[1];
                     SiteResponse response = SiteResponse.fromEntity(site);
-                    response.setAssignedEmployeeCount(assignmentRepository.countActiveEmployeesBySiteId(site.getId()).intValue());
+                    response.setAssignedEmployeeCount(employeeCount.intValue());
                     return response;
                 })
                 .collect(Collectors.toList());
@@ -139,7 +157,7 @@ public class SiteService {
         @CacheEvict(value = "site", key = "#id"),
         @CacheEvict(value = "sites", allEntries = true)
     })
-    public void deleteSite(Long id) {
+    public void deleteSite(@NonNull Long id) {
         Site site = siteRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Site not found with id: " + id));
         
@@ -152,10 +170,10 @@ public class SiteService {
 
     @Transactional
     public EmployeeSiteAssignmentResponse assignEmployeeToSite(EmployeeSiteAssignmentRequest request) {
-        Employee employee = employeeRepository.findById(request.getEmployeeId())
+        Employee employee = employeeRepository.findById(Objects.requireNonNull(request.getEmployeeId(), "Employee ID cannot be null"))
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + request.getEmployeeId()));
 
-        Site site = siteRepository.findById(request.getSiteId())
+        Site site = siteRepository.findById(Objects.requireNonNull(request.getSiteId(), "Site ID cannot be null"))
                 .orElseThrow(() -> new ResourceNotFoundException("Site not found with id: " + request.getSiteId()));
 
         LocalDate assignmentDate = request.getAssignmentDate() != null ? request.getAssignmentDate() : LocalDate.now();
@@ -206,7 +224,7 @@ public class SiteService {
     }
 
     @Transactional
-    public void removeEmployeeFromSite(Long assignmentId) {
+    public void removeEmployeeFromSite(@NonNull Long assignmentId) {
         EmployeeSiteAssignment assignment = assignmentRepository.findById(assignmentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Assignment not found with id: " + assignmentId));
 

@@ -1,7 +1,6 @@
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:intl/intl.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../models/site.dart';
@@ -34,7 +33,6 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
   bool _isFiltersExpanded = true;
   BitmapDescriptor? _customSiteMarker;
   final PageController _statsPageController = PageController();
-  int _currentStatsPage = 0;
   
   @override
   void dispose() {
@@ -222,15 +220,13 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
     final ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
     final Uint8List uint8List = byteData!.buffer.asUint8List();
 
-    return BitmapDescriptor.fromBytes(uint8List);
+    return BitmapDescriptor.bytes(uint8List);
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-
-    final isMobile = _isMobile(context);
     
     return AdminLayout(
       currentRoute: '/admin/gps-attendance-map',
@@ -265,8 +261,6 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
 
   Widget _buildContent(ColorScheme colorScheme) {
     final isMobile = _isMobile(context);
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
     
     if (isMobile) {
       return SingleChildScrollView(
@@ -330,13 +324,13 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
         borderRadius: BorderRadius.circular(12),
         side: isDark
             ? BorderSide(
-                color: colorScheme.outline.withOpacity(0.2),
+                color: colorScheme.outline.withValues(alpha: 0.2),
                 width: 1,
               )
             : BorderSide.none,
       ),
       color: isDark
-          ? colorScheme.surfaceVariant.withOpacity(0.3)
+          ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.3)
           : colorScheme.surface,
       child: Column(
         children: [
@@ -416,11 +410,11 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
               decoration: BoxDecoration(
                 border: Border.all(
                   color: isDark 
-                      ? colorScheme.outline.withOpacity(0.2)
-                      : colorScheme.outline.withOpacity(0.3),
+                      ? colorScheme.outline.withValues(alpha: 0.2)
+                      : colorScheme.outline.withValues(alpha: 0.3),
                 ),
                 borderRadius: BorderRadius.circular(10),
-                color: colorScheme.surfaceVariant.withOpacity(0.3),
+                color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
               ),
               child: Row(
                 children: [
@@ -453,7 +447,7 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
 
           // Site Filter
           DropdownButtonFormField<String>(
-            value: _selectedSiteFilter,
+            initialValue: _selectedSiteFilter,
             decoration: InputDecoration(
               prefixIcon: Icon(
                 Icons.business,
@@ -468,21 +462,21 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
               isDense: true,
               filled: true,
-              fillColor: colorScheme.surfaceVariant.withOpacity(0.3),
+              fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
                 borderSide: BorderSide(
                   color: isDark 
-                      ? colorScheme.outline.withOpacity(0.2)
-                      : colorScheme.outline.withOpacity(0.3),
+                      ? colorScheme.outline.withValues(alpha: 0.2)
+                      : colorScheme.outline.withValues(alpha: 0.3),
                 ),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
                 borderSide: BorderSide(
                   color: isDark 
-                      ? colorScheme.outline.withOpacity(0.2)
-                      : colorScheme.outline.withOpacity(0.3),
+                      ? colorScheme.outline.withValues(alpha: 0.2)
+                      : colorScheme.outline.withValues(alpha: 0.3),
                 ),
               ),
               focusedBorder: OutlineInputBorder(
@@ -530,7 +524,7 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
 
           // Employee Filter
           DropdownButtonFormField<String>(
-            value: _selectedEmployeeFilter,
+            initialValue: _selectedEmployeeFilter,
             decoration: InputDecoration(
               prefixIcon: Icon(
                 Icons.person,
@@ -545,21 +539,21 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
               isDense: true,
               filled: true,
-              fillColor: colorScheme.surfaceVariant.withOpacity(0.3),
+              fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
                 borderSide: BorderSide(
                   color: isDark 
-                      ? colorScheme.outline.withOpacity(0.2)
-                      : colorScheme.outline.withOpacity(0.3),
+                      ? colorScheme.outline.withValues(alpha: 0.2)
+                      : colorScheme.outline.withValues(alpha: 0.3),
                 ),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
                 borderSide: BorderSide(
                   color: isDark 
-                      ? colorScheme.outline.withOpacity(0.2)
-                      : colorScheme.outline.withOpacity(0.3),
+                      ? colorScheme.outline.withValues(alpha: 0.2)
+                      : colorScheme.outline.withValues(alpha: 0.3),
                 ),
               ),
               focusedBorder: OutlineInputBorder(
@@ -607,7 +601,7 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
 
           // Punch Type Filter
           DropdownButtonFormField<String>(
-            value: _selectedPunchTypeFilter,
+            initialValue: _selectedPunchTypeFilter,
             decoration: InputDecoration(
               prefixIcon: Icon(
                 Icons.access_time,
@@ -622,21 +616,21 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
               isDense: true,
               filled: true,
-              fillColor: colorScheme.surfaceVariant.withOpacity(0.3),
+              fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
                 borderSide: BorderSide(
                   color: isDark 
-                      ? colorScheme.outline.withOpacity(0.2)
-                      : colorScheme.outline.withOpacity(0.3),
+                      ? colorScheme.outline.withValues(alpha: 0.2)
+                      : colorScheme.outline.withValues(alpha: 0.3),
                 ),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
                 borderSide: BorderSide(
                   color: isDark 
-                      ? colorScheme.outline.withOpacity(0.2)
-                      : colorScheme.outline.withOpacity(0.3),
+                      ? colorScheme.outline.withValues(alpha: 0.2)
+                      : colorScheme.outline.withValues(alpha: 0.3),
                 ),
               ),
               focusedBorder: OutlineInputBorder(
@@ -694,12 +688,12 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             decoration: BoxDecoration(
               color: isDark
-                  ? colorScheme.surfaceVariant.withOpacity(0.3)
+                  ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.3)
                   : colorScheme.surface,
               borderRadius: BorderRadius.circular(12),
               border: Border(
                 bottom: BorderSide(
-                  color: colorScheme.outline.withOpacity(0.1),
+                  color: colorScheme.outline.withValues(alpha: 0.1),
                   width: 1,
                 ),
               ),
@@ -765,11 +759,11 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
             decoration: BoxDecoration(
               border: Border.all(
                 color: isDark 
-                    ? colorScheme.outline.withOpacity(0.3)
-                    : colorScheme.outline.withOpacity(0.5),
+                    ? colorScheme.outline.withValues(alpha: 0.3)
+                    : colorScheme.outline.withValues(alpha: 0.5),
               ),
               borderRadius: BorderRadius.circular(12),
-              color: colorScheme.surfaceVariant.withOpacity(0.3),
+              color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -802,7 +796,7 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
         Flexible(
           flex: 1,
           child: DropdownButtonFormField<String>(
-            value: _selectedSiteFilter,
+            initialValue: _selectedSiteFilter,
             decoration: InputDecoration(
               labelText: 'Filter by Site',
               labelStyle: TextStyle(
@@ -812,21 +806,21 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
               isDense: true,
               filled: true,
-              fillColor: colorScheme.surfaceVariant.withOpacity(0.3),
+              fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(
                   color: isDark 
-                      ? colorScheme.outline.withOpacity(0.3)
-                      : colorScheme.outline.withOpacity(0.5),
+                      ? colorScheme.outline.withValues(alpha: 0.3)
+                      : colorScheme.outline.withValues(alpha: 0.5),
                 ),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(
                   color: isDark 
-                      ? colorScheme.outline.withOpacity(0.3)
-                      : colorScheme.outline.withOpacity(0.5),
+                      ? colorScheme.outline.withValues(alpha: 0.3)
+                      : colorScheme.outline.withValues(alpha: 0.5),
                 ),
               ),
               constraints: const BoxConstraints(minHeight: 40),
@@ -862,7 +856,7 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
         Flexible(
           flex: 1,
           child: DropdownButtonFormField<String>(
-            value: _selectedEmployeeFilter,
+            initialValue: _selectedEmployeeFilter,
             decoration: InputDecoration(
               labelText: 'Filter by Employee',
               labelStyle: TextStyle(
@@ -872,21 +866,21 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
               isDense: true,
               filled: true,
-              fillColor: colorScheme.surfaceVariant.withOpacity(0.3),
+              fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(
                   color: isDark 
-                      ? colorScheme.outline.withOpacity(0.3)
-                      : colorScheme.outline.withOpacity(0.5),
+                      ? colorScheme.outline.withValues(alpha: 0.3)
+                      : colorScheme.outline.withValues(alpha: 0.5),
                 ),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(
                   color: isDark 
-                      ? colorScheme.outline.withOpacity(0.3)
-                      : colorScheme.outline.withOpacity(0.5),
+                      ? colorScheme.outline.withValues(alpha: 0.3)
+                      : colorScheme.outline.withValues(alpha: 0.5),
                 ),
               ),
               constraints: const BoxConstraints(minHeight: 40),
@@ -929,7 +923,7 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
         Flexible(
           flex: 1,
           child: DropdownButtonFormField<String>(
-            value: _selectedPunchTypeFilter,
+            initialValue: _selectedPunchTypeFilter,
             decoration: InputDecoration(
               labelText: 'Filter by Punch',
               labelStyle: TextStyle(
@@ -939,21 +933,21 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
               isDense: true,
               filled: true,
-              fillColor: colorScheme.surfaceVariant.withOpacity(0.3),
+              fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(
                   color: isDark 
-                      ? colorScheme.outline.withOpacity(0.3)
-                      : colorScheme.outline.withOpacity(0.5),
+                      ? colorScheme.outline.withValues(alpha: 0.3)
+                      : colorScheme.outline.withValues(alpha: 0.5),
                 ),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(
                   color: isDark 
-                      ? colorScheme.outline.withOpacity(0.3)
-                      : colorScheme.outline.withOpacity(0.5),
+                      ? colorScheme.outline.withValues(alpha: 0.3)
+                      : colorScheme.outline.withValues(alpha: 0.5),
                 ),
               ),
               constraints: const BoxConstraints(minHeight: 40),
@@ -986,9 +980,6 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
 
 
   Widget _buildMobileSummaryStats(ColorScheme colorScheme) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    
     final stats = [
       {
         'label': 'Total Punches',
@@ -1114,10 +1105,10 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
           height: 300,
           margin: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
-            color: colorScheme.surfaceVariant.withOpacity(0.3),
+            color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: colorScheme.outline.withOpacity(0.2),
+              color: colorScheme.outline.withValues(alpha: 0.2),
               width: 1,
             ),
           ),
@@ -1132,7 +1123,7 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
-                    color: colorScheme.surface.withOpacity(0.9),
+                    color: colorScheme.surface.withValues(alpha: 0.9),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
@@ -1204,7 +1195,7 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
             borderRadius: BorderRadius.circular(12),
             side: isDark
                 ? BorderSide(
-                    color: colorScheme.outline.withOpacity(0.2),
+                    color: colorScheme.outline.withValues(alpha: 0.2),
                     width: 1,
                   )
                 : BorderSide.none,
@@ -1216,8 +1207,8 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: isDark
-                      ? colorScheme.surfaceVariant.withOpacity(0.3)
-                      : colorScheme.surfaceVariant.withOpacity(0.5),
+                      ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.3)
+                      : colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                   borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(12),
                     topRight: Radius.circular(12),
@@ -1252,13 +1243,13 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
                             Container(
                               padding: const EdgeInsets.all(20),
                               decoration: BoxDecoration(
-                                color: colorScheme.surfaceVariant.withOpacity(0.3),
+                                color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                                 shape: BoxShape.circle,
                               ),
                               child: Icon(
                                 Icons.inbox_outlined,
                                 size: 48,
-                                color: colorScheme.onSurfaceVariant.withOpacity(0.5),
+                                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
                               ),
                             ),
                             const SizedBox(height: 20),
@@ -1278,7 +1269,7 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
                                   fontSize: 13,
-                                  color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+                                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                                 ),
                               ),
                             ),
@@ -1311,10 +1302,10 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
           child: Container(
             margin: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
-              color: colorScheme.surfaceVariant.withOpacity(0.3),
+              color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: colorScheme.outline.withOpacity(0.2),
+                color: colorScheme.outline.withValues(alpha: 0.2),
                 width: 1,
               ),
             ),
@@ -1329,7 +1320,7 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
-                      color: colorScheme.surface.withOpacity(0.9),
+                      color: colorScheme.surface.withValues(alpha: 0.9),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
@@ -1408,7 +1399,7 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
                   borderRadius: BorderRadius.circular(12),
                   side: isDark
                       ? BorderSide(
-                          color: colorScheme.outline.withOpacity(0.2),
+                          color: colorScheme.outline.withValues(alpha: 0.2),
                           width: 1,
                         )
                       : BorderSide.none,
@@ -1420,8 +1411,8 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
                         color: isDark
-                            ? colorScheme.surfaceVariant.withOpacity(0.3)
-                            : colorScheme.surfaceVariant.withOpacity(0.5),
+                            ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.3)
+                            : colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                     borderRadius: const BorderRadius.only(
                       topLeft: Radius.circular(12),
                       topRight: Radius.circular(12),
@@ -1455,7 +1446,7 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
                                   Icon(
                                     Icons.inbox,
                                     size: 48,
-                                    color: colorScheme.onSurfaceVariant.withOpacity(0.5),
+                                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
                                   ),
                                   const SizedBox(height: 12),
                                   Text(
@@ -1490,22 +1481,19 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
   }
 
   Widget _buildMapControlButton(IconData icon, VoidCallback onPressed, ColorScheme colorScheme) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    
     return Container(
       width: 40,
       height: 40,
       decoration: BoxDecoration(
-        color: colorScheme.surface.withOpacity(0.9),
+        color: colorScheme.surface.withValues(alpha: 0.9),
         shape: BoxShape.circle,
         border: Border.all(
-          color: colorScheme.outline.withOpacity(0.2),
+          color: colorScheme.outline.withValues(alpha: 0.2),
           width: 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -1534,12 +1522,12 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
       padding: EdgeInsets.all(isMobile ? 14 : 16),
       decoration: BoxDecoration(
         color: isDark 
-            ? color.withOpacity(0.15)
-            : color.withOpacity(0.08),
+            ? color.withValues(alpha: 0.15)
+            : color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(16),
         border: isDark
             ? Border.all(
-                color: colorScheme.outline.withOpacity(0.2),
+                color: colorScheme.outline.withValues(alpha: 0.2),
                 width: 1,
               )
             : null,
@@ -1593,7 +1581,7 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
         borderRadius: BorderRadius.circular(12),
         side: isDark
             ? BorderSide(
-                color: colorScheme.outline.withOpacity(0.1),
+                color: colorScheme.outline.withValues(alpha: 0.1),
                 width: 1,
               )
             : BorderSide.none,
@@ -1610,10 +1598,10 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
                 width: isMobile ? 48 : 56,
                 height: isMobile ? 48 : 56,
                 decoration: BoxDecoration(
-                  color: punchColor.withOpacity(isDark ? 0.2 : 0.15),
+                  color: punchColor.withValues(alpha: isDark ? 0.2 : 0.15),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: punchColor.withOpacity(0.3),
+                    color: punchColor.withValues(alpha: 0.3),
                     width: 1.5,
                   ),
                 ),
@@ -1652,10 +1640,10 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
                             margin: const EdgeInsets.only(left: 8),
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
-                              color: Colors.red.withOpacity(isDark ? 0.2 : 0.1),
+                              color: Colors.red.withValues(alpha: isDark ? 0.2 : 0.1),
                               borderRadius: BorderRadius.circular(6),
                               border: Border.all(
-                                color: Colors.red.withOpacity(0.3),
+                                color: Colors.red.withValues(alpha: 0.3),
                                 width: 1,
                               ),
                             ),
@@ -1684,10 +1672,10 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
                             margin: const EdgeInsets.only(left: 6),
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
-                              color: Colors.orange.withOpacity(isDark ? 0.2 : 0.1),
+                              color: Colors.orange.withValues(alpha: isDark ? 0.2 : 0.1),
                               borderRadius: BorderRadius.circular(6),
                               border: Border.all(
-                                color: Colors.orange.withOpacity(0.3),
+                                color: Colors.orange.withValues(alpha: 0.3),
                                 width: 1,
                               ),
                             ),
@@ -1721,7 +1709,7 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: punchColor.withOpacity(isDark ? 0.15 : 0.1),
+                            color: punchColor.withValues(alpha: isDark ? 0.15 : 0.1),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
@@ -1765,14 +1753,14 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
                           Icon(
                             Icons.straighten,
                             size: 14,
-                            color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+                            color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                           ),
                           const SizedBox(width: 4),
                           Text(
                             '${log.distanceFromSite!.toStringAsFixed(0)}m',
                             style: TextStyle(
                               fontSize: isMobile ? 11 : 12,
-                              color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+                              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -1780,14 +1768,14 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
                         Icon(
                           Icons.access_time,
                           size: 14,
-                          color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+                          color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                         ),
                         const SizedBox(width: 4),
                         Text(
                           DateFormat('HH:mm:ss').format(log.punchTime),
                           style: TextStyle(
                             fontSize: isMobile ? 11 : 12,
-                            color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+                            color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -1802,10 +1790,10 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
-                  color: colorScheme.surfaceVariant.withOpacity(0.5),
+                  color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
-                    color: colorScheme.outline.withOpacity(0.1),
+                    color: colorScheme.outline.withValues(alpha: 0.1),
                     width: 1,
                   ),
                 ),
@@ -1882,7 +1870,7 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: punchColor.withOpacity(isDark ? 0.2 : 0.15),
+                color: punchColor.withValues(alpha: isDark ? 0.2 : 0.15),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
@@ -2074,13 +2062,13 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: isActive
-            ? color.withOpacity(isDark ? 0.2 : 0.1)
-            : colorScheme.surfaceVariant.withOpacity(0.5),
+            ? color.withValues(alpha: isDark ? 0.2 : 0.1)
+            : colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: isActive
-              ? color.withOpacity(0.3)
-              : colorScheme.outline.withOpacity(0.2),
+              ? color.withValues(alpha: 0.3)
+              : colorScheme.outline.withValues(alpha: 0.2),
           width: 1,
         ),
       ),
@@ -2137,7 +2125,7 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: colorScheme.surfaceVariant.withOpacity(0.3),
+            color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Column(
@@ -2242,7 +2230,7 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
             Icon(
               Icons.map,
               size: 64,
-              color: colorScheme.onSurfaceVariant.withOpacity(0.6),
+              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
             ),
             const SizedBox(height: 16),
             Text(
@@ -2256,7 +2244,7 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
             Text(
               'No attendance logs or sites found for the selected date',
               style: TextStyle(
-                color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
               ),
               textAlign: TextAlign.center,
             ),
@@ -2266,7 +2254,7 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
     }
 
     // Calculate initial camera position
-    LatLng? initialPosition;
+    LatLng initialPosition;
     if (_filteredLogs.isNotEmpty) {
       final firstLog = _filteredLogs.first;
       initialPosition = LatLng(firstLog.latitude, firstLog.longitude);
@@ -2282,7 +2270,7 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
       children: [
         GoogleMap(
           initialCameraPosition: CameraPosition(
-            target: initialPosition!,
+            target: initialPosition,
             zoom: _filteredLogs.isEmpty ? 10.0 : 14.0,
           ),
           onMapCreated: (GoogleMapController controller) {
@@ -2322,7 +2310,7 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
         if (_mapError != null)
           Positioned.fill(
             child: Container(
-              color: Theme.of(context).colorScheme.surface.withOpacity(0.9),
+              color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.9),
               child: Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -2442,9 +2430,9 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
           circleId: CircleId('site_${site.id}'),
           center: LatLng(site.latitude, site.longitude),
           radius: site.geofenceRadiusMeters.toDouble(),
-          strokeColor: Colors.blue.withOpacity(0.5),
+          strokeColor: Colors.blue.withValues(alpha: 0.5),
           strokeWidth: 2,
-          fillColor: Colors.blue.withOpacity(0.1),
+          fillColor: Colors.blue.withValues(alpha: 0.1),
         ),
       );
     }
@@ -2570,7 +2558,6 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
 
   void _showFullScreenMap() {
     // Get current camera position from visible region
-    LatLng? initialPosition;
     double initialZoom = 14.0;
 
     if (_mapController != null) {
@@ -2599,7 +2586,9 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
           initialZoom = 14.0;
         }
 
-        Navigator.of(context).push(
+        if (!mounted) return;
+        final navigator = Navigator.of(context);
+        navigator.push(
           MaterialPageRoute(
             builder: (context) => _FullScreenMapView(
               attendanceLogs: _filteredLogs,
@@ -2850,9 +2839,9 @@ class _FullScreenMapViewState extends State<_FullScreenMapView> {
           circleId: CircleId('site_${site.id}'),
           center: LatLng(site.latitude, site.longitude),
           radius: site.geofenceRadiusMeters.toDouble(),
-          strokeColor: Colors.blue.withOpacity(0.5),
+          strokeColor: Colors.blue.withValues(alpha: 0.5),
           strokeWidth: 2,
-          fillColor: Colors.blue.withOpacity(0.1),
+          fillColor: Colors.blue.withValues(alpha: 0.1),
         ),
       );
     }
@@ -2970,13 +2959,13 @@ class _FullScreenMapViewState extends State<_FullScreenMapView> {
         borderRadius: BorderRadius.circular(12),
         side: isDark
             ? BorderSide(
-                color: colorScheme.outline.withOpacity(0.2),
+                color: colorScheme.outline.withValues(alpha: 0.2),
                 width: 1,
               )
             : BorderSide.none,
       ),
       color: isDark
-          ? colorScheme.surfaceVariant.withOpacity(0.3)
+          ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.3)
           : colorScheme.surface,
       margin: const EdgeInsets.all(16),
       child: Padding(
@@ -2995,11 +2984,11 @@ class _FullScreenMapViewState extends State<_FullScreenMapView> {
                 decoration: BoxDecoration(
                   border: Border.all(
                     color: isDark 
-                        ? colorScheme.outline.withOpacity(0.2)
-                        : colorScheme.outline.withOpacity(0.3),
+                        ? colorScheme.outline.withValues(alpha: 0.2)
+                        : colorScheme.outline.withValues(alpha: 0.3),
                   ),
                   borderRadius: BorderRadius.circular(10),
-                  color: colorScheme.surfaceVariant.withOpacity(0.3),
+                  color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                 ),
                 child: Row(
                   children: [
@@ -3032,7 +3021,7 @@ class _FullScreenMapViewState extends State<_FullScreenMapView> {
 
             // Site Filter
             DropdownButtonFormField<String>(
-              value: _selectedSiteFilter,
+              initialValue: _selectedSiteFilter,
               decoration: InputDecoration(
                 prefixIcon: Icon(
                   Icons.business,
@@ -3047,21 +3036,21 @@ class _FullScreenMapViewState extends State<_FullScreenMapView> {
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
                 isDense: true,
                 filled: true,
-                fillColor: colorScheme.surfaceVariant.withOpacity(0.3),
+                fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
                   borderSide: BorderSide(
                     color: isDark 
-                        ? colorScheme.outline.withOpacity(0.2)
-                        : colorScheme.outline.withOpacity(0.3),
+                        ? colorScheme.outline.withValues(alpha: 0.2)
+                        : colorScheme.outline.withValues(alpha: 0.3),
                   ),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
                   borderSide: BorderSide(
                     color: isDark 
-                        ? colorScheme.outline.withOpacity(0.2)
-                        : colorScheme.outline.withOpacity(0.3),
+                        ? colorScheme.outline.withValues(alpha: 0.2)
+                        : colorScheme.outline.withValues(alpha: 0.3),
                   ),
                 ),
                 focusedBorder: OutlineInputBorder(
@@ -3112,7 +3101,7 @@ class _FullScreenMapViewState extends State<_FullScreenMapView> {
 
             // Employee Filter
             DropdownButtonFormField<String>(
-              value: _selectedEmployeeFilter,
+              initialValue: _selectedEmployeeFilter,
               decoration: InputDecoration(
                 prefixIcon: Icon(
                   Icons.person,
@@ -3127,21 +3116,21 @@ class _FullScreenMapViewState extends State<_FullScreenMapView> {
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
                 isDense: true,
                 filled: true,
-                fillColor: colorScheme.surfaceVariant.withOpacity(0.3),
+                fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
                   borderSide: BorderSide(
                     color: isDark 
-                        ? colorScheme.outline.withOpacity(0.2)
-                        : colorScheme.outline.withOpacity(0.3),
+                        ? colorScheme.outline.withValues(alpha: 0.2)
+                        : colorScheme.outline.withValues(alpha: 0.3),
                   ),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
                   borderSide: BorderSide(
                     color: isDark 
-                        ? colorScheme.outline.withOpacity(0.2)
-                        : colorScheme.outline.withOpacity(0.3),
+                        ? colorScheme.outline.withValues(alpha: 0.2)
+                        : colorScheme.outline.withValues(alpha: 0.3),
                   ),
                 ),
                 focusedBorder: OutlineInputBorder(
@@ -3190,7 +3179,7 @@ class _FullScreenMapViewState extends State<_FullScreenMapView> {
 
             // Punch Type Filter
             DropdownButtonFormField<String>(
-              value: _selectedPunchTypeFilter,
+              initialValue: _selectedPunchTypeFilter,
               decoration: InputDecoration(
                 prefixIcon: Icon(
                   Icons.access_time,
@@ -3205,21 +3194,21 @@ class _FullScreenMapViewState extends State<_FullScreenMapView> {
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
                 isDense: true,
                 filled: true,
-                fillColor: colorScheme.surfaceVariant.withOpacity(0.3),
+                fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
                   borderSide: BorderSide(
                     color: isDark 
-                        ? colorScheme.outline.withOpacity(0.2)
-                        : colorScheme.outline.withOpacity(0.3),
+                        ? colorScheme.outline.withValues(alpha: 0.2)
+                        : colorScheme.outline.withValues(alpha: 0.3),
                   ),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
                   borderSide: BorderSide(
                     color: isDark 
-                        ? colorScheme.outline.withOpacity(0.2)
-                        : colorScheme.outline.withOpacity(0.3),
+                        ? colorScheme.outline.withValues(alpha: 0.2)
+                        : colorScheme.outline.withValues(alpha: 0.3),
                   ),
                 ),
                 focusedBorder: OutlineInputBorder(

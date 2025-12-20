@@ -1,7 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import '../../models/salary_slip.dart';
-import '../constants/app_constants.dart';
 import '../services/api_service.dart';
 
 class SalarySlipProvider extends ChangeNotifier {

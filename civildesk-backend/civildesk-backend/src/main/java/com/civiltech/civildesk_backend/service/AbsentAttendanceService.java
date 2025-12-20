@@ -250,6 +250,7 @@ public class AbsentAttendanceService {
 
     /**
      * Bulk mark absent for multiple employees on a specific date.
+     * Optimized with batch processing to avoid N+1 queries and improve performance.
      *
      * @param employeeIds List of employee IDs
      * @param date The date
@@ -257,17 +258,87 @@ public class AbsentAttendanceService {
      */
     @Transactional
     public int bulkMarkAbsent(List<String> employeeIds, LocalDate date) {
-        int count = 0;
-        for (String employeeId : employeeIds) {
-            try {
-                markEmployeeAbsent(employeeId, date);
-                count++;
-            } catch (Exception e) {
-                logger.error("Error marking absent for employee {} on date {}: {}", 
-                        employeeId, date, e.getMessage());
-            }
+        if (employeeIds == null || employeeIds.isEmpty()) {
+            logger.warn("Empty employee list provided for bulk mark absent");
+            return 0;
         }
-        return count;
+        
+        logger.info("Bulk marking absent for {} employees on date {}", employeeIds.size(), date);
+        
+        // Batch fetch all employees in a single query
+        List<Employee> employees = employeeRepository.findByEmployeeIds(employeeIds);
+        
+        if (employees.isEmpty()) {
+            logger.warn("No employees found for the provided employee IDs");
+            return 0;
+        }
+        
+        // Extract employee database IDs for batch attendance check
+        List<Long> employeeDbIds = employees.stream()
+                .map(Employee::getId)
+                .toList();
+        
+        // Batch fetch existing attendances in a single query
+        List<Attendance> existingAttendances = attendanceRepository
+                .findByEmployeeIdsAndDate(employeeDbIds, date);
+        
+        // Create a set of employee IDs that already have attendance records
+        java.util.Set<Long> employeesWithAttendance = existingAttendances.stream()
+                .map(a -> a.getEmployee().getId())
+                .collect(java.util.stream.Collectors.toSet());
+        
+        // Create attendance records in batches
+        List<Attendance> newAttendances = new java.util.ArrayList<>();
+        
+        for (Employee employee : employees) {
+            // Skip if attendance already exists
+            if (employeesWithAttendance.contains(employee.getId())) {
+                logger.debug("Skipping employee {} - attendance already exists", employee.getEmployeeId());
+                continue;
+            }
+            
+            // Check if employee is on approved leave
+            if (isEmployeeOnLeave(employee, date)) {
+                // Create ON_LEAVE attendance record
+                createLeaveAttendanceRecord(employee, date);
+                logger.debug("Created ON_LEAVE record for employee {} on {}", 
+                        employee.getEmployeeId(), date);
+                continue;
+            }
+            
+            // Create ABSENT attendance record
+            Attendance absentAttendance = new Attendance();
+            absentAttendance.setEmployee(employee);
+            absentAttendance.setDate(date);
+            absentAttendance.setStatus(Attendance.AttendanceStatus.ABSENT);
+            absentAttendance.setRecognitionMethod("MANUAL_BULK");
+            absentAttendance.setNotes("Bulk marked as absent by admin");
+            absentAttendance.setDeleted(false);
+            
+            newAttendances.add(absentAttendance);
+        }
+        
+        // Batch save attendance records
+        int batchSize = 50;
+        int savedCount = 0;
+        
+        for (int i = 0; i < newAttendances.size(); i += batchSize) {
+            int endIndex = Math.min(i + batchSize, newAttendances.size());
+            List<Attendance> batch = new java.util.ArrayList<>(
+                    newAttendances.subList(i, endIndex));
+            
+            attendanceRepository.saveAll(batch);
+            attendanceRepository.flush();
+            savedCount += batch.size();
+            
+            logger.debug("Saved batch of {} attendance records (total: {})", 
+                    batch.size(), savedCount);
+        }
+        
+        logger.info("Bulk mark absent completed. Created {} absent records for date {}", 
+                savedCount, date);
+        
+        return savedCount;
     }
 }
 

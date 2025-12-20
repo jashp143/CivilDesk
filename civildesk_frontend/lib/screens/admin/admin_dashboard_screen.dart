@@ -392,7 +392,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             Text(
               'Access all admin features',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
             ),
           ],
@@ -651,7 +651,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: theme.colorScheme.primary.withOpacity(isDark ? 0.2 : 0.1),
+                color: theme.colorScheme.primary.withValues(alpha: isDark ? 0.2 : 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
@@ -712,8 +712,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         borderRadius: BorderRadius.circular(14),
         side: BorderSide(
           color: isDark
-              ? theme.colorScheme.outline.withOpacity(0.1)
-              : theme.colorScheme.outline.withOpacity(0.05),
+              ? theme.colorScheme.outline.withValues(alpha: 0.1)
+              : theme.colorScheme.outline.withValues(alpha: 0.05),
           width: 1,
         ),
       ),
@@ -724,8 +724,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             Navigator.pushNamed(context, route);
           },
           borderRadius: BorderRadius.circular(14),
-          splashColor: color.withOpacity(0.1),
-          highlightColor: color.withOpacity(0.05),
+          splashColor: color.withValues(alpha: 0.1),
+          highlightColor: color.withValues(alpha: 0.05),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
             decoration: BoxDecoration(
@@ -741,8 +741,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
-                        color.withOpacity(isDark ? 0.25 : 0.15),
-                        color.withOpacity(isDark ? 0.15 : 0.08),
+                        color.withValues(alpha: isDark ? 0.25 : 0.15),
+                        color.withValues(alpha: isDark ? 0.15 : 0.08),
                       ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
@@ -750,7 +750,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
-                        color: color.withOpacity(0.15),
+                        color: color.withValues(alpha: 0.15),
                         blurRadius: 6,
                         offset: const Offset(0, 2),
                       ),
@@ -801,8 +801,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(
           color: isDark
-              ? theme.colorScheme.outline.withOpacity(0.2)
-              : theme.colorScheme.outline.withOpacity(0.1),
+              ? theme.colorScheme.outline.withValues(alpha: 0.2)
+              : theme.colorScheme.outline.withValues(alpha: 0.1),
           width: 1,
         ),
       ),
@@ -821,8 +821,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   ? null
                   : LinearGradient(
                       colors: [
-                        color.withOpacity(0.05),
-                        color.withOpacity(0.02),
+                        color.withValues(alpha: 0.05),
+                        color.withValues(alpha: 0.02),
                       ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
@@ -836,8 +836,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
-                        color.withOpacity(isDark ? 0.25 : 0.15),
-                        color.withOpacity(isDark ? 0.15 : 0.08),
+                        color.withValues(alpha: isDark ? 0.25 : 0.15),
+                        color.withValues(alpha: isDark ? 0.15 : 0.08),
                       ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
@@ -845,7 +845,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     borderRadius: BorderRadius.circular(14),
                     boxShadow: [
                       BoxShadow(
-                        color: color.withOpacity(0.2),
+                        color: color.withValues(alpha: 0.2),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
@@ -873,7 +873,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 Icon(
                   Icons.arrow_forward_ios_rounded,
                   size: 10,
-                  color: color.withOpacity(0.5),
+                  color: color.withValues(alpha: 0.5),
                 ),
               ],
             ),
@@ -893,10 +893,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     return shortestSide >= 600 && shortestSide < 1024;
   }
 
-  bool _isDesktop(BuildContext context) {
-    return MediaQuery.of(context).size.shortestSide >= 1024;
-  }
-
   double _getPadding(BuildContext context) {
     if (_isMobile(context)) return 12.0;
     if (_isTablet(context)) return 16.0;
@@ -913,18 +909,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     if (_isMobile(context)) return 20.0;
     if (_isTablet(context)) return 22.0;
     return 24.0;
-  }
-
-  double _getActionTitleFontSize(BuildContext context) {
-    if (_isMobile(context)) return 14.0;
-    if (_isTablet(context)) return 15.0;
-    return 16.0;
-  }
-
-  double _getIconSize(BuildContext context) {
-    if (_isMobile(context)) return 32.0;
-    if (_isTablet(context)) return 36.0;
-    return 40.0;
   }
 
   int _getCrossAxisCount(BuildContext context) {

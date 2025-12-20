@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../../models/holiday.dart';
-import '../constants/app_constants.dart';
 
 class HolidayProvider extends ChangeNotifier {
   final ApiService _apiService = ApiService();

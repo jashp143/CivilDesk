@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
@@ -119,7 +118,7 @@ class _AdminAttendanceMarkingScreenState
         _startDetection();
       }
     } catch (e) {
-      print('Error initializing camera: $e');
+      debugPrint('Error initializing camera: $e');
     }
   }
 
@@ -195,7 +194,7 @@ class _AdminAttendanceMarkingScreenState
 
       // Fetch employee details in background (non-blocking)
       if (detectedEmployeeId != null) {
-        _fetchEmployeeName(detectedEmployeeId!);
+        _fetchEmployeeName(detectedEmployeeId);
       }
 
       // Continue detection if no face recognized
@@ -203,7 +202,7 @@ class _AdminAttendanceMarkingScreenState
         _startDetection();
       }
     } catch (e) {
-      print('Error detecting faces: $e');
+      debugPrint('Error detecting faces: $e');
       setState(() {
         _isDetecting = false;
       });
@@ -220,7 +219,7 @@ class _AdminAttendanceMarkingScreenState
         });
       }
     } catch (e) {
-      print('Error fetching employee name: $e');
+      debugPrint('Error fetching employee name: $e');
       // Keep the employee ID as name if fetch fails
     }
   }
@@ -371,7 +370,7 @@ class _AdminAttendanceMarkingScreenState
                         ),
                       ),
                     );
-                  }).toList(),
+                  }),
 
                 // Employee info and attendance type selection
                 if (_detectedEmployeeId != null && _selectedAttendanceType == null)

@@ -52,7 +52,10 @@ public class EmployeeService {
     private static final String SPECIAL = "!@#$%&*";
     private static final String ALL_CHARS = UPPER + LOWER + DIGITS + SPECIAL;
 
-    @CacheEvict(value = "employees", allEntries = true)
+    @Caching(evict = {
+        @CacheEvict(value = "employees", allEntries = true),
+        @CacheEvict(value = "dashboard", allEntries = true)
+    })
     public EmployeeResponse createEmployee(EmployeeRequest request) {
         // Validate uniqueness
         validateUniqueness(request, null);
@@ -112,7 +115,8 @@ public class EmployeeService {
 
     @Caching(evict = {
         @CacheEvict(value = "employee", key = "#id"),
-        @CacheEvict(value = "employees", allEntries = true)
+        @CacheEvict(value = "employees", allEntries = true),
+        @CacheEvict(value = "dashboard", allEntries = true)
     })
     public EmployeeResponse updateEmployee(Long id, EmployeeRequest request) {
         Long employeeId = Objects.requireNonNull(id, "Employee ID cannot be null");
@@ -209,7 +213,8 @@ public class EmployeeService {
 
     @Caching(evict = {
         @CacheEvict(value = "employee", key = "#id"),
-        @CacheEvict(value = "employees", allEntries = true)
+        @CacheEvict(value = "employees", allEntries = true),
+        @CacheEvict(value = "dashboard", allEntries = true)
     })
     public void deleteEmployee(Long id) {
         Long employeeId = Objects.requireNonNull(id, "Employee ID cannot be null");
@@ -253,7 +258,7 @@ public class EmployeeService {
 
         // If user doesn't exist, check if one exists with the same email
         if (user == null) {
-            user = userRepository.findByEmail(employee.getEmail()).orElse(null);
+            user = userRepository.findByEmailAndDeletedFalse(employee.getEmail()).orElse(null);
             
             // If no user exists with this email, create a new one
             if (user == null) {

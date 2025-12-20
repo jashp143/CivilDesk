@@ -395,7 +395,7 @@ class _EmployeeRegistrationDialogState extends State<EmployeeRegistrationDialog>
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: colorScheme.surfaceVariant,
+                color: colorScheme.surfaceContainerHighest,
                 borderRadius: const BorderRadius.only(
                   bottomLeft: Radius.circular(16),
                   bottomRight: Radius.circular(16),
@@ -468,7 +468,7 @@ class _EmployeeRegistrationDialogState extends State<EmployeeRegistrationDialog>
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<Gender>(
-              value: _gender,
+              initialValue: _gender,
               decoration: const InputDecoration(labelText: 'Gender *'),
               items: Gender.values.map((g) {
                 return DropdownMenuItem(
@@ -480,7 +480,7 @@ class _EmployeeRegistrationDialogState extends State<EmployeeRegistrationDialog>
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<MaritalStatus>(
-              value: _maritalStatus,
+              initialValue: _maritalStatus,
               decoration: const InputDecoration(labelText: 'Marital Status *'),
               items: MaritalStatus.values.map((m) {
                 return DropdownMenuItem(
@@ -638,7 +638,7 @@ class _EmployeeRegistrationDialogState extends State<EmployeeRegistrationDialog>
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<EmploymentType>(
-              value: _employmentType,
+              initialValue: _employmentType,
               decoration: const InputDecoration(labelText: 'Employment Type *'),
               items: EmploymentType.values.map((t) {
                 return DropdownMenuItem(
@@ -681,47 +681,55 @@ class _EmployeeRegistrationDialogState extends State<EmployeeRegistrationDialog>
   Widget _buildAttendanceMethodSelector() {
     return Column(
       children: [
-        RadioListTile<AttendanceMethod>(
-          value: AttendanceMethod.faceRecognition,
+        RadioGroup<AttendanceMethod>(
           groupValue: _attendanceMethod,
-          onChanged: (value) => setState(() => _attendanceMethod = value!),
-          title: const Text('Face Recognition'),
-          subtitle: const Text('Employee marks attendance via face recognition at office/site terminal'),
-          secondary: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppTheme.statBlue.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(Icons.face, color: AppTheme.statBlue),
-          ),
-        ),
-        const SizedBox(height: 8),
-        RadioListTile<AttendanceMethod>(
-          value: AttendanceMethod.gpsBased,
-          groupValue: _attendanceMethod,
-          onChanged: (value) => setState(() => _attendanceMethod = value!),
-          title: const Text('GPS Based (Field Employee)'),
-          subtitle: const Text('Employee marks attendance from mobile app with GPS location verification'),
-          secondary: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppTheme.statusApproved.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(Icons.location_on, color: AppTheme.statusApproved),
+          onChanged: (AttendanceMethod? value) {
+            if (value != null) {
+              setState(() => _attendanceMethod = value);
+            }
+          },
+          child: Column(
+            children: [
+              RadioListTile<AttendanceMethod>(
+                value: AttendanceMethod.faceRecognition,
+                title: const Text('Face Recognition'),
+                subtitle: const Text('Employee marks attendance via face recognition at office/site terminal'),
+                secondary: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.statBlue.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(Icons.face, color: AppTheme.statBlue),
+                ),
+              ),
+              const SizedBox(height: 8),
+              RadioListTile<AttendanceMethod>(
+                value: AttendanceMethod.gpsBased,
+                title: const Text('GPS Based (Field Employee)'),
+                subtitle: const Text('Employee marks attendance from mobile app with GPS location verification'),
+                secondary: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.statusApproved.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(Icons.location_on, color: AppTheme.statusApproved),
+                ),
+              ),
+            ],
           ),
         ),
         if (_attendanceMethod == AttendanceMethod.gpsBased) ...[
           const SizedBox(height: 16),
           Card(
-            color: AppTheme.statusPending.withOpacity(0.1),
+            color: AppTheme.statusPending.withValues(alpha: 0.1),
             child: Padding(
               padding: const EdgeInsets.all(12),
               child: Row(
                 children: [
                   Icon(Icons.info_outline, color: AppTheme.statusPending),
-                  SizedBox(width: 12),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       'After registration, assign construction sites to this employee for GPS-based attendance validation.',

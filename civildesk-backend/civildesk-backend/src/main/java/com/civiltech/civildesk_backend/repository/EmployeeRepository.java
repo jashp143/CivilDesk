@@ -88,5 +88,28 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
            "WHERE e.deleted = false AND e.employeeId LIKE 'CTS-EMP-%' " +
            "ORDER BY e.employeeId DESC")
     List<String> findEmployeeIdsWithPattern(org.springframework.data.domain.Pageable pageable);
+    
+    // Aggregation queries for dashboard optimization
+    @Query("SELECT COUNT(e) FROM Employee e WHERE e.deleted = false AND e.employmentType = :type")
+    long countByEmploymentTypeAndDeletedFalse(@Param("type") Employee.EmploymentType type);
+    
+    @Query("SELECT e.department, COUNT(e) FROM Employee e " +
+           "WHERE e.deleted = false AND e.department IS NOT NULL AND e.department != '' " +
+           "GROUP BY e.department")
+    List<Object[]> getDepartmentCounts();
+    
+    @Query("SELECT COUNT(e) FROM Employee e " +
+           "WHERE e.deleted = false AND e.createdAt >= :startDate")
+    long countNewEmployeesSince(@Param("startDate") java.time.LocalDateTime startDate);
+    
+    /**
+     * Batch query to find employees by their employee IDs (string IDs).
+     * Used for bulk operations to avoid N+1 queries.
+     * 
+     * @param employeeIds List of employee IDs (string)
+     * @return List of employees
+     */
+    @Query("SELECT e FROM Employee e WHERE e.employeeId IN :employeeIds AND e.deleted = false")
+    List<Employee> findByEmployeeIds(@Param("employeeIds") List<String> employeeIds);
 }
 

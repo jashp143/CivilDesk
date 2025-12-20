@@ -15,12 +15,17 @@ import com.civiltech.civildesk_backend.repository.TaskAssignmentRepository;
 import com.civiltech.civildesk_backend.repository.TaskRepository;
 import com.civiltech.civildesk_backend.security.SecurityUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -37,6 +42,7 @@ public class TaskService {
     private EmployeeRepository employeeRepository;
 
     // Assign task to employees (Admin/HR only)
+    @CacheEvict(value = "tasks", allEntries = true)
     public TaskResponse assignTask(TaskRequest request) {
         User currentUser = SecurityUtils.getCurrentUser();
 
@@ -51,7 +57,7 @@ public class TaskService {
         // Validate employees exist
         List<Employee> employees = new ArrayList<>();
         for (Long employeeId : request.getEmployeeIds()) {
-            Employee employee = employeeRepository.findById(employeeId)
+            Employee employee = employeeRepository.findById(Objects.requireNonNull(employeeId, "Employee ID cannot be null"))
                     .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + employeeId));
             if (employee.getDeleted() != null && employee.getDeleted()) {
                 throw new BadRequestException("Employee with id " + employeeId + " is deleted");
@@ -83,7 +89,11 @@ public class TaskService {
     }
 
     // Update task (Admin/HR only, only if status is PENDING)
-    public TaskResponse updateTask(Long taskId, TaskRequest request) {
+    @Caching(evict = {
+        @CacheEvict(value = "tasks", key = "#taskId"),
+        @CacheEvict(value = "tasks", allEntries = true)
+    })
+    public TaskResponse updateTask(@NonNull Long taskId, TaskRequest request) {
         User currentUser = SecurityUtils.getCurrentUser();
 
         // Check if user has admin or HR role
@@ -124,7 +134,7 @@ public class TaskService {
 
         // Create new assignments
         for (Long employeeId : request.getEmployeeIds()) {
-            Employee employee = employeeRepository.findById(employeeId)
+            Employee employee = employeeRepository.findById(Objects.requireNonNull(employeeId, "Employee ID cannot be null"))
                     .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + employeeId));
             
             // Check if assignment already exists (not deleted)
@@ -149,7 +159,11 @@ public class TaskService {
     }
 
     // Delete task (Admin/HR only, only if status is PENDING)
-    public void deleteTask(Long taskId) {
+    @Caching(evict = {
+        @CacheEvict(value = "tasks", key = "#taskId"),
+        @CacheEvict(value = "tasks", allEntries = true)
+    })
+    public void deleteTask(@NonNull Long taskId) {
         User currentUser = SecurityUtils.getCurrentUser();
 
         // Check if user has admin or HR role
@@ -183,6 +197,8 @@ public class TaskService {
     }
 
     // Get all tasks assigned to current employee
+    @Cacheable(value = "tasks", key = "'my-tasks:' + T(com.civiltech.civildesk_backend.security.SecurityUtils).getCurrentUserId()")
+    @Transactional(readOnly = true)
     public List<TaskResponse> getMyTasks() {
         User currentUser = SecurityUtils.getCurrentUser();
 
@@ -197,6 +213,8 @@ public class TaskService {
     }
 
     // Get tasks by status for current employee
+    @Cacheable(value = "tasks", key = "'my-tasks-status:' + T(com.civiltech.civildesk_backend.security.SecurityUtils).getCurrentUserId() + ':' + #status")
+    @Transactional(readOnly = true)
     public List<TaskResponse> getMyTasksByStatus(Task.TaskStatus status) {
         User currentUser = SecurityUtils.getCurrentUser();
 
@@ -211,6 +229,8 @@ public class TaskService {
     }
 
     // Get all tasks (Admin/HR only) - shows all tasks assigned to all employees
+    @Cacheable(value = "tasks", key = "'all-tasks'")
+    @Transactional(readOnly = true)
     public List<TaskResponse> getAllTasks() {
         User currentUser = SecurityUtils.getCurrentUser();
 
@@ -221,12 +241,22 @@ public class TaskService {
 
         List<Task> tasks = taskRepository.findByDeletedFalseOrderByCreatedAtDesc();
 
+        // Batch fetch all assignments to avoid N+1 queries
+        List<Long> taskIds = tasks.stream().map(Task::getId).toList();
+        List<TaskAssignment> allAssignments = taskAssignmentRepository.findByTaskIds(taskIds);
+        
+        // Create a map of task ID to assignments for efficient lookup
+        java.util.Map<Long, List<TaskAssignment>> assignmentsByTaskId = allAssignments.stream()
+                .collect(Collectors.groupingBy(ta -> ta.getTask().getId()));
+
         return tasks.stream()
-                .map(this::convertToResponse)
+                .map(task -> convertToResponseWithAssignments(task, assignmentsByTaskId.getOrDefault(task.getId(), new ArrayList<>())))
                 .collect(Collectors.toList());
     }
 
     // Get tasks by status (Admin/HR only)
+    @Cacheable(value = "tasks", key = "'tasks-status:' + #status")
+    @Transactional(readOnly = true)
     public List<TaskResponse> getTasksByStatus(Task.TaskStatus status) {
         User currentUser = SecurityUtils.getCurrentUser();
 
@@ -237,13 +267,23 @@ public class TaskService {
 
         List<Task> tasks = taskRepository.findByStatusAndDeletedFalse(status);
 
+        // Batch fetch all assignments to avoid N+1 queries
+        List<Long> taskIds = tasks.stream().map(Task::getId).toList();
+        List<TaskAssignment> allAssignments = taskAssignmentRepository.findByTaskIds(taskIds);
+        
+        // Create a map of task ID to assignments for efficient lookup
+        java.util.Map<Long, List<TaskAssignment>> assignmentsByTaskId = allAssignments.stream()
+                .collect(Collectors.groupingBy(ta -> ta.getTask().getId()));
+
         return tasks.stream()
-                .map(this::convertToResponse)
+                .map(task -> convertToResponseWithAssignments(task, assignmentsByTaskId.getOrDefault(task.getId(), new ArrayList<>())))
                 .collect(Collectors.toList());
     }
 
     // Get task by ID
-    public TaskResponse getTaskById(Long taskId) {
+    @Cacheable(value = "tasks", key = "#taskId")
+    @Transactional(readOnly = true)
+    public TaskResponse getTaskById(@NonNull Long taskId) {
         User currentUser = SecurityUtils.getCurrentUser();
 
         Task task = taskRepository.findById(taskId)
@@ -268,7 +308,11 @@ public class TaskService {
     }
 
     // Review task (Approve/Reject) - Employee only
-    public TaskResponse reviewTask(Long taskId, TaskReviewRequest request) {
+    @Caching(evict = {
+        @CacheEvict(value = "tasks", key = "#taskId"),
+        @CacheEvict(value = "tasks", allEntries = true)
+    })
+    public TaskResponse reviewTask(@NonNull Long taskId, TaskReviewRequest request) {
         User currentUser = SecurityUtils.getCurrentUser();
 
         if (currentUser.getRole() != User.Role.EMPLOYEE) {
@@ -320,6 +364,14 @@ public class TaskService {
 
     // Helper method to convert Task entity to TaskResponse
     private TaskResponse convertToResponse(Task task) {
+        // Fetch assignments for this single task (used when converting individual tasks)
+        List<TaskAssignment> assignments = taskAssignmentRepository.findByTaskIdAndDeletedFalse(task.getId());
+        return convertToResponseWithAssignments(task, assignments);
+    }
+    
+    // Helper method to convert Task entity to TaskResponse with pre-fetched assignments
+    // This avoids N+1 queries when converting multiple tasks
+    private TaskResponse convertToResponseWithAssignments(Task task, List<TaskAssignment> assignments) {
         TaskResponse response = new TaskResponse();
         response.setId(task.getId());
         response.setStartDate(task.getStartDate());
@@ -345,8 +397,7 @@ public class TaskService {
             response.setAssignedBy(assignedByInfo);
         }
 
-        // Set assigned employees
-        List<TaskAssignment> assignments = taskAssignmentRepository.findByTaskIdAndDeletedFalse(task.getId());
+        // Set assigned employees using pre-fetched assignments
         List<TaskResponse.AssignedEmployeeInfo> assignedEmployees = new ArrayList<>();
         for (TaskAssignment assignment : assignments) {
             Employee emp = assignment.getEmployee();

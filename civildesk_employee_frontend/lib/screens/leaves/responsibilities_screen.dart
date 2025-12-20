@@ -5,7 +5,7 @@ import '../../core/providers/leave_provider.dart';
 import '../../models/leave.dart';
 
 class ResponsibilitiesScreen extends StatefulWidget {
-  const ResponsibilitiesScreen({Key? key}) : super(key: key);
+  const ResponsibilitiesScreen({super.key});
 
   @override
   State<ResponsibilitiesScreen> createState() => _ResponsibilitiesScreenState();
@@ -215,7 +215,7 @@ class _ResponsibilitiesScreenState extends State<ResponsibilitiesScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        color: Colors.green.withOpacity(0.2),
+                        color: Colors.green.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: const Row(
@@ -267,7 +267,7 @@ class _ResponsibilitiesScreenState extends State<ResponsibilitiesScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
-                      color: Colors.blue.withOpacity(0.1),
+                      color: Colors.blue.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
@@ -298,7 +298,7 @@ class _ResponsibilitiesScreenState extends State<ResponsibilitiesScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.grey.withOpacity(0.1),
+                  color: Colors.grey.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(

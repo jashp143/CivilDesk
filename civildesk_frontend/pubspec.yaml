@@ -40,6 +40,7 @@ dependencies:
   
   # HTTP Client
   dio: ^5.4.1
+  http: ^1.2.0
   
   # Local Storage
   shared_preferences: ^2.2.3

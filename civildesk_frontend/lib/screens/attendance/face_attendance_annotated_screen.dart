@@ -6,7 +6,7 @@ import '../../core/services/face_recognition_service.dart';
 import '../../models/face_recognition.dart';
 
 class FaceAttendanceAnnotatedScreen extends StatefulWidget {
-  const FaceAttendanceAnnotatedScreen({Key? key}) : super(key: key);
+  const FaceAttendanceAnnotatedScreen({super.key});
 
   @override
   State<FaceAttendanceAnnotatedScreen> createState() => _FaceAttendanceAnnotatedScreenState();
@@ -48,7 +48,7 @@ class _FaceAttendanceAnnotatedScreenState extends State<FaceAttendanceAnnotatedS
         _startDetection();
       }
     } catch (e) {
-      print('Error initializing camera: $e');
+      debugPrint('Error initializing camera: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -103,21 +103,21 @@ class _FaceAttendanceAnnotatedScreenState extends State<FaceAttendanceAnnotatedS
         }
         
         // Enhanced console logging
-        print('\n${'='*80}');
-        print('🔍 FACE DETECTION RESULT (FRONTEND):');
-        print('   Total faces detected: ${faces.length}');
+        debugPrint('\n${'='*80}');
+        debugPrint('🔍 FACE DETECTION RESULT (FRONTEND):');
+        debugPrint('   Total faces detected: ${faces.length}');
         
         for (var i = 0; i < faces.length; i++) {
           final face = faces[i];
           if (face.recognized) {
-            print('   ✅ Face #${i+1}: ${face.firstName}_${face.lastName}');
-            print('      🆔 Employee ID: ${face.employeeId}');
-            print('      📊 Confidence: ${(face.matchConfidence * 100).toStringAsFixed(1)}%');
+            debugPrint('   ✅ Face #${i+1}: ${face.firstName}_${face.lastName}');
+            debugPrint('      🆔 Employee ID: ${face.employeeId}');
+            debugPrint('      📊 Confidence: ${(face.matchConfidence * 100).toStringAsFixed(1)}%');
           } else {
-            print('   ⚠️  Face #${i+1}: Unknown');
+            debugPrint('   ⚠️  Face #${i+1}: Unknown');
           }
         }
-        print('='*80 + '\n');
+        debugPrint('='*80 + '\n');
         
         setState(() {
           _annotatedImageBytes = annotatedImageBytes;
@@ -129,7 +129,7 @@ class _FaceAttendanceAnnotatedScreenState extends State<FaceAttendanceAnnotatedS
       // Continue detection loop
       _startDetection();
     } catch (e) {
-      print('\n❌ ERROR DETECTING FACES: $e\n');
+      debugPrint('\n❌ ERROR DETECTING FACES: $e\n');
       if (mounted) {
         setState(() {
           _isDetecting = false;
@@ -160,16 +160,16 @@ class _FaceAttendanceAnnotatedScreenState extends State<FaceAttendanceAnnotatedS
       if (mounted) {
         if (response['success'] == true) {
           // Enhanced console logging for attendance marking
-          print('\n${'🎯'*40}');
-          print('✅ ATTENDANCE MARKED SUCCESSFULLY (FRONTEND):');
-          print('   👤 Name: ${face.firstName}_${face.lastName}');
-          print('   🆔 Employee ID: ${face.employeeId}');
-          print('   ⏰ Punch Type: ${punchType.toUpperCase().replaceAll('_', ' ')}');
-          print('   📊 Confidence: ${(face.matchConfidence * 100).toStringAsFixed(1)}%');
+          debugPrint('\n${'🎯'*40}');
+          debugPrint('✅ ATTENDANCE MARKED SUCCESSFULLY (FRONTEND):');
+          debugPrint('   👤 Name: ${face.firstName}_${face.lastName}');
+          debugPrint('   🆔 Employee ID: ${face.employeeId}');
+          debugPrint('   ⏰ Punch Type: ${punchType.toUpperCase().replaceAll('_', ' ')}');
+          debugPrint('   📊 Confidence: ${(face.matchConfidence * 100).toStringAsFixed(1)}%');
           if (response['attendance_id'] != null) {
-            print('   🔖 Attendance ID: ${response['attendance_id']}');
+            debugPrint('   🔖 Attendance ID: ${response['attendance_id']}');
           }
-          print('${'🎯'*40}\n');
+          debugPrint('${'🎯'*40}\n');
           
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -185,7 +185,7 @@ class _FaceAttendanceAnnotatedScreenState extends State<FaceAttendanceAnnotatedS
             _selectedFace = null;
           });
         } else {
-          print('\n❌ ATTENDANCE MARKING FAILED: ${response['message'] ?? 'Unknown error'}\n');
+          debugPrint('\n❌ ATTENDANCE MARKING FAILED: ${response['message'] ?? 'Unknown error'}\n');
           
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -196,7 +196,7 @@ class _FaceAttendanceAnnotatedScreenState extends State<FaceAttendanceAnnotatedS
         }
       }
     } catch (e) {
-      print('\n❌ ERROR MARKING ATTENDANCE: $e\n');
+      debugPrint('\n❌ ERROR MARKING ATTENDANCE: $e\n');
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -375,8 +375,8 @@ class _FaceAttendanceAnnotatedScreenState extends State<FaceAttendanceAnnotatedS
                     end: Alignment.bottomCenter,
                     colors: [
                       Colors.transparent,
-                      Colors.black.withOpacity(0.7),
-                      Colors.black.withOpacity(0.9),
+                      Colors.black.withValues(alpha: 0.7),
+                      Colors.black.withValues(alpha: 0.9),
                     ],
                   ),
                 ),
@@ -469,7 +469,7 @@ class _FaceAttendanceAnnotatedScreenState extends State<FaceAttendanceAnnotatedS
               child: Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.7),
+                  color: Colors.black.withValues(alpha: 0.7),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Column(

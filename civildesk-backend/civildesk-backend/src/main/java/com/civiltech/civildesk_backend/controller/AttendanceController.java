@@ -10,9 +10,14 @@ import com.civiltech.civildesk_backend.service.AbsentAttendanceService;
 import com.civiltech.civildesk_backend.service.AttendanceService;
 import com.civiltech.civildesk_backend.service.FaceRecognitionService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.lang.NonNull;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -137,10 +142,14 @@ public class AttendanceController {
 
     @GetMapping("/employee/{employeeId}")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<List<AttendanceResponse>>> getEmployeeAttendance(
+    public ResponseEntity<ApiResponse<?>> getEmployeeAttendance(
             @PathVariable String employeeId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "date") String sortBy,
+            @RequestParam(defaultValue = "DESC") String sortDir) {
         try {
             if (startDate == null) {
                 startDate = LocalDate.now().minusMonths(1);
@@ -149,10 +158,22 @@ public class AttendanceController {
                 endDate = LocalDate.now();
             }
             
-            List<AttendanceResponse> responses = attendanceService.getEmployeeAttendance(
-                    employeeId, startDate, endDate);
-            return ResponseEntity.ok(
-                    ApiResponse.success("Attendance records retrieved successfully", responses));
+            // Use pagination if page/size are provided (non-zero page or size != default)
+            if (page > 0 || size != 20) {
+                Sort sort = sortDir.equalsIgnoreCase("ASC") ? 
+                    Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
+                Pageable pageable = PageRequest.of(page, size, sort);
+                Page<AttendanceResponse> responses = attendanceService.getEmployeeAttendancePaginated(
+                        employeeId, startDate, endDate, pageable);
+                return ResponseEntity.ok(
+                        ApiResponse.success("Attendance records retrieved successfully", responses));
+            } else {
+                // Backward compatibility: return list if pagination not requested
+                List<AttendanceResponse> responses = attendanceService.getEmployeeAttendance(
+                        employeeId, startDate, endDate);
+                return ResponseEntity.ok(
+                        ApiResponse.success("Attendance records retrieved successfully", responses));
+            }
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Error retrieving attendance: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR.value()));
@@ -161,16 +182,31 @@ public class AttendanceController {
 
     @GetMapping("/daily")
     @PreAuthorize("hasRole('ADMIN') or hasRole('HR_MANAGER')")
-    public ResponseEntity<ApiResponse<List<AttendanceResponse>>> getDailyAttendance(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+    public ResponseEntity<ApiResponse<?>> getDailyAttendance(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "employee.firstName") String sortBy,
+            @RequestParam(defaultValue = "ASC") String sortDir) {
         try {
             if (date == null) {
                 date = LocalDate.now();
             }
             
-            List<AttendanceResponse> responses = attendanceService.getDailyAttendance(date);
-            return ResponseEntity.ok(
-                    ApiResponse.success("Daily attendance retrieved successfully", responses));
+            // Use pagination if page/size are provided (non-zero page or size != default)
+            if (page > 0 || size != 20) {
+                Sort sort = sortDir.equalsIgnoreCase("DESC") ? 
+                    Sort.by(sortBy).descending() : Sort.by(sortBy).ascending();
+                Pageable pageable = PageRequest.of(page, size, sort);
+                Page<AttendanceResponse> responses = attendanceService.getDailyAttendancePaginated(date, pageable);
+                return ResponseEntity.ok(
+                        ApiResponse.success("Daily attendance retrieved successfully", responses));
+            } else {
+                // Backward compatibility: return list if pagination not requested
+                List<AttendanceResponse> responses = attendanceService.getDailyAttendance(date);
+                return ResponseEntity.ok(
+                        ApiResponse.success("Daily attendance retrieved successfully", responses));
+            }
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Error retrieving daily attendance: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR.value()));
@@ -285,7 +321,7 @@ public class AttendanceController {
     @PutMapping("/update-punch-time")
     @PreAuthorize("hasRole('ADMIN') or hasRole('HR_MANAGER')")
     public ResponseEntity<ApiResponse<AttendanceResponse>> updatePunchTime(
-            @RequestParam("attendance_id") Long attendanceId,
+            @RequestParam("attendance_id") @NonNull Long attendanceId,
             @RequestParam("punch_type") String punchType,
             @RequestParam("new_time") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime newTime) {
         try {

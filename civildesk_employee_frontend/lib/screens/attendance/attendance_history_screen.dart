@@ -235,7 +235,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
 
     return Chip(
       label: Text(label),
-      backgroundColor: color.withOpacity(0.2),
+      backgroundColor: color.withValues(alpha: 0.2),
       labelStyle: TextStyle(color: color, fontWeight: FontWeight.bold),
       padding: EdgeInsets.zero,
     );

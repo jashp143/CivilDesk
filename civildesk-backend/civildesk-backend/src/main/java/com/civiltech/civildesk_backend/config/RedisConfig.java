@@ -10,8 +10,13 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.CachingConfigurer;
 import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.cache.interceptor.CacheErrorHandler;
+import org.springframework.cache.interceptor.SimpleCacheErrorHandler;
 import org.springframework.cache.support.SimpleCacheManager;
+import org.springframework.lang.NonNull;
+import org.springframework.lang.Nullable;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -27,6 +32,7 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Objects;
 
 /**
  * Redis Cache Configuration - Phase 2 Optimization
@@ -38,7 +44,7 @@ import java.util.Arrays;
  */
 @Configuration
 @EnableCaching
-public class RedisConfig {
+public class RedisConfig implements CachingConfigurer {
     
     private static final Logger logger = LoggerFactory.getLogger(RedisConfig.class);
     
@@ -62,7 +68,7 @@ public class RedisConfig {
     @ConditionalOnProperty(name = "app.redis.enabled", havingValue = "true", matchIfMissing = true)
     public RedisConnectionFactory redisConnectionFactory() {
         RedisStandaloneConfiguration config = new RedisStandaloneConfiguration();
-        config.setHostName(redisHost);
+        config.setHostName(Objects.requireNonNull(redisHost, "Redis host cannot be null"));
         config.setPort(redisPort);
         if (redisPassword != null && !redisPassword.isEmpty()) {
             config.setPassword(redisPassword);
@@ -79,6 +85,7 @@ public class RedisConfig {
      * Configure Jackson ObjectMapper with JSR310 module for Java 8 time types
      * and type information for proper deserialization
      */
+    @NonNull
     private ObjectMapper createObjectMapper() {
         ObjectMapper mapper = new ObjectMapper();
         mapper.registerModule(new JavaTimeModule());
@@ -99,7 +106,7 @@ public class RedisConfig {
      */
     @Bean
     @ConditionalOnProperty(name = "app.redis.enabled", havingValue = "true", matchIfMissing = true)
-    public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory connectionFactory) {
+    public RedisTemplate<String, Object> redisTemplate(@NonNull RedisConnectionFactory connectionFactory) {
         RedisTemplate<String, Object> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
         
@@ -121,14 +128,14 @@ public class RedisConfig {
     @Bean(name = "redisCacheManager")
     @Primary
     @ConditionalOnBean(RedisConnectionFactory.class)
-    public CacheManager redisCacheManager(RedisConnectionFactory connectionFactory) {
+    public CacheManager redisCacheManager(@NonNull RedisConnectionFactory connectionFactory) {
         logger.info("Using Redis cache manager");
         
         // Create serializer with proper ObjectMapper for Java 8 time types
         GenericJackson2JsonRedisSerializer serializer = new GenericJackson2JsonRedisSerializer(createObjectMapper());
         
         RedisCacheConfiguration defaultConfig = RedisCacheConfiguration.defaultCacheConfig()
-            .entryTtl(Duration.ofMinutes(30))
+            .entryTtl(Objects.requireNonNull(Duration.ofMinutes(30)))
             .serializeKeysWith(RedisSerializationContext.SerializationPair
                 .fromSerializer(new StringRedisSerializer()))
             .serializeValuesWith(RedisSerializationContext.SerializationPair
@@ -139,31 +146,31 @@ public class RedisConfig {
             .cacheDefaults(defaultConfig)
             // Employee cache: 30 minutes TTL
             .withCacheConfiguration("employees", 
-                defaultConfig.entryTtl(Duration.ofMinutes(30)))
+                defaultConfig.entryTtl(Objects.requireNonNull(Duration.ofMinutes(30))))
             // Single employee cache: 30 minutes TTL
             .withCacheConfiguration("employee", 
-                defaultConfig.entryTtl(Duration.ofMinutes(30)))
+                defaultConfig.entryTtl(Objects.requireNonNull(Duration.ofMinutes(30))))
             // Sites cache: 1 hour TTL (rarely changes)
             .withCacheConfiguration("sites", 
-                defaultConfig.entryTtl(Duration.ofHours(1)))
+                defaultConfig.entryTtl(Objects.requireNonNull(Duration.ofHours(1))))
             // Single site cache: 1 hour TTL
             .withCacheConfiguration("site", 
-                defaultConfig.entryTtl(Duration.ofHours(1)))
+                defaultConfig.entryTtl(Objects.requireNonNull(Duration.ofHours(1))))
             // Holidays cache: 24 hours TTL (very rarely changes)
             .withCacheConfiguration("holidays", 
-                defaultConfig.entryTtl(Duration.ofHours(24)))
+                defaultConfig.entryTtl(Objects.requireNonNull(Duration.ofHours(24))))
             // Dashboard stats cache: 5 minutes TTL (frequently updated)
             .withCacheConfiguration("dashboard", 
-                defaultConfig.entryTtl(Duration.ofMinutes(5)))
+                defaultConfig.entryTtl(Objects.requireNonNull(Duration.ofMinutes(5))))
             // Attendance cache: 10 minutes TTL
             .withCacheConfiguration("attendance", 
-                defaultConfig.entryTtl(Duration.ofMinutes(10)))
+                defaultConfig.entryTtl(Objects.requireNonNull(Duration.ofMinutes(10))))
             // Tasks cache: 15 minutes TTL
             .withCacheConfiguration("tasks", 
-                defaultConfig.entryTtl(Duration.ofMinutes(15)))
+                defaultConfig.entryTtl(Objects.requireNonNull(Duration.ofMinutes(15))))
             // Leave types cache: 1 hour TTL
             .withCacheConfiguration("leaveTypes", 
-                defaultConfig.entryTtl(Duration.ofHours(1)))
+                defaultConfig.entryTtl(Objects.requireNonNull(Duration.ofHours(1))))
             .build();
     }
     
@@ -183,7 +190,7 @@ public class RedisConfig {
     private CacheManager createSimpleCacheManager() {
         logger.info("Using in-memory cache (Redis is not available or disabled)");
         SimpleCacheManager cacheManager = new SimpleCacheManager();
-        cacheManager.setCaches(Arrays.asList(
+        cacheManager.setCaches(Objects.requireNonNull(Arrays.asList(
             new org.springframework.cache.concurrent.ConcurrentMapCache("employees"),
             new org.springframework.cache.concurrent.ConcurrentMapCache("employee"),
             new org.springframework.cache.concurrent.ConcurrentMapCache("sites"),
@@ -193,9 +200,48 @@ public class RedisConfig {
             new org.springframework.cache.concurrent.ConcurrentMapCache("attendance"),
             new org.springframework.cache.concurrent.ConcurrentMapCache("tasks"),
             new org.springframework.cache.concurrent.ConcurrentMapCache("leaveTypes")
-        ));
+        )));
         cacheManager.afterPropertiesSet();
         return cacheManager;
+    }
+    
+    /**
+     * Cache error handler to gracefully handle Redis connection failures
+     * When Redis is unavailable, cache operations will fail silently and
+     * the application will continue to work by querying the database directly
+     */
+    @Bean
+    @Override
+    public CacheErrorHandler errorHandler() {
+        return new SimpleCacheErrorHandler() {
+            @Override
+            public void handleCacheGetError(@NonNull RuntimeException exception, @NonNull org.springframework.cache.Cache cache, @NonNull Object key) {
+                logger.warn("Cache get error for key '{}' in cache '{}': {}. Falling back to database query.", 
+                    key, cache.getName(), exception.getMessage());
+                // Don't throw exception - allow method to proceed and query database
+            }
+            
+            @Override
+            public void handleCachePutError(@NonNull RuntimeException exception, @NonNull org.springframework.cache.Cache cache, @NonNull Object key, @Nullable Object value) {
+                logger.warn("Cache put error for key '{}' in cache '{}': {}. Continuing without cache.", 
+                    key, cache.getName(), exception.getMessage());
+                // Don't throw exception - allow method to proceed without caching
+            }
+            
+            @Override
+            public void handleCacheEvictError(@NonNull RuntimeException exception, @NonNull org.springframework.cache.Cache cache, @NonNull Object key) {
+                logger.warn("Cache evict error for key '{}' in cache '{}': {}. Continuing without cache eviction.", 
+                    key, cache.getName(), exception.getMessage());
+                // Don't throw exception - allow method to proceed without cache eviction
+            }
+            
+            @Override
+            public void handleCacheClearError(@NonNull RuntimeException exception, @NonNull org.springframework.cache.Cache cache) {
+                logger.warn("Cache clear error for cache '{}': {}. Continuing without cache clear.", 
+                    cache.getName(), exception.getMessage());
+                // Don't throw exception - allow method to proceed without cache clear
+            }
+        };
     }
 }
 

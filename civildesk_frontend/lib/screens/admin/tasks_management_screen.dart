@@ -4,32 +4,47 @@ import 'package:intl/intl.dart';
 import '../../widgets/admin_layout.dart';
 import '../../core/constants/app_routes.dart';
 import '../../core/providers/task_provider.dart';
-import '../../core/providers/employee_provider.dart';
-import '../../core/services/employee_service.dart';
 import '../../models/task.dart';
-import '../../models/employee.dart';
 import 'assign_task_dialog.dart';
 
 class TasksManagementScreen extends StatefulWidget {
-  const TasksManagementScreen({Key? key}) : super(key: key);
+  const TasksManagementScreen({super.key});
 
   @override
   State<TasksManagementScreen> createState() => _TasksManagementScreenState();
 }
 
 class _TasksManagementScreenState extends State<TasksManagementScreen> {
-  final EmployeeService _employeeService = EmployeeService();
+
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<TaskProvider>(context, listen: false).fetchAllTasks();
+      Provider.of<TaskProvider>(context, listen: false).refreshTasks();
     });
   }
 
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent * 0.9) {
+      final provider = Provider.of<TaskProvider>(context, listen: false);
+      if (provider.hasMore && !provider.isLoading) {
+        provider.loadMoreTasks();
+      }
+    }
+  }
+
   Future<void> _refreshTasks() async {
-    await Provider.of<TaskProvider>(context, listen: false).fetchAllTasks();
+    await Provider.of<TaskProvider>(context, listen: false).refreshTasks();
   }
 
   void _showFilterDialog() {
@@ -52,7 +67,7 @@ class _TasksManagementScreenState extends State<TasksManagementScreen> {
                   ),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<TaskStatus?>(
-                    value: provider.selectedStatusFilter,
+                    initialValue: provider.selectedStatusFilter,
                     decoration: const InputDecoration(
                       border: OutlineInputBorder(),
                       hintText: 'All Statuses',
@@ -110,9 +125,7 @@ class _TasksManagementScreenState extends State<TasksManagementScreen> {
   void _editTask(Task task) async {
     if (task.status != TaskStatus.pending) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Only pending tasks can be edited'),
-        ),
+        const SnackBar(content: Text('Only pending tasks can be edited')),
       );
       return;
     }
@@ -129,9 +142,7 @@ class _TasksManagementScreenState extends State<TasksManagementScreen> {
   void _deleteTask(Task task) {
     if (task.status != TaskStatus.pending) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Only pending tasks can be deleted'),
-        ),
+        const SnackBar(content: Text('Only pending tasks can be deleted')),
       );
       return;
     }
@@ -149,15 +160,19 @@ class _TasksManagementScreenState extends State<TasksManagementScreen> {
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(context);
-              final provider = Provider.of<TaskProvider>(context, listen: false);
+              final provider = Provider.of<TaskProvider>(
+                context,
+                listen: false,
+              );
+              final scaffoldMessenger = ScaffoldMessenger.of(context);
               final success = await provider.deleteTask(task.id);
               if (mounted) {
                 if (success) {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  scaffoldMessenger.showSnackBar(
                     const SnackBar(content: Text('Task deleted successfully')),
                   );
                 } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  scaffoldMessenger.showSnackBar(
                     SnackBar(
                       content: Text(provider.error ?? 'Failed to delete task'),
                     ),
@@ -180,7 +195,7 @@ class _TasksManagementScreenState extends State<TasksManagementScreen> {
   @override
   Widget build(BuildContext context) {
     final isMobile = _isMobile(context);
-    
+
     return AdminLayout(
       title: const Text('Task Management'),
       currentRoute: AppRoutes.adminTasks,
@@ -208,120 +223,140 @@ class _TasksManagementScreenState extends State<TasksManagementScreen> {
       child: Stack(
         children: [
           Column(
-        children: [
-          // Filter Chip Bar
-          Consumer<TaskProvider>(
-            builder: (context, provider, child) {
-              if (provider.selectedStatusFilter != null) {
-                return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Row(
-                    children: [
-                      Chip(
-                        label: Text(
-                          'Status: ${provider.selectedStatusFilter!.displayName}',
-                        ),
-                        onDeleted: () {
-                          provider.clearFilter();
-                        },
-                        deleteIcon: const Icon(Icons.close, size: 18),
+            children: [
+              // Filter Chip Bar
+              Consumer<TaskProvider>(
+                builder: (context, provider, child) {
+                  if (provider.selectedStatusFilter != null) {
+                    return Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
                       ),
-                    ],
-                  ),
-                );
-              }
-              return const SizedBox.shrink();
-            },
-          ),
-          // Tasks Grid
-          Expanded(
-            child: Consumer<TaskProvider>(
-              builder: (context, provider, child) {
-                if (provider.isLoading) {
-                  return const Center(child: CircularProgressIndicator());
-                }
+                      child: Row(
+                        children: [
+                          Chip(
+                            label: Text(
+                              'Status: ${provider.selectedStatusFilter!.displayName}',
+                            ),
+                            onDeleted: () {
+                              provider.clearFilter();
+                            },
+                            deleteIcon: const Icon(Icons.close, size: 18),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+                  return const SizedBox.shrink();
+                },
+              ),
+              // Tasks Grid
+              Expanded(
+                child: Consumer<TaskProvider>(
+                  builder: (context, provider, child) {
+                    if (provider.isLoading) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
 
-                if (provider.error != null) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.error_outline, size: 60, color: Colors.red[300]),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Error: ${provider.error}',
-                          textAlign: TextAlign.center,
+                    if (provider.error != null) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.error_outline,
+                              size: 60,
+                              color: Colors.red[300],
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Error: ${provider.error}',
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 16),
+                            ElevatedButton(
+                              onPressed: _refreshTasks,
+                              child: const Text('Retry'),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: _refreshTasks,
-                          child: const Text('Retry'),
-                        ),
-                      ],
-                    ),
-                  );
-                }
+                      );
+                    }
 
-                final tasks = provider.filteredTasks;
+                    final tasks = provider.filteredTasks;
 
-                if (tasks.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.task_alt, size: 80, color: Colors.grey[400]),
-                        const SizedBox(height: 24),
-                        Text(
-                          provider.selectedStatusFilter != null
-                              ? 'No tasks found with selected filter'
-                              : 'No Tasks Assigned',
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                color: Colors.grey[600],
-                              ),
+                    if (tasks.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.task_alt,
+                              size: 80,
+                              color: Colors.grey[400],
+                            ),
+                            const SizedBox(height: 24),
+                            Text(
+                              provider.selectedStatusFilter != null
+                                  ? 'No tasks found with selected filter'
+                                  : 'No Tasks Assigned',
+                              style: Theme.of(context).textTheme.headlineSmall
+                                  ?.copyWith(color: Colors.grey[600]),
+                            ),
+                            const SizedBox(height: 16),
+                            ElevatedButton.icon(
+                              onPressed: _showAssignTaskDialog,
+                              icon: const Icon(Icons.add),
+                              label: const Text('Assign Task'),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 16),
-                        ElevatedButton.icon(
-                          onPressed: _showAssignTaskDialog,
-                          icon: const Icon(Icons.add),
-                          label: const Text('Assign Task'),
-                        ),
-                      ],
-                    ),
-                  );
-                }
+                      );
+                    }
 
-                return RefreshIndicator(
-                  onRefresh: _refreshTasks,
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      // Mobile: < 600px (card view)
-                      // Tablet/Desktop: >= 600px (table view)
-                      final isMobile = constraints.maxWidth < 600;
-                      
-                      if (isMobile) {
-                        // Card view for mobile
-                        return ListView.builder(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: tasks.length,
-                          itemBuilder: (context, index) {
-                            final task = tasks[index];
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 16),
-                              child: _buildTaskCard(task),
+                    return RefreshIndicator(
+                      onRefresh: _refreshTasks,
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          // Mobile: < 600px (card view)
+                          // Tablet/Desktop: >= 600px (table view)
+                          final isMobile = constraints.maxWidth < 600;
+
+                          if (isMobile) {
+                            // Card view for mobile with pagination
+                            return ListView.builder(
+                              controller: _scrollController,
+                              padding: const EdgeInsets.all(16),
+                              itemCount:
+                                  tasks.length + (provider.hasMore ? 1 : 0),
+                              itemBuilder: (context, index) {
+                                if (index == tasks.length) {
+                                  return const Center(
+                                    child: Padding(
+                                      padding: EdgeInsets.all(16.0),
+                                      child: CircularProgressIndicator(),
+                                    ),
+                                  );
+                                }
+                                final task = tasks[index];
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 16),
+                                  child: _buildTaskCard(task),
+                                );
+                              },
                             );
-                          },
-                        );
-                      } else {
-                        // Table view for tablet/desktop
-                        return _buildTasksTable(tasks);
-                      }
-                    },
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
+                          } else {
+                            // Table view for tablet/desktop with pagination
+                            return _buildTasksTable(tasks, provider);
+                          }
+                        },
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
           if (isMobile)
             Positioned(
@@ -329,8 +364,8 @@ class _TasksManagementScreenState extends State<TasksManagementScreen> {
               right: 30,
               child: FloatingActionButton(
                 onPressed: _showAssignTaskDialog,
-                child: const Icon(Icons.add),
                 tooltip: 'Assign Task',
+                child: const Icon(Icons.add),
               ),
             ),
         ],
@@ -359,9 +394,7 @@ class _TasksManagementScreenState extends State<TasksManagementScreen> {
 
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         onTap: () => _showTaskDetails(task),
         borderRadius: BorderRadius.circular(12),
@@ -396,7 +429,9 @@ class _TasksManagementScreenState extends State<TasksManagementScreen> {
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -406,9 +441,12 @@ class _TasksManagementScreenState extends State<TasksManagementScreen> {
                   ),
                   const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
                     decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.15),
+                      color: statusColor.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Row(
@@ -431,21 +469,28 @@ class _TasksManagementScreenState extends State<TasksManagementScreen> {
                 ],
               ),
               const SizedBox(height: 12),
-              
+
               // Mode of Travel Section
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
                     decoration: BoxDecoration(
-                      color: Colors.blue.withOpacity(0.1),
+                      color: Colors.blue.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.directions_transit, size: 14, color: Colors.blue.shade700),
+                        Icon(
+                          Icons.directions_transit,
+                          size: 14,
+                          color: Colors.blue.shade700,
+                        ),
                         const SizedBox(width: 6),
                         Text(
                           task.modeOfTravelDisplay,
@@ -461,7 +506,7 @@ class _TasksManagementScreenState extends State<TasksManagementScreen> {
                 ],
               ),
               const SizedBox(height: 8),
-              
+
               // Date Range
               Row(
                 children: [
@@ -485,9 +530,9 @@ class _TasksManagementScreenState extends State<TasksManagementScreen> {
                   ),
                 ],
               ),
-              
+
               const SizedBox(height: 12),
-              
+
               // Description Preview
               Text(
                 task.description,
@@ -499,18 +544,18 @@ class _TasksManagementScreenState extends State<TasksManagementScreen> {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
-              
+
               const SizedBox(height: 16),
-              
+
               // Divider before actions
               Divider(
                 height: 1,
                 thickness: 1,
-                color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
               ),
-              
+
               const SizedBox(height: 12),
-              
+
               // Action Buttons Section
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -522,7 +567,10 @@ class _TasksManagementScreenState extends State<TasksManagementScreen> {
                         icon: const Icon(Icons.edit, size: 16),
                         label: const Text('Edit'),
                         style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
                           minimumSize: const Size(0, 48),
                         ),
                       ),
@@ -536,7 +584,10 @@ class _TasksManagementScreenState extends State<TasksManagementScreen> {
                         style: OutlinedButton.styleFrom(
                           foregroundColor: Colors.red.shade600,
                           side: BorderSide(color: Colors.red.shade600),
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
                           minimumSize: const Size(0, 48),
                         ),
                       ),
@@ -548,7 +599,10 @@ class _TasksManagementScreenState extends State<TasksManagementScreen> {
                         icon: const Icon(Icons.visibility, size: 16),
                         label: const Text('View Details'),
                         style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
                           minimumSize: const Size(0, 48),
                         ),
                       ),
@@ -581,7 +635,10 @@ class _TasksManagementScreenState extends State<TasksManagementScreen> {
               ),
               _buildDetailRow('Mode of Travel', task.modeOfTravelDisplay),
               _buildDetailRow('Description', task.description),
-              _buildDetailRow('Assigned By', '${task.assignedBy.name} (${task.assignedBy.role})'),
+              _buildDetailRow(
+                'Assigned By',
+                '${task.assignedBy.name} (${task.assignedBy.role})',
+              ),
               const SizedBox(height: 8),
               const Text(
                 'Assigned Employees:',
@@ -629,85 +686,141 @@ class _TasksManagementScreenState extends State<TasksManagementScreen> {
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
-          Expanded(
-            child: Text(value),
-          ),
+          Expanded(child: Text(value)),
         ],
       ),
     );
   }
 
-  Widget _buildTasksTable(List<Task> tasks) {
+  Widget _buildTasksTable(List<Task> tasks, TaskProvider provider) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final tableWidth = constraints.maxWidth > 1000 ? constraints.maxWidth - 32 : 1000.0;
-        
+        final tableWidth = constraints.maxWidth > 1000
+            ? constraints.maxWidth - 32
+            : 1000.0;
+
         return SingleChildScrollView(
           scrollDirection: Axis.horizontal,
-          child: SingleChildScrollView(
-            scrollDirection: Axis.vertical,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Card(
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surface,
-                    ),
-                    child: SizedBox(
-                      width: tableWidth,
-                      child: Table(
-                        columnWidths: const {
-                          0: FlexColumnWidth(1.2),
-                          1: FlexColumnWidth(2.0),
-                          2: FlexColumnWidth(1.8),
-                          3: FlexColumnWidth(1.5),
-                          4: FlexColumnWidth(1.5),
-                          5: FlexColumnWidth(2.0),
-                        },
-                        border: TableBorder(
-                          horizontalInside: BorderSide(
-                            color: Theme.of(context).colorScheme.outline.withOpacity(0.1),
-                            width: 1,
+          child: NotificationListener<ScrollNotification>(
+            onNotification: (notification) {
+              if (notification is ScrollEndNotification) {
+                final metrics = notification.metrics;
+                if (metrics.pixels >= metrics.maxScrollExtent * 0.9) {
+                  if (provider.hasMore && !provider.isLoading) {
+                    provider.loadMoreTasks();
+                  }
+                }
+              }
+              return false;
+            },
+            child: SingleChildScrollView(
+              scrollDirection: Axis.vertical,
+              controller: _scrollController,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Card(
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surface,
+                      ),
+                      child: SizedBox(
+                        width: tableWidth,
+                        child: Table(
+                          columnWidths: const {
+                            0: FlexColumnWidth(1.2),
+                            1: FlexColumnWidth(2.0),
+                            2: FlexColumnWidth(1.8),
+                            3: FlexColumnWidth(1.5),
+                            4: FlexColumnWidth(1.5),
+                            5: FlexColumnWidth(2.0),
+                          },
+                          border: TableBorder(
+                            horizontalInside: BorderSide(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.outline.withValues(alpha: 0.1),
+                              width: 1,
+                            ),
+                            bottom: BorderSide(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.outline.withValues(alpha: 0.1),
+                              width: 1,
+                            ),
                           ),
-                          bottom: BorderSide(
-                            color: Theme.of(context).colorScheme.outline.withOpacity(0.1),
-                            width: 1,
-                          ),
-                        ),
-                        children: [
-                          // Table Header
-                          TableRow(
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
-                              border: Border(
-                                bottom: BorderSide(
-                                  color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
-                                  width: 2,
+                          children: [
+                            // Table Header
+                            TableRow(
+                              decoration: BoxDecoration(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.primaryContainer.withValues(alpha: 0.3),
+                                border: Border(
+                                  bottom: BorderSide(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary.withValues(alpha: 0.2),
+                                    width: 2,
+                                  ),
                                 ),
                               ),
+                              children: [
+                                _buildTableHeaderCell('Status', Icons.info),
+                                _buildTableHeaderCell(
+                                  'Location',
+                                  Icons.location_on,
+                                ),
+                                _buildTableHeaderCell(
+                                  'Date Range',
+                                  Icons.calendar_today,
+                                ),
+                                _buildTableHeaderCell(
+                                  'Travel Mode',
+                                  Icons.directions_transit,
+                                ),
+                                _buildTableHeaderCell(
+                                  'Employees',
+                                  Icons.people,
+                                ),
+                                _buildTableHeaderCell(
+                                  'Actions',
+                                  Icons.more_vert,
+                                ),
+                              ],
                             ),
-                            children: [
-                              _buildTableHeaderCell('Status', Icons.info),
-                              _buildTableHeaderCell('Location', Icons.location_on),
-                              _buildTableHeaderCell('Date Range', Icons.calendar_today),
-                              _buildTableHeaderCell('Travel Mode', Icons.directions_transit),
-                              _buildTableHeaderCell('Employees', Icons.people),
-                              _buildTableHeaderCell('Actions', Icons.more_vert),
-                            ],
-                          ),
-                          // Table Rows with alternating colors
-                          ...tasks.asMap().entries.map((entry) {
-                            final index = entry.key;
-                            final task = entry.value;
-                            return _buildTaskTableRow(task, index);
-                          }),
-                        ],
+                            // Table Rows with alternating colors
+                            ...tasks.asMap().entries.map((entry) {
+                              final index = entry.key;
+                              final task = entry.value;
+                              return _buildTaskTableRow(task, index);
+                            }),
+                            // Loading indicator row
+                            if (provider.hasMore)
+                              TableRow(
+                                children: [
+                                  TableCell(
+                                    child: const Center(
+                                      child: Padding(
+                                        padding: EdgeInsets.all(16.0),
+                                        child: CircularProgressIndicator(),
+                                      ),
+                                    ),
+                                  ),
+                                  const TableCell(child: SizedBox()),
+                                  const TableCell(child: SizedBox()),
+                                  const TableCell(child: SizedBox()),
+                                  const TableCell(child: SizedBox()),
+                                  const TableCell(child: SizedBox()),
+                                ],
+                              ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -727,11 +840,7 @@ class _TasksManagementScreenState extends State<TasksManagementScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         child: Row(
           children: [
-            Icon(
-              icon,
-              size: 18,
-              color: Theme.of(context).colorScheme.primary,
-            ),
+            Icon(icon, size: 18, color: Theme.of(context).colorScheme.primary),
             const SizedBox(width: 8),
             Text(
               text,
@@ -771,12 +880,10 @@ class _TasksManagementScreenState extends State<TasksManagementScreen> {
     final isEven = index % 2 == 0;
     final rowColor = isEven
         ? Colors.transparent
-        : Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.2);
+        : Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.2);
 
     return TableRow(
-      decoration: BoxDecoration(
-        color: rowColor,
-      ),
+      decoration: BoxDecoration(color: rowColor),
       children: [
         // Status Cell
         TableCell(
@@ -786,10 +893,10 @@ class _TasksManagementScreenState extends State<TasksManagementScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.15),
+                color: statusColor.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: statusColor.withOpacity(0.3),
+                  color: statusColor.withValues(alpha: 0.3),
                   width: 1,
                 ),
               ),
@@ -826,10 +933,17 @@ class _TasksManagementScreenState extends State<TasksManagementScreen> {
               onTap: () => _showTaskDetails(task),
               borderRadius: BorderRadius.circular(8),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 16,
+                ),
                 child: Row(
                   children: [
-                    Icon(Icons.location_on, size: 16, color: Colors.blue.shade600),
+                    Icon(
+                      Icons.location_on,
+                      size: 16,
+                      color: Colors.blue.shade600,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -857,7 +971,9 @@ class _TasksManagementScreenState extends State<TasksManagementScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+                color: Theme.of(
+                  context,
+                ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Row(
@@ -894,17 +1010,21 @@ class _TasksManagementScreenState extends State<TasksManagementScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: Colors.blue.withOpacity(0.15),
+                color: Colors.blue.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: Colors.blue.withOpacity(0.3),
+                  color: Colors.blue.withValues(alpha: 0.3),
                   width: 1,
                 ),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.directions_transit, size: 14, color: Colors.blue.shade700),
+                  Icon(
+                    Icons.directions_transit,
+                    size: 14,
+                    color: Colors.blue.shade700,
+                  ),
                   const SizedBox(width: 6),
                   Flexible(
                     child: Text(
@@ -931,7 +1051,9 @@ class _TasksManagementScreenState extends State<TasksManagementScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+                color: Theme.of(
+                  context,
+                ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Row(
@@ -1005,7 +1127,10 @@ class _TasksManagementScreenState extends State<TasksManagementScreen> {
                 icon: const Icon(Icons.visibility, size: 16),
                 label: const Text('View'),
                 style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
                   minimumSize: const Size(0, 40),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   shape: RoundedRectangleBorder(

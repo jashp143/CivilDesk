@@ -60,16 +60,17 @@ class _EmployeeDetailScreenState extends State<EmployeeDetailScreen>
               icon: const Icon(Icons.face),
               tooltip: 'Register Face',
               onPressed: () {
+                final navigatorContext = context;
                 Navigator.push(
-                  context,
+                  navigatorContext,
                   MaterialPageRoute(
                     builder: (context) => FaceRegistrationScreen(
                       employeeId: employee.employeeId,
                     ),
                   ),
                 ).then((success) {
-                  if (success == true && mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
+                  if (success == true && navigatorContext.mounted) {
+                    ScaffoldMessenger.of(navigatorContext).showSnackBar(
                       SnackBar(
                         content: const Text('Face registered successfully!'),
                         backgroundColor: AppTheme.statusApproved,
@@ -163,16 +164,17 @@ class _EmployeeDetailScreenState extends State<EmployeeDetailScreen>
           Center(
             child: ElevatedButton.icon(
               onPressed: () {
+                final navigatorContext = context;
                 Navigator.push(
-                  context,
+                  navigatorContext,
                   MaterialPageRoute(
                     builder: (context) => FaceRegistrationScreen(
                       employeeId: employee.employeeId,
                     ),
                   ),
                 ).then((success) {
-                  if (success == true && mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
+                  if (success == true && navigatorContext.mounted) {
+                    ScaffoldMessenger.of(navigatorContext).showSnackBar(
                       SnackBar(
                         content: const Text('Face registered successfully!'),
                         backgroundColor: AppTheme.statusApproved,

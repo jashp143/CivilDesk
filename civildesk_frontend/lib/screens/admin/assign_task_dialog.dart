@@ -9,7 +9,7 @@ import '../../models/employee.dart';
 class AssignTaskDialog extends StatefulWidget {
   final Task? existingTask;
 
-  const AssignTaskDialog({Key? key, this.existingTask}) : super(key: key);
+  const AssignTaskDialog({super.key, this.existingTask});
 
   @override
   State<AssignTaskDialog> createState() => _AssignTaskDialogState();

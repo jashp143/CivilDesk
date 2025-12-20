@@ -42,5 +42,29 @@ public interface SiteRepository extends JpaRepository<Site, Long> {
             @Param("maxLon") Double maxLon);
 
     boolean existsBySiteCode(String siteCode);
+
+    /**
+     * Optimized query to fetch all sites with employee counts in a single query.
+     * This eliminates N+1 query problem by using LEFT JOIN and GROUP BY.
+     * Returns Object[] where [0] is Site and [1] is Long (employee count).
+     * Matches the behavior of countActiveEmployeesBySiteId which only checks isActive.
+     */
+    @Query("SELECT s, COUNT(a.id) FROM Site s " +
+           "LEFT JOIN EmployeeSiteAssignment a ON a.site.id = s.id AND a.isActive = true " +
+           "WHERE s.deleted = false " +
+           "GROUP BY s.id")
+    Page<Object[]> findAllWithEmployeeCounts(Pageable pageable);
+
+    /**
+     * Optimized query to fetch active sites with employee counts in a single query.
+     * This eliminates N+1 query problem by using LEFT JOIN and GROUP BY.
+     * Returns Object[] where [0] is Site and [1] is Long (employee count).
+     * Matches the behavior of countActiveEmployeesBySiteId which only checks isActive.
+     */
+    @Query("SELECT s, COUNT(a.id) FROM Site s " +
+           "LEFT JOIN EmployeeSiteAssignment a ON a.site.id = s.id AND a.isActive = true " +
+           "WHERE s.isActive = true AND s.deleted = false " +
+           "GROUP BY s.id")
+    List<Object[]> findActiveSitesWithEmployeeCounts();
 }
 

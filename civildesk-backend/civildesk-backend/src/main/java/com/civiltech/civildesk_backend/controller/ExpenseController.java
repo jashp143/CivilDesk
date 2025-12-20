@@ -11,6 +11,7 @@ import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.lang.NonNull;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -34,7 +35,7 @@ public class ExpenseController {
     // Update expense
     @PutMapping("/{expenseId}")
     public ResponseEntity<ApiResponse<ExpenseResponse>> updateExpense(
-            @PathVariable Long expenseId,
+            @PathVariable @NonNull Long expenseId,
             @Valid @RequestBody ExpenseRequest request) {
         ExpenseResponse response = expenseService.updateExpense(expenseId, request);
         return ResponseEntity.ok(ApiResponse.success("Expense updated successfully", response));
@@ -42,7 +43,7 @@ public class ExpenseController {
 
     // Delete expense
     @DeleteMapping("/{expenseId}")
-    public ResponseEntity<ApiResponse<Void>> deleteExpense(@PathVariable Long expenseId) {
+    public ResponseEntity<ApiResponse<Void>> deleteExpense(@PathVariable @NonNull Long expenseId) {
         expenseService.deleteExpense(expenseId);
         return ResponseEntity.ok(ApiResponse.success("Expense deleted successfully", null));
     }
@@ -91,7 +92,7 @@ public class ExpenseController {
 
     // Get expense by ID
     @GetMapping("/{expenseId}")
-    public ResponseEntity<ApiResponse<ExpenseResponse>> getExpenseById(@PathVariable Long expenseId) {
+    public ResponseEntity<ApiResponse<ExpenseResponse>> getExpenseById(@PathVariable @NonNull Long expenseId) {
         ExpenseResponse expense = expenseService.getExpenseById(expenseId);
         return ResponseEntity.ok(ApiResponse.success("Expense fetched successfully", expense));
     }
@@ -100,7 +101,7 @@ public class ExpenseController {
     @PutMapping("/{expenseId}/review")
     @RequiresRole({"ADMIN", "HR_MANAGER"})
     public ResponseEntity<ApiResponse<ExpenseResponse>> reviewExpense(
-            @PathVariable Long expenseId,
+            @PathVariable @NonNull Long expenseId,
             @Valid @RequestBody ExpenseReviewRequest request) {
         ExpenseResponse response = expenseService.reviewExpense(expenseId, request);
         return ResponseEntity.ok(ApiResponse.success("Expense reviewed successfully", response));

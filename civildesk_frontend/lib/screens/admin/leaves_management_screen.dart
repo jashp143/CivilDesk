@@ -8,7 +8,7 @@ import '../../models/leave.dart';
 import 'leave_detail_screen.dart';
 
 class LeavesManagementScreen extends StatefulWidget {
-  const LeavesManagementScreen({Key? key}) : super(key: key);
+  const LeavesManagementScreen({super.key});
 
   @override
   State<LeavesManagementScreen> createState() => _LeavesManagementScreenState();
@@ -19,16 +19,36 @@ class _LeavesManagementScreenState extends State<LeavesManagementScreen> {
     return MediaQuery.of(context).size.shortestSide < 600;
   }
 
+  late ScrollController _scrollController;
+
   @override
   void initState() {
     super.initState();
+    _scrollController = ScrollController();
+    _scrollController.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<LeaveProvider>(context, listen: false).fetchAllLeaves();
+      Provider.of<LeaveProvider>(context, listen: false).refreshLeaves();
     });
   }
 
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= 
+        _scrollController.position.maxScrollExtent * 0.9) {
+      final provider = Provider.of<LeaveProvider>(context, listen: false);
+      if (provider.hasMore && !provider.isLoading) {
+        provider.loadMoreLeaves();
+      }
+    }
+  }
+
   Future<void> _refreshLeaves() async {
-    await Provider.of<LeaveProvider>(context, listen: false).fetchAllLeaves();
+    await Provider.of<LeaveProvider>(context, listen: false).refreshLeaves();
   }
 
   void _showFilterDialog() {
@@ -52,7 +72,7 @@ class _LeavesManagementScreenState extends State<LeavesManagementScreen> {
                   ),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
-                    value: provider.selectedStatus,
+                    initialValue: provider.selectedStatus,
                     decoration: const InputDecoration(
                       border: OutlineInputBorder(),
                       hintText: 'All Statuses',
@@ -80,7 +100,7 @@ class _LeavesManagementScreenState extends State<LeavesManagementScreen> {
                   ),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
-                    value: provider.selectedLeaveType,
+                    initialValue: provider.selectedLeaveType,
                     decoration: const InputDecoration(
                       border: OutlineInputBorder(),
                       hintText: 'All Leave Types',
@@ -108,7 +128,7 @@ class _LeavesManagementScreenState extends State<LeavesManagementScreen> {
                   ),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
-                    value: provider.selectedDepartment,
+                    initialValue: provider.selectedDepartment,
                     decoration: const InputDecoration(
                       border: OutlineInputBorder(),
                       hintText: 'All Departments',
@@ -376,11 +396,18 @@ class _LeavesManagementScreenState extends State<LeavesManagementScreen> {
                       final isMobile = constraints.maxWidth < 600;
                       
                       if (isMobile) {
-                        // Card view for mobile
+                        // Card view for mobile with pagination
                         return ListView.builder(
+                          controller: _scrollController,
                           padding: const EdgeInsets.all(16),
-                          itemCount: provider.leaves.length,
+                          itemCount: provider.leaves.length + (provider.hasMore ? 1 : 0),
                           itemBuilder: (context, index) {
+                            if (index == provider.leaves.length) {
+                              return const Padding(
+                                padding: EdgeInsets.all(16.0),
+                                child: Center(child: CircularProgressIndicator()),
+                              );
+                            }
                             final leave = provider.leaves[index];
                             return Padding(
                               padding: const EdgeInsets.only(bottom: 16),
@@ -390,7 +417,7 @@ class _LeavesManagementScreenState extends State<LeavesManagementScreen> {
                         );
                       } else {
                         // Table view for tablet/desktop
-                        return _buildLeavesTable(provider.leaves);
+                        return _buildLeavesTable(provider.leaves, provider.hasMore);
                       }
                     },
                   ),
@@ -477,7 +504,7 @@ class _LeavesManagementScreenState extends State<LeavesManagementScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.15),
+                      color: statusColor.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Row(
@@ -508,7 +535,7 @@ class _LeavesManagementScreenState extends State<LeavesManagementScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
-                      color: Colors.blue.withOpacity(0.1),
+                      color: Colors.blue.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -523,7 +550,7 @@ class _LeavesManagementScreenState extends State<LeavesManagementScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -610,7 +637,7 @@ class _LeavesManagementScreenState extends State<LeavesManagementScreen> {
               Divider(
                 height: 1,
                 thickness: 1,
-                color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
               ),
               
               const SizedBox(height: 12),
@@ -669,75 +696,104 @@ class _LeavesManagementScreenState extends State<LeavesManagementScreen> {
     );
   }
 
-  Widget _buildLeavesTable(List<Leave> leaves) {
+  Widget _buildLeavesTable(List<Leave> leaves, bool hasMore) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final tableWidth = constraints.maxWidth > 1000 ? constraints.maxWidth - 32 : 1000.0;
         
-        return SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
+        return NotificationListener<ScrollNotification>(
+          onNotification: (notification) {
+            if (notification is ScrollEndNotification) {
+              final provider = Provider.of<LeaveProvider>(context, listen: false);
+              if (notification.metrics.pixels >= notification.metrics.maxScrollExtent * 0.9) {
+                if (provider.hasMore && !provider.isLoading) {
+                  provider.loadMoreLeaves();
+                }
+              }
+            }
+            return false;
+          },
           child: SingleChildScrollView(
-            scrollDirection: Axis.vertical,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Card(
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surface,
-                    ),
-                    child: SizedBox(
-                      width: tableWidth,
-                      child: Table(
-                        columnWidths: const {
-                          0: FlexColumnWidth(2.5),
-                          1: FlexColumnWidth(1.2),
-                          2: FlexColumnWidth(1.5),
-                          3: FlexColumnWidth(1.8),
-                          4: FlexColumnWidth(2.0),
-                        },
-                        border: TableBorder(
-                          horizontalInside: BorderSide(
-                            color: Theme.of(context).colorScheme.outline.withOpacity(0.1),
-                            width: 1,
+            scrollDirection: Axis.horizontal,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.vertical,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Card(
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surface,
+                      ),
+                      child: SizedBox(
+                        width: tableWidth,
+                        child: Table(
+                          columnWidths: const {
+                            0: FlexColumnWidth(2.5),
+                            1: FlexColumnWidth(1.2),
+                            2: FlexColumnWidth(1.5),
+                            3: FlexColumnWidth(1.8),
+                            4: FlexColumnWidth(2.0),
+                          },
+                          border: TableBorder(
+                            horizontalInside: BorderSide(
+                              color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.1),
+                              width: 1,
+                            ),
+                            bottom: BorderSide(
+                              color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.1),
+                              width: 1,
+                            ),
                           ),
-                          bottom: BorderSide(
-                            color: Theme.of(context).colorScheme.outline.withOpacity(0.1),
-                            width: 1,
-                          ),
-                        ),
-                        children: [
-                          // Table Header
-                          TableRow(
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
-                              border: Border(
-                                bottom: BorderSide(
-                                  color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
-                                  width: 2,
+                          children: [
+                            // Table Header
+                            TableRow(
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
+                                border: Border(
+                                  bottom: BorderSide(
+                                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
+                                    width: 2,
+                                  ),
                                 ),
                               ),
+                              children: [
+                                _buildTableHeaderCell('Employee', Icons.person),
+                                _buildTableHeaderCell('Status', Icons.info),
+                                _buildTableHeaderCell('Leave Type', Icons.event_note),
+                                _buildTableHeaderCell('Date Range', Icons.calendar_today),
+                                _buildTableHeaderCell('Actions', Icons.more_vert),
+                              ],
                             ),
-                            children: [
-                              _buildTableHeaderCell('Employee', Icons.person),
-                              _buildTableHeaderCell('Status', Icons.info),
-                              _buildTableHeaderCell('Leave Type', Icons.event_note),
-                              _buildTableHeaderCell('Date Range', Icons.calendar_today),
-                              _buildTableHeaderCell('Actions', Icons.more_vert),
-                            ],
-                          ),
-                          // Table Rows with alternating colors
-                          ...leaves.asMap().entries.map((entry) {
-                            final index = entry.key;
-                            final leave = entry.value;
-                            return _buildTableRow(leave, index);
-                          }),
-                        ],
+                            // Table Rows with alternating colors
+                            ...leaves.asMap().entries.map((entry) {
+                              final index = entry.key;
+                              final leave = entry.value;
+                              return _buildTableRow(leave, index);
+                            }),
+                            // Loading indicator row
+                            if (hasMore)
+                              TableRow(
+                                children: [
+                                  TableCell(
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(16.0),
+                                      child: const Center(child: CircularProgressIndicator()),
+                                    ),
+                                  ),
+                                  const TableCell(child: SizedBox()),
+                                  const TableCell(child: SizedBox()),
+                                  const TableCell(child: SizedBox()),
+                                  const TableCell(child: SizedBox()),
+                                ],
+                              ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -805,7 +861,7 @@ class _LeavesManagementScreenState extends State<LeavesManagementScreen> {
     final isEven = index % 2 == 0;
     final rowColor = isEven
         ? Colors.transparent
-        : Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.2);
+        : Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.2);
 
     return TableRow(
       decoration: BoxDecoration(
@@ -888,10 +944,10 @@ class _LeavesManagementScreenState extends State<LeavesManagementScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.15),
+                color: statusColor.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: statusColor.withOpacity(0.3),
+                  color: statusColor.withValues(alpha: 0.3),
                   width: 1,
                 ),
               ),
@@ -931,10 +987,10 @@ class _LeavesManagementScreenState extends State<LeavesManagementScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(0.15),
+                    color: Colors.blue.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: Colors.blue.withOpacity(0.3),
+                      color: Colors.blue.withValues(alpha: 0.3),
                       width: 1,
                     ),
                   ),
@@ -962,7 +1018,7 @@ class _LeavesManagementScreenState extends State<LeavesManagementScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.6),
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
@@ -997,7 +1053,7 @@ class _LeavesManagementScreenState extends State<LeavesManagementScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+                color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Row(
@@ -1105,400 +1161,5 @@ class _LeavesManagementScreenState extends State<LeavesManagementScreen> {
         ),
       );
     }
-  }
-
-  Widget _buildLeaveListItem(Leave leave) {
-    Color statusColor;
-    IconData statusIcon;
-
-    switch (leave.status) {
-      case LeaveStatus.PENDING:
-        statusColor = Colors.orange;
-        statusIcon = Icons.pending;
-        break;
-      case LeaveStatus.APPROVED:
-        statusColor = Colors.green;
-        statusIcon = Icons.check_circle;
-        break;
-      case LeaveStatus.REJECTED:
-        statusColor = Colors.red;
-        statusIcon = Icons.cancel;
-        break;
-      case LeaveStatus.CANCELLED:
-        statusColor = Colors.grey;
-        statusIcon = Icons.block;
-        break;
-    }
-
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: InkWell(
-        onTap: () => _viewLeaveDetails(leave),
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final isCompact = constraints.maxWidth < 900;
-              
-              if (isCompact) {
-                // Vertical stack for smaller tablets
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildEmployeeInfoRow(leave, statusColor, statusIcon),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        _buildLeaveSummary(leave),
-                        const SizedBox(width: 16),
-                        _buildDateRange(leave),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    _buildActionButtons(leave, isVertical: true),
-                  ],
-                );
-              }
-              
-              // Horizontal layout for desktop
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Employee Info
-                  Flexible(
-                    flex: 2,
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(minWidth: 180, maxWidth: 280),
-                      child: _buildEmployeeInfoColumn(leave, statusColor, statusIcon),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  // Leave Summary
-                  Flexible(
-                    flex: 1,
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(minWidth: 100, maxWidth: 140),
-                      child: _buildLeaveSummary(leave),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  // Date Range
-                  Flexible(
-                    flex: 1,
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(minWidth: 130, maxWidth: 180),
-                      child: _buildDateRange(leave),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  // Actions - Flexible to prevent overflow
-                  Flexible(
-                    flex: 1,
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(minWidth: 160, maxWidth: 220),
-                      child: _buildActionButtons(leave, isVertical: false),
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEmployeeInfoColumn(Leave leave, Color statusColor, IconData statusIcon) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Text(
-                leave.employeeName,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Theme.of(context).colorScheme.onSurface,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(statusIcon, size: 14, color: statusColor),
-                  const SizedBox(width: 4),
-                  Text(
-                    leave.statusDisplay.toUpperCase(),
-                    style: TextStyle(
-                      color: statusColor,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        Text(
-          '${leave.employeeIdStr} • ${leave.designation ?? "N/A"}${leave.department != null ? ' • ${leave.department}' : ''}',
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildEmployeeInfoRow(Leave leave, Color statusColor, IconData statusIcon) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                leave.employeeName,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Theme.of(context).colorScheme.onSurface,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '${leave.employeeIdStr} • ${leave.designation ?? "N/A"}${leave.department != null ? ' • ${leave.department}' : ''}',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-          decoration: BoxDecoration(
-            color: statusColor.withOpacity(0.15),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(statusIcon, size: 14, color: statusColor),
-              const SizedBox(width: 4),
-              Text(
-                leave.statusDisplay.toUpperCase(),
-                style: TextStyle(
-                  color: statusColor,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildLeaveSummary(Leave leave) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-          decoration: BoxDecoration(
-            color: Colors.blue.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(
-            leave.leaveTypeDisplay,
-            style: const TextStyle(
-              fontSize: 12,
-              color: Colors.blue,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-        const SizedBox(height: 6),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(
-            '${leave.totalDays} ${leave.totalDays == 1 ? 'day' : 'days'}',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDateRange(Leave leave) {
-    return Row(
-      children: [
-        Icon(
-          Icons.calendar_today,
-          size: 16,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
-        ),
-        const SizedBox(width: 6),
-        Expanded(
-          child: Text(
-            '${DateFormat('dd MMM').format(leave.startDate)} – ${DateFormat('dd MMM yyyy').format(leave.endDate)}',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildActionButtons(Leave leave, {required bool isVertical}) {
-    if (isVertical) {
-      return Row(
-        mainAxisAlignment: MainAxisAlignment.start,
-        children: [
-          if (leave.status == LeaveStatus.PENDING) ...[
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () => _showReviewDialog(leave, LeaveStatus.REJECTED),
-                icon: const Icon(Icons.close, size: 16),
-                label: const Text('Reject'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.red.shade600,
-                  side: BorderSide(color: Colors.red.shade600),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  minimumSize: const Size(0, 40),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: () => _showReviewDialog(leave, LeaveStatus.APPROVED),
-                icon: const Icon(Icons.check, size: 16),
-                label: const Text('Approve'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green.shade600,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  minimumSize: const Size(0, 40),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-              ),
-            ),
-          ] else ...[
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () => _viewLeaveDetails(leave),
-                icon: const Icon(Icons.visibility, size: 16),
-                label: const Text('View Details'),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  minimumSize: const Size(0, 40),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-              ),
-            ),
-          ],
-        ],
-      );
-    }
-
-    // Horizontal layout - compact buttons that fit in available space
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.end,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (leave.status == LeaveStatus.PENDING) ...[
-          Flexible(
-            child: OutlinedButton.icon(
-              onPressed: () => _showReviewDialog(leave, LeaveStatus.REJECTED),
-              icon: const Icon(Icons.close, size: 14),
-              label: const Text('Reject'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.red.shade600,
-                side: BorderSide(color: Colors.red.shade600),
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                minimumSize: const Size(0, 36),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Flexible(
-            child: ElevatedButton.icon(
-              onPressed: () => _showReviewDialog(leave, LeaveStatus.APPROVED),
-              icon: const Icon(Icons.check, size: 14),
-              label: const Text('Approve'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green.shade600,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                minimumSize: const Size(0, 36),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-            ),
-          ),
-        ] else ...[
-          Flexible(
-            child: OutlinedButton.icon(
-              onPressed: () => _viewLeaveDetails(leave),
-              icon: const Icon(Icons.visibility, size: 14),
-              label: const Text('View'),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                minimumSize: const Size(0, 36),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-            ),
-          ),
-        ],
-      ],
-    );
   }
 }

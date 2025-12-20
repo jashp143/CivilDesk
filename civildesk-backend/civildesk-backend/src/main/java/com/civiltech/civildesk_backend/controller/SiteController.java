@@ -10,6 +10,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.lang.NonNull;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -36,7 +37,7 @@ public class SiteController {
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or hasRole('HR_MANAGER')")
     public ResponseEntity<ApiResponse<SiteResponse>> updateSite(
-            @PathVariable Long id,
+            @PathVariable @NonNull Long id,
             @Valid @RequestBody SiteRequest request) {
         SiteResponse response = siteService.updateSite(id, request);
         return ResponseEntity.ok(ApiResponse.success("Site updated successfully", response));
@@ -44,7 +45,7 @@ public class SiteController {
 
     @GetMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<SiteResponse>> getSiteById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<SiteResponse>> getSiteById(@PathVariable @NonNull Long id) {
         SiteResponse response = siteService.getSiteById(id);
         return ResponseEntity.ok(ApiResponse.success("Site retrieved successfully", response));
     }
@@ -89,7 +90,7 @@ public class SiteController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<Void>> deleteSite(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Void>> deleteSite(@PathVariable @NonNull Long id) {
         siteService.deleteSite(id);
         return ResponseEntity.ok(ApiResponse.success("Site deleted successfully", null));
     }
@@ -119,7 +120,7 @@ public class SiteController {
 
     @DeleteMapping("/assignments/{assignmentId}")
     @PreAuthorize("hasRole('ADMIN') or hasRole('HR_MANAGER')")
-    public ResponseEntity<ApiResponse<Void>> removeEmployeeFromSite(@PathVariable Long assignmentId) {
+    public ResponseEntity<ApiResponse<Void>> removeEmployeeFromSite(@PathVariable @NonNull Long assignmentId) {
         siteService.removeEmployeeFromSite(assignmentId);
         return ResponseEntity.ok(ApiResponse.success("Employee removed from site successfully", null));
     }
@@ -143,9 +144,6 @@ public class SiteController {
     @GetMapping("/my-sites")
     @PreAuthorize("hasRole('EMPLOYEE')")
     public ResponseEntity<ApiResponse<List<SiteResponse>>> getMyAssignedSites() {
-        // Get employee ID from authenticated user
-        Long userId = com.civiltech.civildesk_backend.security.SecurityUtils.getCurrentUserId();
-        
         // Find employee by user ID and get their assigned sites
         // For now, return empty list - would need to implement proper lookup
         List<SiteResponse> sites = java.util.Collections.emptyList();

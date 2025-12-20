@@ -16,18 +16,36 @@ class TasksScreen extends StatefulWidget {
 
 class _TasksScreenState extends State<TasksScreen> {
   String? _selectedStatusFilter; // null means 'All'
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
     _selectedStatusFilter = null; // Show all by default
+    _scrollController.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<TaskProvider>(context, listen: false).fetchMyTasks();
+      Provider.of<TaskProvider>(context, listen: false).refreshTasks();
     });
   }
 
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent * 0.9) {
+      final provider = Provider.of<TaskProvider>(context, listen: false);
+      if (provider.hasMore && !provider.isLoading) {
+        provider.loadMoreTasks();
+      }
+    }
+  }
+
   Future<void> _refreshTasks() async {
-    await Provider.of<TaskProvider>(context, listen: false).fetchMyTasks();
+    await Provider.of<TaskProvider>(context, listen: false).refreshTasks();
   }
 
   void _viewTaskDetails(Task task) async {
@@ -56,10 +74,10 @@ class _TasksScreenState extends State<TasksScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: colorScheme.surfaceVariant.withOpacity(0.3),
+              color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
               border: Border(
                 bottom: BorderSide(
-                  color: colorScheme.outline.withOpacity(0.1),
+                  color: colorScheme.outline.withValues(alpha: 0.1),
                   width: 1,
                 ),
               ),
@@ -174,13 +192,13 @@ class _TasksScreenState extends State<TasksScreen> {
                             Container(
                               padding: const EdgeInsets.all(24),
                               decoration: BoxDecoration(
-                                color: colorScheme.surfaceVariant.withOpacity(0.5),
+                                color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                                 shape: BoxShape.circle,
                               ),
                               child: Icon(
                                 Icons.task_alt_outlined,
                                 size: 64,
-                                color: colorScheme.onSurfaceVariant.withOpacity(0.6),
+                                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
                               ),
                             ),
                             const SizedBox(height: 24),
@@ -220,7 +238,7 @@ class _TasksScreenState extends State<TasksScreen> {
                               Icon(
                                 Icons.filter_alt_off_rounded,
                                 size: 64,
-                                color: colorScheme.onSurfaceVariant.withOpacity(0.6),
+                                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
                               ),
                               const SizedBox(height: 16),
                               Text(
@@ -233,9 +251,18 @@ class _TasksScreenState extends State<TasksScreen> {
                           ),
                         )
                       : ListView.builder(
+                          controller: _scrollController,
                           padding: const EdgeInsets.fromLTRB(6, 6, 6, 0),
-                          itemCount: filteredTasks.length,
+                          itemCount: filteredTasks.length + (provider.hasMore ? 1 : 0),
                           itemBuilder: (context, index) {
+                            if (index == filteredTasks.length) {
+                              return const Center(
+                                child: Padding(
+                                  padding: EdgeInsets.all(16.0),
+                                  child: CircularProgressIndicator(),
+                                ),
+                              );
+                            }
                             final task = filteredTasks[index];
                             return Padding(
                               padding: const EdgeInsets.only(bottom: 0),
@@ -272,7 +299,7 @@ class _TasksScreenState extends State<TasksScreen> {
           border: Border.all(
             color: isSelected
                 ? colorScheme.primary
-                : colorScheme.outline.withOpacity(0.3),
+                : colorScheme.outline.withValues(alpha: 0.3),
             width: 1,
           ),
         ),
@@ -304,15 +331,15 @@ class _TasksScreenState extends State<TasksScreen> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: colorScheme.outline.withOpacity(0.12),
+          color: colorScheme.outline.withValues(alpha: 0.12),
           width: 1,
         ),
       ),
       child: InkWell(
         onTap: () => _viewTaskDetails(task),
         borderRadius: BorderRadius.circular(12),
-        splashColor: colorScheme.primary.withOpacity(0.1),
-        highlightColor: colorScheme.primary.withOpacity(0.05),
+        splashColor: colorScheme.primary.withValues(alpha: 0.1),
+        highlightColor: colorScheme.primary.withValues(alpha: 0.05),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -332,7 +359,7 @@ class _TasksScreenState extends State<TasksScreen> {
                           width: 40,
                           height: 40,
                           decoration: BoxDecoration(
-                            color: colorScheme.primaryContainer.withOpacity(0.2),
+                            color: colorScheme.primaryContainer.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Icon(
@@ -387,10 +414,10 @@ class _TasksScreenState extends State<TasksScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.15),
+                      color: statusColor.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: statusColor.withOpacity(0.4),
+                        color: statusColor.withValues(alpha: 0.4),
                         width: 1.5,
                       ),
                     ),
@@ -423,7 +450,7 @@ class _TasksScreenState extends State<TasksScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: colorScheme.surfaceVariant.withOpacity(0.5),
+                  color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Column(
@@ -467,7 +494,7 @@ class _TasksScreenState extends State<TasksScreen> {
                     Divider(
                       height: 1,
                       thickness: 1,
-                      color: colorScheme.outline.withOpacity(0.2),
+                      color: colorScheme.outline.withValues(alpha: 0.2),
                     ),
                     const SizedBox(height: 12),
                     // End Date
@@ -557,10 +584,10 @@ class _TasksScreenState extends State<TasksScreen> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: colorScheme.primaryContainer.withOpacity(0.3),
+                    color: colorScheme.primaryContainer.withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: colorScheme.primary.withOpacity(0.2),
+                      color: colorScheme.primary.withValues(alpha: 0.2),
                       width: 1,
                     ),
                   ),

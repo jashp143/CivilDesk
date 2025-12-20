@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../../models/site.dart';
 import '../../models/employee.dart';
 import '../../core/services/site_service.dart';
 import '../../core/services/employee_service.dart';
 import '../../widgets/admin_layout.dart';
 import '../../widgets/map_location_picker.dart';
-import '../../core/constants/app_routes.dart';
-import 'site_detail_screen.dart';
 
 class SiteManagementScreen extends StatefulWidget {
   const SiteManagementScreen({super.key});
@@ -92,14 +89,14 @@ class _SiteManagementScreenState extends State<SiteManagementScreen> {
         decoration: BoxDecoration(
           color: isSelected 
               ? (isDark 
-                  ? colorScheme.primary.withOpacity(0.2)
+                  ? colorScheme.primary.withValues(alpha: 0.2)
                   : colorScheme.primaryContainer)
-              : colorScheme.surfaceVariant.withOpacity(0.5),
+              : colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: isSelected 
                 ? colorScheme.primary
-                : colorScheme.outline.withOpacity(0.5),
+                : colorScheme.outline.withValues(alpha: 0.5),
             width: isSelected ? 1.5 : 1,
           ),
         ),
@@ -216,7 +213,7 @@ class _SiteManagementScreenState extends State<SiteManagementScreen> {
                   Icon(
                     Icons.location_off,
                     size: 64,
-                    color: colorScheme.onSurfaceVariant.withOpacity(0.6),
+                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
                   ),
                   const SizedBox(height: 16),
                   Text(
@@ -228,7 +225,7 @@ class _SiteManagementScreenState extends State<SiteManagementScreen> {
                   const SizedBox(height: 8),
                   Text(
                     'Add a new construction site to get started',
-                    style: TextStyle(color: colorScheme.onSurfaceVariant.withOpacity(0.7)),
+                    style: TextStyle(color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7)),
                   ),
                   const SizedBox(height: 24),
                   ElevatedButton.icon(
@@ -319,18 +316,18 @@ class _SiteManagementScreenState extends State<SiteManagementScreen> {
                       prefixIcon: Icon(Icons.search, size: 20, color: colorScheme.onSurfaceVariant),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: colorScheme.outline.withOpacity(0.5)),
+                        borderSide: BorderSide(color: colorScheme.outline.withValues(alpha: 0.5)),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: colorScheme.outline.withOpacity(0.5)),
+                        borderSide: BorderSide(color: colorScheme.outline.withValues(alpha: 0.5)),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide(color: colorScheme.primary, width: 2),
                       ),
                       filled: true,
-                      fillColor: colorScheme.surfaceVariant.withOpacity(0.3),
+                      fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                       contentPadding: EdgeInsets.symmetric(
                         horizontal: 16,
                         vertical: isMobile ? 12 : 14,
@@ -376,9 +373,9 @@ class _SiteManagementScreenState extends State<SiteManagementScreen> {
                         const SizedBox(width: 12),
                         Container(
                           decoration: BoxDecoration(
-                            color: colorScheme.surfaceVariant.withOpacity(0.3),
+                            color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: colorScheme.outline.withOpacity(0.5)),
+                            border: Border.all(color: colorScheme.outline.withValues(alpha: 0.5)),
                           ),
                           child: PopupMenuButton<String>(
                             initialValue: _statusFilter,
@@ -434,7 +431,7 @@ class _SiteManagementScreenState extends State<SiteManagementScreen> {
                 child: Center(
                   child: Column(
                     children: [
-                      Icon(Icons.search_off, size: 64, color: colorScheme.onSurfaceVariant.withOpacity(0.6)),
+                      Icon(Icons.search_off, size: 64, color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6)),
                       const SizedBox(height: 16),
                       Text(
                         'No sites found',
@@ -447,7 +444,7 @@ class _SiteManagementScreenState extends State<SiteManagementScreen> {
                       const SizedBox(height: 8),
                       Text(
                         'Try adjusting your search or filter',
-                        style: TextStyle(color: colorScheme.onSurfaceVariant.withOpacity(0.7), fontSize: 14),
+                        style: TextStyle(color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7), fontSize: 14),
                       ),
                     ],
                   ),
@@ -499,11 +496,11 @@ class _SiteManagementScreenState extends State<SiteManagementScreen> {
       ),
       decoration: BoxDecoration(
         color: isDark 
-            ? color.withOpacity(0.12)
-            : color.withOpacity(0.06),
+            ? color.withValues(alpha: 0.12)
+            : color.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(10),
         border: isDark 
-            ? Border.all(color: colorScheme.outline.withOpacity(0.15), width: 1)
+            ? Border.all(color: colorScheme.outline.withValues(alpha: 0.15), width: 1)
             : null,
       ),
       child: Row(
@@ -554,8 +551,8 @@ class _SiteManagementScreenState extends State<SiteManagementScreen> {
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
           color: isDark 
-              ? colorScheme.outline.withOpacity(0.2)
-              : colorScheme.outline.withOpacity(0.1),
+              ? colorScheme.outline.withValues(alpha: 0.2)
+              : colorScheme.outline.withValues(alpha: 0.1),
           width: 1,
         ),
       ),
@@ -604,10 +601,10 @@ class _SiteManagementScreenState extends State<SiteManagementScreen> {
                           decoration: BoxDecoration(
                             color: site.isActive 
                                 ? (isDark 
-                                    ? Colors.green.withOpacity(0.2)
+                                    ? Colors.green.withValues(alpha: 0.2)
                                     : Colors.green[50])
                                 : (isDark
-                                    ? colorScheme.surfaceVariant
+                                    ? colorScheme.surfaceContainerHighest
                                     : Colors.grey[100]),
                             borderRadius: BorderRadius.circular(8),
                           ),
@@ -799,7 +796,7 @@ class _SiteManagementScreenState extends State<SiteManagementScreen> {
               ? RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                   side: BorderSide(
-                    color: colorScheme.outline.withOpacity(0.2),
+                    color: colorScheme.outline.withValues(alpha: 0.2),
                     width: 1,
                   ),
                 )
@@ -827,10 +824,10 @@ class _SiteManagementScreenState extends State<SiteManagementScreen> {
                       // Header Row
                       TableRow(
                         decoration: BoxDecoration(
-                          color: colorScheme.surfaceVariant.withOpacity(0.3),
+                          color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                           border: Border(
                             bottom: BorderSide(
-                              color: colorScheme.outline.withOpacity(0.2),
+                              color: colorScheme.outline.withValues(alpha: 0.2),
                               width: 2,
                             ),
                           ),
@@ -845,7 +842,7 @@ class _SiteManagementScreenState extends State<SiteManagementScreen> {
                         ],
                       ),
                       // Data Rows
-                      ..._filteredSites.map((site) => _buildTableRow(site, colorScheme)).toList(),
+                      ..._filteredSites.map((site) => _buildTableRow(site, colorScheme)),
                     ],
                   ),
                 ),
@@ -879,7 +876,7 @@ class _SiteManagementScreenState extends State<SiteManagementScreen> {
       decoration: BoxDecoration(
         border: Border(
           bottom: BorderSide(
-            color: colorScheme.outline.withOpacity(0.1),
+            color: colorScheme.outline.withValues(alpha: 0.1),
           ),
         ),
       ),
@@ -898,9 +895,9 @@ class _SiteManagementScreenState extends State<SiteManagementScreen> {
                       decoration: BoxDecoration(
                         color: site.isActive
                             ? (isDark 
-                                ? Colors.green.withOpacity(0.2)
-                                : Colors.green.withOpacity(0.1))
-                            : colorScheme.surfaceVariant.withOpacity(0.5),
+                                ? Colors.green.withValues(alpha: 0.2)
+                                : Colors.green.withValues(alpha: 0.1))
+                            : colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Icon(
@@ -934,9 +931,9 @@ class _SiteManagementScreenState extends State<SiteManagementScreen> {
                             decoration: BoxDecoration(
                               color: site.isActive
                                   ? (isDark 
-                                      ? Colors.green.withOpacity(0.2)
-                                      : Colors.green.withOpacity(0.1))
-                                  : colorScheme.surfaceVariant.withOpacity(0.5),
+                                      ? Colors.green.withValues(alpha: 0.2)
+                                      : Colors.green.withValues(alpha: 0.1))
+                                  : colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
@@ -1083,7 +1080,7 @@ class _SiteManagementScreenState extends State<SiteManagementScreen> {
         vertical: isMobile ? 8 : 10,
       ),
       decoration: BoxDecoration(
-        color: colorScheme.surfaceVariant.withOpacity(0.5),
+        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -1174,13 +1171,13 @@ class _SiteManagementScreenState extends State<SiteManagementScreen> {
               try {
                 await _siteService.deleteSite(site.id!);
                 _loadSites();
-                if (mounted) {
+                if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Site deleted successfully')),
                   );
                 }
               } catch (e) {
-                if (mounted) {
+                if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('Error: $e')),
                   );
@@ -1367,7 +1364,7 @@ class _SiteFormDialogState extends State<SiteFormDialog> {
                 color: Theme.of(context).colorScheme.surface,
                 border: Border(
                   bottom: BorderSide(
-                    color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                    color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
                   ),
                 ),
               ),
@@ -1643,7 +1640,7 @@ class _SiteFormDialogState extends State<SiteFormDialog> {
                 color: Theme.of(context).colorScheme.surface,
                 border: Border(
                   top: BorderSide(
-                    color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                    color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
                   ),
                 ),
               ),
@@ -1852,7 +1849,7 @@ class _EmployeeAssignmentDialogState extends State<EmployeeAssignmentDialog> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to assign employee: ${_error}'),
+            content: Text('Failed to assign employee: $_error'),
             backgroundColor: Colors.red,
           ),
         );
@@ -1929,7 +1926,7 @@ class _EmployeeAssignmentDialogState extends State<EmployeeAssignmentDialog> {
     final query = _searchQuery.toLowerCase();
     return _availableEmployees.where((emp) {
       final name = '${emp.firstName} ${emp.lastName}'.toLowerCase();
-      final code = emp.employeeId?.toLowerCase() ?? '';
+      final code = emp.employeeId.toLowerCase();
       return name.contains(query) || code.contains(query);
     }).toList();
   }
@@ -1947,7 +1944,7 @@ class _EmployeeAssignmentDialogState extends State<EmployeeAssignmentDialog> {
           color: colorScheme.surface,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: colorScheme.outline.withOpacity(0.2),
+            color: colorScheme.outline.withValues(alpha: 0.2),
             width: 1,
           ),
         ),
@@ -1960,7 +1957,7 @@ class _EmployeeAssignmentDialogState extends State<EmployeeAssignmentDialog> {
                 color: colorScheme.surface,
                 border: Border(
                   bottom: BorderSide(
-                    color: colorScheme.outline.withOpacity(0.2),
+                    color: colorScheme.outline.withValues(alpha: 0.2),
                   ),
                 ),
                 borderRadius: const BorderRadius.only(
@@ -2083,7 +2080,7 @@ class _EmployeeAssignmentDialogState extends State<EmployeeAssignmentDialog> {
         final assignment = _assignedEmployees[index];
         return ListTile(
           leading: CircleAvatar(
-            backgroundColor: colorScheme.primary.withOpacity(0.1),
+            backgroundColor: colorScheme.primary.withValues(alpha: 0.1),
             child: Icon(Icons.person, color: colorScheme.primary),
           ),
           title: Text(assignment['employeeName'] ?? 'Unknown'),
@@ -2096,7 +2093,7 @@ class _EmployeeAssignmentDialogState extends State<EmployeeAssignmentDialog> {
                   padding: const EdgeInsets.only(top: 4),
                   child: Chip(
                     label: const Text('Primary Site'),
-                    backgroundColor: Colors.green.withOpacity(0.1),
+                    backgroundColor: Colors.green.withValues(alpha: 0.1),
                     labelStyle: const TextStyle(
                       color: Colors.green,
                       fontSize: 12,
@@ -2180,14 +2177,14 @@ class _EmployeeAssignmentDialogState extends State<EmployeeAssignmentDialog> {
                         final employee = filtered[index];
                         return ListTile(
                           leading: CircleAvatar(
-                            backgroundColor: colorScheme.primary.withOpacity(0.1),
+                            backgroundColor: colorScheme.primary.withValues(alpha: 0.1),
                             child: Icon(Icons.person, color: colorScheme.primary),
                           ),
                           title: Text('${employee.firstName} ${employee.lastName}'),
                           subtitle: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('ID: ${employee.employeeId ?? 'N/A'}'),
+                              Text('ID: ${employee.employeeId}'),
                               if (employee.department != null)
                                 Text('Dept: ${employee.department}'),
                             ],
@@ -2328,17 +2325,19 @@ class _SiteDetailDialogState extends State<SiteDetailDialog> {
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(context); // Close delete confirmation
+              final navigator = Navigator.of(context);
+              final scaffoldMessenger = ScaffoldMessenger.of(context);
               try {
                 await _siteService.deleteSite(_site!.id!);
                 if (mounted) {
-                  Navigator.pop(context, true); // Close detail dialog and return deleted=true
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  navigator.pop(true); // Close detail dialog and return deleted=true
+                  scaffoldMessenger.showSnackBar(
                     const SnackBar(content: Text('Site deleted successfully')),
                   );
                 }
               } catch (e) {
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  scaffoldMessenger.showSnackBar(
                     SnackBar(content: Text('Error: $e')),
                   );
                 }
@@ -2368,7 +2367,7 @@ class _SiteDetailDialogState extends State<SiteDetailDialog> {
           color: colorScheme.surface,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: colorScheme.outline.withOpacity(0.2),
+            color: colorScheme.outline.withValues(alpha: 0.2),
             width: 1,
           ),
         ),
@@ -2382,7 +2381,7 @@ class _SiteDetailDialogState extends State<SiteDetailDialog> {
                 color: colorScheme.surface,
                 border: Border(
                   bottom: BorderSide(
-                    color: colorScheme.outline.withOpacity(0.2),
+                    color: colorScheme.outline.withValues(alpha: 0.2),
                   ),
                 ),
               ),
@@ -2541,7 +2540,7 @@ class _SiteDetailDialogState extends State<SiteDetailDialog> {
           width: isMobile ? 56 : 64,
           height: isMobile ? 56 : 64,
           decoration: BoxDecoration(
-            color: _site!.isActive ? Colors.green.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
+            color: _site!.isActive ? Colors.green.withValues(alpha: 0.1) : Colors.grey.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(
@@ -2569,7 +2568,7 @@ class _SiteDetailDialogState extends State<SiteDetailDialog> {
                   vertical: isMobile ? 4 : 6,
                 ),
                 decoration: BoxDecoration(
-                  color: _site!.isActive ? Colors.green.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
+                  color: _site!.isActive ? Colors.green.withValues(alpha: 0.1) : Colors.grey.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -2707,7 +2706,7 @@ class _SiteDetailDialogState extends State<SiteDetailDialog> {
                           return ListTile(
                             contentPadding: EdgeInsets.zero,
                             leading: CircleAvatar(
-                              backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                              backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
                               child: Icon(
                                 Icons.person,
                                 color: Theme.of(context).colorScheme.primary,
@@ -2727,7 +2726,7 @@ class _SiteDetailDialogState extends State<SiteDetailDialog> {
                                     padding: const EdgeInsets.only(top: 4),
                                     child: Chip(
                                       label: const Text('Primary Site'),
-                                      backgroundColor: Colors.green.withOpacity(0.1),
+                                      backgroundColor: Colors.green.withValues(alpha: 0.1),
                                       labelStyle: const TextStyle(
                                         color: Colors.green,
                                         fontSize: 11,

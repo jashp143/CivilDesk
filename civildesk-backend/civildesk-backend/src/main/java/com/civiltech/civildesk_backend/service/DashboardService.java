@@ -7,19 +7,20 @@ import com.civiltech.civildesk_backend.model.Employee;
 import com.civiltech.civildesk_backend.repository.EmployeeRepository;
 import com.civiltech.civildesk_backend.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
-@Transactional
+@Transactional(readOnly = true)
 public class DashboardService {
 
     @Autowired
@@ -30,37 +31,31 @@ public class DashboardService {
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
+    /**
+     * Get admin dashboard statistics with optimized queries and caching.
+     * Uses database aggregation queries instead of loading all employees into memory.
+     * Cached for 5 minutes to reduce database load.
+     */
+    @Cacheable(value = "dashboard", key = "'admin-stats'")
     public DashboardStatsResponse getAdminDashboardStats() {
         DashboardStatsResponse response = new DashboardStatsResponse();
 
-        // Employee Stats
+        // Employee Stats - Using optimized count queries
         DashboardStatsResponse.EmployeeStats employeeStats = new DashboardStatsResponse.EmployeeStats();
         long totalEmployees = employeeRepository.count();
         long activeEmployees = employeeRepository.countByEmploymentStatusAndDeletedFalse(Employee.EmploymentStatus.ACTIVE);
         long inactiveEmployees = employeeRepository.countByEmploymentStatusAndDeletedFalse(Employee.EmploymentStatus.INACTIVE);
 
-        // Get employees by type
-        List<Employee> allEmployees = employeeRepository.findAll();
-        long fullTimeCount = allEmployees.stream()
-                .filter(e -> !e.getDeleted() && e.getEmploymentType() == Employee.EmploymentType.FULL_TIME)
-                .count();
-        long partTimeCount = allEmployees.stream()
-                .filter(e -> !e.getDeleted() && e.getEmploymentType() == Employee.EmploymentType.PART_TIME)
-                .count();
-        long contractCount = allEmployees.stream()
-                .filter(e -> !e.getDeleted() && e.getEmploymentType() == Employee.EmploymentType.CONTRACT)
-                .count();
-        long internCount = allEmployees.stream()
-                .filter(e -> !e.getDeleted() && e.getEmploymentType() == Employee.EmploymentType.INTERN)
-                .count();
+        // Get employees by type - Using optimized aggregation queries
+        long fullTimeCount = employeeRepository.countByEmploymentTypeAndDeletedFalse(Employee.EmploymentType.FULL_TIME);
+        long partTimeCount = employeeRepository.countByEmploymentTypeAndDeletedFalse(Employee.EmploymentType.PART_TIME);
+        long contractCount = employeeRepository.countByEmploymentTypeAndDeletedFalse(Employee.EmploymentType.CONTRACT);
+        long internCount = employeeRepository.countByEmploymentTypeAndDeletedFalse(Employee.EmploymentType.INTERN);
 
-        // New employees this month
+        // New employees this month - Using optimized query with date filter
         LocalDate firstDayOfMonth = LocalDate.now().withDayOfMonth(1);
-        long newEmployeesThisMonth = allEmployees.stream()
-                .filter(e -> !e.getDeleted() && 
-                        e.getCreatedAt() != null && 
-                        e.getCreatedAt().toLocalDate().isAfter(firstDayOfMonth.minusDays(1)))
-                .count();
+        LocalDateTime startOfMonth = firstDayOfMonth.atStartOfDay();
+        long newEmployeesThisMonth = employeeRepository.countNewEmployeesSince(startOfMonth);
 
         employeeStats.setTotalEmployees(totalEmployees);
         employeeStats.setActiveEmployees(activeEmployees);
@@ -71,21 +66,20 @@ public class DashboardService {
         employeeStats.setTotalEmployeesByTypeContract(contractCount);
         employeeStats.setTotalEmployeesByTypeIntern(internCount);
 
-        // Department Stats
+        // Department Stats - Using optimized GROUP BY query
         DashboardStatsResponse.DepartmentStats departmentStats = new DashboardStatsResponse.DepartmentStats();
-        Map<String, Long> departmentMap = allEmployees.stream()
-                .filter(e -> !e.getDeleted() && e.getDepartment() != null && !e.getDepartment().isEmpty())
-                .collect(Collectors.groupingBy(
-                        Employee::getDepartment,
-                        Collectors.counting()
-                ));
-
-        List<DashboardStatsResponse.DepartmentCount> departmentCounts = departmentMap.entrySet().stream()
-                .map(entry -> new DashboardStatsResponse.DepartmentCount(entry.getKey(), entry.getValue()))
+        List<Object[]> departmentResults = employeeRepository.getDepartmentCounts();
+        
+        List<DashboardStatsResponse.DepartmentCount> departmentCounts = departmentResults.stream()
+                .map(result -> {
+                    String department = (String) result[0];
+                    Long count = ((Number) result[1]).longValue();
+                    return new DashboardStatsResponse.DepartmentCount(department, count);
+                })
                 .collect(Collectors.toList());
 
         departmentStats.setDepartmentCounts(departmentCounts);
-        departmentStats.setTotalDepartments((long) departmentMap.size());
+        departmentStats.setTotalDepartments((long) departmentCounts.size());
 
         // Attendance Stats (Placeholder - will be implemented in Phase 5)
         DashboardStatsResponse.AttendanceStats attendanceStats = new DashboardStatsResponse.AttendanceStats();
@@ -107,6 +101,11 @@ public class DashboardService {
         return response;
     }
 
+    /**
+     * Get employee dashboard statistics with caching.
+     * Cached per user to reduce database load.
+     */
+    @Cacheable(value = "dashboard", key = "'employee-stats:' + #userId")
     public EmployeeDashboardStatsResponse getEmployeeDashboardStats(Long userId) {
         // Verify user exists
         Long nonNullUserId = Objects.requireNonNull(userId, "User ID cannot be null");

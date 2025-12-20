@@ -39,9 +39,25 @@ class SiteService {
               .toList();
         }
       }
-      throw Exception('Failed to load sites');
+      
+      // Extract error message from response if available
+      String errorMessage = 'Failed to load sites';
+      if (response.statusCode != 200) {
+        try {
+          final errorData = json.decode(response.body);
+          errorMessage = errorData['message'] ?? errorMessage;
+        } catch (_) {
+          // If response body is not JSON, use default message
+        }
+      }
+      throw Exception(errorMessage);
     } catch (e) {
-      throw Exception('Error fetching sites: $e');
+      // Extract clean error message
+      String errorMsg = e.toString();
+      if (errorMsg.startsWith('Exception: ')) {
+        errorMsg = errorMsg.substring(11);
+      }
+      throw Exception('Error fetching sites: $errorMsg');
     }
   }
 
@@ -59,9 +75,25 @@ class SiteService {
           return Site.fromJson(data['data']);
         }
       }
-      throw Exception('Failed to load site');
+      
+      // Extract error message from response if available
+      String errorMessage = 'Failed to load site';
+      if (response.statusCode != 200) {
+        try {
+          final errorData = json.decode(response.body);
+          errorMessage = errorData['message'] ?? errorMessage;
+        } catch (_) {
+          // If response body is not JSON, use default message
+        }
+      }
+      throw Exception(errorMessage);
     } catch (e) {
-      throw Exception('Error fetching site: $e');
+      // Extract clean error message
+      String errorMsg = e.toString();
+      if (errorMsg.startsWith('Exception: ')) {
+        errorMsg = errorMsg.substring(11);
+      }
+      throw Exception('Error fetching site: $errorMsg');
     }
   }
 

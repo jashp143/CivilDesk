@@ -11,6 +11,7 @@ import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.lang.NonNull;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -34,7 +35,7 @@ public class OvertimeController {
     // Update overtime
     @PutMapping("/{overtimeId}")
     public ResponseEntity<ApiResponse<OvertimeResponse>> updateOvertime(
-            @PathVariable Long overtimeId,
+            @PathVariable @NonNull Long overtimeId,
             @Valid @RequestBody OvertimeRequest request) {
         OvertimeResponse response = overtimeService.updateOvertime(overtimeId, request);
         return ResponseEntity.ok(ApiResponse.success("Overtime updated successfully", response));
@@ -42,7 +43,7 @@ public class OvertimeController {
 
     // Delete overtime
     @DeleteMapping("/{overtimeId}")
-    public ResponseEntity<ApiResponse<Void>> deleteOvertime(@PathVariable Long overtimeId) {
+    public ResponseEntity<ApiResponse<Void>> deleteOvertime(@PathVariable @NonNull Long overtimeId) {
         overtimeService.deleteOvertime(overtimeId);
         return ResponseEntity.ok(ApiResponse.success("Overtime deleted successfully", null));
     }
@@ -82,7 +83,7 @@ public class OvertimeController {
 
     // Get overtime by ID
     @GetMapping("/{overtimeId}")
-    public ResponseEntity<ApiResponse<OvertimeResponse>> getOvertimeById(@PathVariable Long overtimeId) {
+    public ResponseEntity<ApiResponse<OvertimeResponse>> getOvertimeById(@PathVariable @NonNull Long overtimeId) {
         OvertimeResponse overtime = overtimeService.getOvertimeById(overtimeId);
         return ResponseEntity.ok(ApiResponse.success("Overtime fetched successfully", overtime));
     }
@@ -91,7 +92,7 @@ public class OvertimeController {
     @PutMapping("/{overtimeId}/review")
     @RequiresRole({"ADMIN", "HR_MANAGER"})
     public ResponseEntity<ApiResponse<OvertimeResponse>> reviewOvertime(
-            @PathVariable Long overtimeId,
+            @PathVariable @NonNull Long overtimeId,
             @Valid @RequestBody OvertimeReviewRequest request) {
         OvertimeResponse response = overtimeService.reviewOvertime(overtimeId, request);
         return ResponseEntity.ok(ApiResponse.success("Overtime reviewed successfully", response));

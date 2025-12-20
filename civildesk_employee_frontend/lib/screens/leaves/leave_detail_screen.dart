@@ -56,10 +56,10 @@ class LeaveDetailScreen extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.15),
+                  color: statusColor.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(24),
                   border: Border.all(
-                    color: statusColor.withOpacity(0.3),
+                    color: statusColor.withValues(alpha: 0.3),
                     width: 1.5,
                   ),
                 ),
@@ -88,7 +88,7 @@ class LeaveDetailScreen extends StatelessWidget {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
                 side: BorderSide(
-                  color: colorScheme.outline.withOpacity(0.12),
+                  color: colorScheme.outline.withValues(alpha: 0.12),
                   width: 1,
                 ),
               ),
@@ -154,7 +154,7 @@ class LeaveDetailScreen extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: colorScheme.surfaceVariant.withOpacity(0.5),
+                        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -178,7 +178,7 @@ class LeaveDetailScreen extends StatelessWidget {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                   side: BorderSide(
-                    color: colorScheme.outline.withOpacity(0.12),
+                    color: colorScheme.outline.withValues(alpha: 0.12),
                     width: 1,
                   ),
                 ),
@@ -254,7 +254,7 @@ class LeaveDetailScreen extends StatelessWidget {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                   side: BorderSide(
-                    color: colorScheme.outline.withOpacity(0.12),
+                    color: colorScheme.outline.withValues(alpha: 0.12),
                     width: 1,
                   ),
                 ),
@@ -305,7 +305,7 @@ class LeaveDetailScreen extends StatelessWidget {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                   side: BorderSide(
-                    color: colorScheme.outline.withOpacity(0.12),
+                    color: colorScheme.outline.withValues(alpha: 0.12),
                     width: 1,
                   ),
                 ),
@@ -360,7 +360,7 @@ class LeaveDetailScreen extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: colorScheme.surfaceVariant.withOpacity(0.5),
+                            color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(

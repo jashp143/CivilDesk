@@ -10,6 +10,13 @@ class ExpenseProvider with ChangeNotifier {
   bool _isLoading = false;
   String? _error;
 
+  // Pagination state
+  int _currentPage = 0;
+  int _totalPages = 0;
+  int _totalElements = 0;
+  bool _hasMore = true;
+  final int _pageSize = 20;
+
   // Filters
   String? _selectedStatus;
   String? _selectedCategory;
@@ -19,23 +26,49 @@ class ExpenseProvider with ChangeNotifier {
   List<Expense> get expenses => _filteredExpenses;
   bool get isLoading => _isLoading;
   String? get error => _error;
+  int get currentPage => _currentPage;
+  int get totalPages => _totalPages;
+  int get totalElements => _totalElements;
+  bool get hasMore => _hasMore;
   String? get selectedStatus => _selectedStatus;
   String? get selectedCategory => _selectedCategory;
   String? get selectedDepartment => _selectedDepartment;
   List<String> get departments => _departments;
 
-  // Fetch all expenses
-  Future<void> fetchAllExpenses() async {
+  // Fetch all expenses (with pagination support)
+  Future<void> fetchAllExpenses({bool refresh = false}) async {
+    if (refresh) {
+      _currentPage = 0;
+      _expenses.clear();
+      _hasMore = true;
+    }
+
+    if (!_hasMore || _isLoading) return;
+
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      _expenses = await _expenseService.getAllExpenses(
+      final pageResponse = await _expenseService.getAllExpensesPaginated(
         status: _selectedStatus,
         category: _selectedCategory,
         department: _selectedDepartment,
+        page: _currentPage,
+        size: _pageSize,
       );
+
+      if (refresh || _currentPage == 0) {
+        _expenses = pageResponse.content;
+      } else {
+        _expenses.addAll(pageResponse.content);
+      }
+
+      _currentPage = pageResponse.number;
+      _totalPages = pageResponse.totalPages;
+      _totalElements = pageResponse.totalElements;
+      _hasMore = pageResponse.hasMore;
+
       _applyFilters();
       _isLoading = false;
       notifyListeners();
@@ -44,6 +77,17 @@ class ExpenseProvider with ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  // Load more expenses (next page)
+  Future<void> loadMoreExpenses() async {
+    if (!_hasMore || _isLoading) return;
+    await fetchAllExpenses(refresh: false);
+  }
+
+  // Refresh expenses (reload from beginning)
+  Future<void> refreshExpenses() async {
+    await fetchAllExpenses(refresh: true);
   }
 
   // Apply filters
@@ -82,22 +126,19 @@ class ExpenseProvider with ChangeNotifier {
   // Set status filter
   void setStatusFilter(String? status) {
     _selectedStatus = status;
-    _applyFilters();
-    notifyListeners();
+    refreshExpenses(); // Reload with new filter
   }
 
   // Set category filter
   void setCategoryFilter(String? category) {
     _selectedCategory = category;
-    _applyFilters();
-    notifyListeners();
+    refreshExpenses(); // Reload with new filter
   }
 
   // Set department filter
   void setDepartmentFilter(String? department) {
     _selectedDepartment = department;
-    _applyFilters();
-    notifyListeners();
+    refreshExpenses(); // Reload with new filter
   }
 
   // Clear all filters
@@ -105,8 +146,7 @@ class ExpenseProvider with ChangeNotifier {
     _selectedStatus = null;
     _selectedCategory = null;
     _selectedDepartment = null;
-    _applyFilters();
-    notifyListeners();
+    refreshExpenses(); // Reload without filters
   }
 
   // Review expense
@@ -118,7 +158,7 @@ class ExpenseProvider with ChangeNotifier {
     try {
       final request = ExpenseReviewRequest(status: status, reviewNote: note);
       await _expenseService.reviewExpense(expenseId, request);
-      await fetchAllExpenses(); // Refresh expenses list
+      await refreshExpenses(); // Refresh expenses list
       _isLoading = false;
       notifyListeners();
       return true;

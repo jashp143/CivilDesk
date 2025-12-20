@@ -5,12 +5,11 @@ import 'package:url_launcher/url_launcher.dart';
 import 'dart:io';
 import '../../models/expense.dart';
 import '../../core/providers/expense_provider.dart';
-import '../../core/constants/app_constants.dart';
 
 class ExpenseDetailScreen extends StatefulWidget {
   final Expense expense;
 
-  const ExpenseDetailScreen({Key? key, required this.expense}) : super(key: key);
+  const ExpenseDetailScreen({super.key, required this.expense});
 
   @override
   State<ExpenseDetailScreen> createState() => _ExpenseDetailScreenState();
@@ -125,7 +124,7 @@ class _ExpenseDetailScreenState extends State<ExpenseDetailScreen> {
         if (urlString.startsWith('/')) {
           urlString = serverUrl + urlString;
         } else {
-          urlString = serverUrl + '/' + urlString;
+          urlString = '$serverUrl/$urlString';
         }
       }
       
@@ -185,7 +184,7 @@ class _ExpenseDetailScreenState extends State<ExpenseDetailScreen> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                     decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.2),
+                      color: statusColor.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(24),
                     ),
                     child: Row(
@@ -363,7 +362,7 @@ class _ExpenseDetailScreenState extends State<ExpenseDetailScreen> {
                   color: Colors.white,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
+                      color: Colors.black.withValues(alpha: 0.1),
                       blurRadius: 4,
                       offset: const Offset(0, -2),
                     ),
@@ -404,7 +403,7 @@ class _ExpenseDetailScreenState extends State<ExpenseDetailScreen> {
             ),
           if (_isSubmitting)
             Container(
-              color: Colors.black.withOpacity(0.3),
+              color: Colors.black.withValues(alpha: 0.3),
               child: const Center(
                 child: CircularProgressIndicator(),
               ),

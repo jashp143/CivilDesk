@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 import '../../core/constants/app_routes.dart';
 import '../../core/providers/salary_slip_provider.dart';
 import '../../models/salary_slip.dart';
@@ -88,10 +87,10 @@ class _MySalarySlipsScreenState extends State<MySalarySlipsScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
-                color: colorScheme.surfaceVariant.withOpacity(0.5),
+                color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                 border: Border(
                   bottom: BorderSide(
-                    color: colorScheme.outline.withOpacity(0.1),
+                    color: colorScheme.outline.withValues(alpha: 0.1),
                     width: 1,
                   ),
                 ),
@@ -181,7 +180,7 @@ class _MySalarySlipsScreenState extends State<MySalarySlipsScreen> {
                               Container(
                                 padding: const EdgeInsets.all(24),
                                 decoration: BoxDecoration(
-                                  color: colorScheme.surfaceVariant.withOpacity(
+                                  color: colorScheme.surfaceContainerHighest.withValues(alpha:
                                     0.5,
                                   ),
                                   shape: BoxShape.circle,
@@ -190,7 +189,7 @@ class _MySalarySlipsScreenState extends State<MySalarySlipsScreen> {
                                   Icons.receipt_long_outlined,
                                   size: 64,
                                   color: colorScheme.onSurfaceVariant
-                                      .withOpacity(0.6),
+                                      .withValues(alpha: 0.6),
                                 ),
                               ),
                               const SizedBox(height: 24),
@@ -250,7 +249,7 @@ class _MySalarySlipsScreenState extends State<MySalarySlipsScreen> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: colorScheme.outline.withOpacity(0.12),
+          color: colorScheme.outline.withValues(alpha: 0.12),
           width: 1,
         ),
       ),
@@ -278,7 +277,7 @@ class _MySalarySlipsScreenState extends State<MySalarySlipsScreen> {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.12),
+                    color: statusColor.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(11),
                   ),
                   child: Text(
@@ -300,7 +299,7 @@ class _MySalarySlipsScreenState extends State<MySalarySlipsScreen> {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
               decoration: BoxDecoration(
-                color: successColor.withOpacity(0.08),
+                color: successColor.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Column(
@@ -398,7 +397,7 @@ class _MySalarySlipsScreenState extends State<MySalarySlipsScreen> {
         color: colorScheme.surface,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: colorScheme.outline.withOpacity(0.3),
+          color: colorScheme.outline.withValues(alpha: 0.3),
           width: 1,
         ),
       ),
@@ -479,12 +478,6 @@ class _MySalarySlipsScreenState extends State<MySalarySlipsScreen> {
         : const Color(0xFFC62828);
   }
 
-  Color _getWarningColor(ColorScheme colorScheme) {
-    return colorScheme.brightness == Brightness.dark
-        ? const Color(0xFFFFB74D)
-        : const Color(0xFFF57C00);
-  }
-
   String _getStatusLabel(String status) {
     switch (status.toUpperCase()) {
       case 'FINALIZED':
@@ -548,7 +541,7 @@ class _MySalarySlipsScreenState extends State<MySalarySlipsScreen> {
               ),
               const SizedBox(height: 8),
               DropdownButtonFormField<int>(
-                value: _selectedYear,
+                initialValue: _selectedYear,
                 isExpanded: true,
                 decoration: InputDecoration(
                   contentPadding: const EdgeInsets.symmetric(
@@ -582,7 +575,7 @@ class _MySalarySlipsScreenState extends State<MySalarySlipsScreen> {
               ),
               const SizedBox(height: 8),
               DropdownButtonFormField<int>(
-                value: _selectedMonth,
+                initialValue: _selectedMonth,
                 isExpanded: true,
                 hint: const Text('All Months'),
                 decoration: InputDecoration(
@@ -617,7 +610,7 @@ class _MySalarySlipsScreenState extends State<MySalarySlipsScreen> {
               ),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
-                value: _selectedStatus,
+                initialValue: _selectedStatus,
                 isExpanded: true,
                 decoration: InputDecoration(
                   contentPadding: const EdgeInsets.symmetric(
@@ -692,7 +685,7 @@ class _MySalarySlipsScreenState extends State<MySalarySlipsScreen> {
                     width: 40,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: colorScheme.onSurfaceVariant.withOpacity(0.3),
+                      color: colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -714,10 +707,10 @@ class _MySalarySlipsScreenState extends State<MySalarySlipsScreen> {
                         vertical: 8,
                       ),
                       decoration: BoxDecoration(
-                        color: statusColor.withOpacity(0.15),
+                        color: statusColor.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(24),
                         border: Border.all(
-                          color: statusColor.withOpacity(0.4),
+                          color: statusColor.withValues(alpha: 0.4),
                           width: 1.5,
                         ),
                       ),
@@ -842,10 +835,10 @@ class _MySalarySlipsScreenState extends State<MySalarySlipsScreen> {
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: _getSuccessColor(colorScheme).withOpacity(0.15),
+                    color: _getSuccessColor(colorScheme).withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: _getSuccessColor(colorScheme).withOpacity(0.4),
+                      color: _getSuccessColor(colorScheme).withValues(alpha: 0.4),
                       width: 2,
                     ),
                   ),
@@ -905,10 +898,10 @@ class _MySalarySlipsScreenState extends State<MySalarySlipsScreen> {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: colorScheme.surfaceVariant.withOpacity(0.5),
+            color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: colorScheme.outline.withOpacity(0.2),
+              color: colorScheme.outline.withValues(alpha: 0.2),
               width: 1,
             ),
           ),

@@ -9,11 +9,22 @@ class TaskProvider with ChangeNotifier {
   bool _isLoading = false;
   String? _error;
   TaskStatus? _selectedStatusFilter;
+  
+  // Pagination state
+  int _currentPage = 0;
+  int _totalPages = 0;
+  int _totalElements = 0;
+  bool _hasMore = true;
+  final int _pageSize = 20;
 
   List<Task> get tasks => _tasks;
   bool get isLoading => _isLoading;
   String? get error => _error;
   TaskStatus? get selectedStatusFilter => _selectedStatusFilter;
+  int get currentPage => _currentPage;
+  int get totalPages => _totalPages;
+  int get totalElements => _totalElements;
+  bool get hasMore => _hasMore;
 
   // Get filtered tasks
   List<Task> get filteredTasks {
@@ -43,7 +54,7 @@ class TaskProvider with ChangeNotifier {
 
     try {
       await _taskService.assignTask(request);
-      await fetchAllTasks(); // Refresh tasks list
+      await refreshTasks(); // Refresh tasks list
       _isLoading = false;
       notifyListeners();
       return true;
@@ -63,7 +74,7 @@ class TaskProvider with ChangeNotifier {
 
     try {
       await _taskService.updateTask(taskId, request);
-      await fetchAllTasks(); // Refresh tasks list
+      await refreshTasks(); // Refresh tasks list
       _isLoading = false;
       notifyListeners();
       return true;
@@ -83,7 +94,8 @@ class TaskProvider with ChangeNotifier {
 
     try {
       await _taskService.deleteTask(taskId);
-      await fetchAllTasks(); // Refresh tasks list
+      _tasks.removeWhere((task) => task.id == taskId);
+      _totalElements--;
       _isLoading = false;
       notifyListeners();
       return true;
@@ -95,14 +107,38 @@ class TaskProvider with ChangeNotifier {
     }
   }
 
-  // Fetch all tasks
-  Future<void> fetchAllTasks({String? status}) async {
+  // Fetch all tasks (with pagination support)
+  Future<void> fetchAllTasks({String? status, bool refresh = false}) async {
+    if (refresh) {
+      _currentPage = 0;
+      _tasks.clear();
+      _hasMore = true;
+    }
+
+    if (!_hasMore || _isLoading) return;
+
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      _tasks = await _taskService.getAllTasks(status: status);
+      final pageResponse = await _taskService.getAllTasksPaginated(
+        status: status,
+        page: _currentPage,
+        size: _pageSize,
+      );
+
+      if (refresh || _currentPage == 0) {
+        _tasks = pageResponse.content;
+      } else {
+        _tasks.addAll(pageResponse.content);
+      }
+
+      _currentPage = pageResponse.number;
+      _totalPages = pageResponse.totalPages;
+      _totalElements = pageResponse.totalElements;
+      _hasMore = pageResponse.hasMore;
+
       _isLoading = false;
       notifyListeners();
     } catch (e) {
@@ -110,6 +146,23 @@ class TaskProvider with ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  // Load more tasks (next page)
+  Future<void> loadMoreTasks() async {
+    if (!_hasMore || _isLoading) return;
+    await fetchAllTasks(
+      status: _selectedStatusFilter?.toString().split('.').last,
+      refresh: false,
+    );
+  }
+
+  // Refresh tasks (reload from beginning)
+  Future<void> refreshTasks() async {
+    await fetchAllTasks(
+      status: _selectedStatusFilter?.toString().split('.').last,
+      refresh: true,
+    );
   }
 
   // Get task by ID

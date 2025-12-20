@@ -16,18 +16,37 @@ class ExpensesScreen extends StatefulWidget {
 
 class _ExpensesScreenState extends State<ExpensesScreen> {
   String? _selectedStatusFilter; // null means 'All'
+  late ScrollController _scrollController;
 
   @override
   void initState() {
     super.initState();
     _selectedStatusFilter = null; // Show all by default
+    _scrollController = ScrollController();
+    _scrollController.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<ExpenseProvider>(context, listen: false).fetchMyExpenses();
+      Provider.of<ExpenseProvider>(context, listen: false).refreshExpenses();
     });
   }
 
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= 
+        _scrollController.position.maxScrollExtent * 0.9) {
+      final provider = Provider.of<ExpenseProvider>(context, listen: false);
+      if (provider.hasMore && !provider.isLoading) {
+        provider.loadMoreExpenses();
+      }
+    }
+  }
+
   Future<void> _refreshExpenses() async {
-    await Provider.of<ExpenseProvider>(context, listen: false).fetchMyExpenses();
+    await Provider.of<ExpenseProvider>(context, listen: false).refreshExpenses();
   }
 
   void _navigateToApplyExpense() async {
@@ -88,18 +107,19 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
               Navigator.pop(context);
               final provider = Provider.of<ExpenseProvider>(context, listen: false);
               final success = await provider.deleteExpense(expense.id);
-              if (mounted) {
-                if (success) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Expense deleted successfully')),
-                  );
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(provider.error ?? 'Failed to delete expense'),
-                    ),
-                  );
-                }
+              if (!mounted) return;
+              
+              final messenger = ScaffoldMessenger.of(context);
+              if (success) {
+                messenger.showSnackBar(
+                  const SnackBar(content: Text('Expense deleted successfully')),
+                );
+              } else {
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text(provider.error ?? 'Failed to delete expense'),
+                  ),
+                );
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
@@ -142,7 +162,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                     width: 40,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: colorScheme.onSurfaceVariant.withOpacity(0.3),
+                      color: colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -153,7 +173,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: categoryColor.withOpacity(0.15),
+                  color: categoryColor.withValues(alpha: 0.15),
                   borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(24),
                     topRight: Radius.circular(24),
@@ -166,7 +186,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                       width: 40,
                       height: 40,
                       decoration: BoxDecoration(
-                        color: categoryColor.withOpacity(0.2),
+                        color: categoryColor.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Icon(
@@ -202,10 +222,10 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
-                        color: statusColor.withOpacity(0.15),
+                        color: statusColor.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                          color: statusColor.withOpacity(0.4),
+                          color: statusColor.withValues(alpha: 0.4),
                           width: 1.5,
                         ),
                       ),
@@ -263,7 +283,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                           Container(
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
-                              color: colorScheme.primaryContainer.withOpacity(0.3),
+                              color: colorScheme.primaryContainer.withValues(alpha: 0.3),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Row(
@@ -330,7 +350,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                                   width: 32,
                                   height: 32,
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF4CAF50).withOpacity(0.1),
+                                    color: const Color(0xFF4CAF50).withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: const Icon(
@@ -479,8 +499,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                                   : 'Rejected',
                               '${DateFormat('MMM dd, yyyy').format(expense.reviewedAt!)} • ${DateFormat('hh:mm a').format(expense.reviewedAt!)}',
                               expense.status == ExpenseStatus.APPROVED
-                                  ? _getStatusColor(ExpenseStatus.APPROVED, colorScheme).withOpacity(0.2)
-                                  : _getStatusColor(ExpenseStatus.REJECTED, colorScheme).withOpacity(0.2),
+                                  ? _getStatusColor(ExpenseStatus.APPROVED, colorScheme).withValues(alpha: 0.2)
+                                  : _getStatusColor(ExpenseStatus.REJECTED, colorScheme).withValues(alpha: 0.2),
                               false,
                             ),
                           ],
@@ -519,7 +539,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                                     Container(
                                       padding: const EdgeInsets.all(12),
                                       decoration: BoxDecoration(
-                                        color: colorScheme.surfaceVariant.withOpacity(0.5),
+                                        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: Row(
@@ -582,7 +602,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           border: Border.all(
             color: isSelected
                 ? colorScheme.primary
-                : colorScheme.outline.withOpacity(0.3),
+                : colorScheme.outline.withValues(alpha: 0.3),
             width: 1,
           ),
         ),
@@ -611,7 +631,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     Color iconColor;
     if (iconBackgroundColor == colorScheme.primaryContainer) {
       iconColor = colorScheme.primary;
-    } else if (iconBackgroundColor == _getStatusColor(ExpenseStatus.APPROVED, colorScheme).withOpacity(0.2)) {
+    } else if (iconBackgroundColor == _getStatusColor(ExpenseStatus.APPROVED, colorScheme).withValues(alpha: 0.2)) {
       iconColor = _getStatusColor(ExpenseStatus.APPROVED, colorScheme);
     } else {
       iconColor = _getStatusColor(ExpenseStatus.REJECTED, colorScheme);
@@ -646,7 +666,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                 Container(
                   width: 2,
                   height: 20,
-                  color: colorScheme.outline.withOpacity(0.3),
+                  color: colorScheme.outline.withValues(alpha: 0.3),
                 ),
               ],
             ],
@@ -824,10 +844,10 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: colorScheme.surfaceVariant.withOpacity(0.3),
+              color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
               border: Border(
                 bottom: BorderSide(
-                  color: colorScheme.outline.withOpacity(0.1),
+                  color: colorScheme.outline.withValues(alpha: 0.1),
                   width: 1,
                 ),
               ),
@@ -942,13 +962,13 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                             Container(
                               padding: const EdgeInsets.all(24),
                               decoration: BoxDecoration(
-                                color: colorScheme.surfaceVariant.withOpacity(0.5),
+                                color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                                 shape: BoxShape.circle,
                               ),
                               child: Icon(
                                 Icons.receipt_long_outlined,
                                 size: 64,
-                                color: colorScheme.onSurfaceVariant.withOpacity(0.6),
+                                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
                               ),
                             ),
                             const SizedBox(height: 24),
@@ -994,7 +1014,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                               Icon(
                                 Icons.filter_alt_off_rounded,
                                 size: 64,
-                                color: colorScheme.onSurfaceVariant.withOpacity(0.6),
+                                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
                               ),
                               const SizedBox(height: 16),
                               Text(
@@ -1007,9 +1027,16 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                           ),
                         )
                       : ListView.builder(
+                          controller: _scrollController,
                           padding: const EdgeInsets.fromLTRB(6, 6, 6, 0),
-                          itemCount: filteredExpenses.length,
+                          itemCount: filteredExpenses.length + (provider.hasMore ? 1 : 0),
                           itemBuilder: (context, index) {
+                            if (index == filteredExpenses.length) {
+                              return const Padding(
+                                padding: EdgeInsets.all(16.0),
+                                child: Center(child: CircularProgressIndicator()),
+                              );
+                            }
                             final expense = filteredExpenses[index];
                             return Padding(
                               padding: const EdgeInsets.only(bottom: 0),
@@ -1043,15 +1070,15 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: colorScheme.outline.withOpacity(0.12),
+          color: colorScheme.outline.withValues(alpha: 0.12),
           width: 1,
         ),
       ),
       child: InkWell(
         onTap: () => _viewExpenseDetails(expense),
         borderRadius: BorderRadius.circular(12),
-        splashColor: colorScheme.primary.withOpacity(0.1),
-        highlightColor: colorScheme.primary.withOpacity(0.05),
+        splashColor: colorScheme.primary.withValues(alpha: 0.1),
+        highlightColor: colorScheme.primary.withValues(alpha: 0.05),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -1071,7 +1098,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                           width: 40,
                           height: 40,
                           decoration: BoxDecoration(
-                            color: categoryColor.withOpacity(0.2),
+                            color: categoryColor.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Icon(
@@ -1122,10 +1149,10 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.15),
+                      color: statusColor.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: statusColor.withOpacity(0.4),
+                        color: statusColor.withValues(alpha: 0.4),
                         width: 1.5,
                       ),
                     ),
@@ -1158,7 +1185,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: colorScheme.surfaceVariant.withOpacity(0.5),
+                  color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Row(
@@ -1229,10 +1256,10 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: colorScheme.primaryContainer.withOpacity(0.3),
+                    color: colorScheme.primaryContainer.withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: colorScheme.primary.withOpacity(0.2),
+                      color: colorScheme.primary.withValues(alpha: 0.2),
                       width: 1,
                     ),
                   ),
@@ -1300,7 +1327,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                 Divider(
                   height: 1,
                   thickness: 1,
-                  color: colorScheme.outline.withOpacity(0.2),
+                  color: colorScheme.outline.withValues(alpha: 0.2),
                 ),
                 const SizedBox(height: 12),
                 Row(
@@ -1317,7 +1344,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                             borderRadius: BorderRadius.circular(20),
                           ),
                           side: BorderSide(
-                            color: colorScheme.outline.withOpacity(0.5),
+                            color: colorScheme.outline.withValues(alpha: 0.5),
                             width: 1,
                           ),
                         ),

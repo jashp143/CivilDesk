@@ -122,9 +122,9 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen> {
                       child: Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.purple.withOpacity(0.1),
+                          color: Colors.purple.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.purple.withOpacity(0.3)),
+                          border: Border.all(color: Colors.purple.withValues(alpha: 0.3)),
                         ),
                         child: Row(
                           children: [
@@ -383,7 +383,7 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen> {
       ),
       child: Container(
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
+          color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
           borderRadius: BorderRadius.circular(12),
         ),
         padding: EdgeInsets.all(isMobile ? 10 : 14),
@@ -451,7 +451,7 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(
-          color: Theme.of(context).colorScheme.error.withOpacity(0.3),
+          color: Theme.of(context).colorScheme.error.withValues(alpha: 0.3),
           width: 1,
         ),
       ),
@@ -597,10 +597,10 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen> {
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(
           color: isSunday
-              ? Colors.purple.withOpacity(0.3)
+              ? Colors.purple.withValues(alpha: 0.3)
               : holiday.isActive
-                  ? Colors.green.withOpacity(0.3)
-                  : Colors.grey.withOpacity(0.3),
+                  ? Colors.green.withValues(alpha: 0.3)
+                  : Colors.grey.withValues(alpha: 0.3),
           width: 1.5,
         ),
       ),
@@ -609,10 +609,10 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen> {
           gradient: LinearGradient(
             colors: [
               isSunday
-                  ? Colors.purple.withOpacity(0.05)
+                  ? Colors.purple.withValues(alpha: 0.05)
                   : holiday.isActive
-                      ? Colors.green.withOpacity(0.05)
-                      : Colors.grey.withOpacity(0.05),
+                      ? Colors.green.withValues(alpha: 0.05)
+                      : Colors.grey.withValues(alpha: 0.05),
               Colors.transparent,
             ],
             begin: Alignment.topLeft,
@@ -632,10 +632,10 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen> {
                     height: 56,
                     decoration: BoxDecoration(
                       color: isSunday
-                          ? Colors.purple.withOpacity(0.2)
+                          ? Colors.purple.withValues(alpha: 0.2)
                           : holiday.isActive
-                              ? Colors.green.withOpacity(0.2)
-                              : Colors.grey.withOpacity(0.2),
+                              ? Colors.green.withValues(alpha: 0.2)
+                              : Colors.grey.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Center(
@@ -672,7 +672,7 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen> {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
-                                  color: Colors.purple.withOpacity(0.2),
+                                  color: Colors.purple.withValues(alpha: 0.2),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Text(
@@ -689,7 +689,7 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen> {
                                 margin: const EdgeInsets.only(left: 8),
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
-                                  color: Colors.grey.withOpacity(0.2),
+                                  color: Colors.grey.withValues(alpha: 0.2),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Text(
@@ -737,7 +737,7 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.purple.withOpacity(0.1),
+                    color: Colors.purple.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
@@ -765,7 +765,7 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.1),
+                    color: Colors.green.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
@@ -855,10 +855,10 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen> {
                 height: 56,
                 decoration: BoxDecoration(
                   color: isSunday
-                      ? Colors.purple.withOpacity(0.2)
+                      ? Colors.purple.withValues(alpha: 0.2)
                       : holiday.isActive
-                          ? Colors.green.withOpacity(0.2)
-                          : Colors.grey.withOpacity(0.2),
+                          ? Colors.green.withValues(alpha: 0.2)
+                          : Colors.grey.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Center(
@@ -890,7 +890,7 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.purple.withOpacity(0.2),
+                        color: Colors.purple.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
@@ -907,7 +907,7 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen> {
                       margin: const EdgeInsets.only(left: 8),
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.grey.withOpacity(0.2),
+                        color: Colors.grey.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(

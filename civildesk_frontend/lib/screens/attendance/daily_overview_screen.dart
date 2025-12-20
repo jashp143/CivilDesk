@@ -51,7 +51,9 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
 
     try {
       final dateString = DateFormat('yyyy-MM-dd').format(_selectedDate);
-      final response = await _attendanceService.getDailyAttendance(date: dateString);
+      final response = await _attendanceService.getDailyAttendance(
+        date: dateString,
+      );
 
       if (response['success'] == true && response['data'] != null) {
         final List<dynamic> attendanceList = response['data'] as List<dynamic>;
@@ -77,7 +79,7 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
 
   Future<void> _selectDate() async {
     if (!mounted) return;
-    
+
     try {
       final DateTime? picked = await showDatePicker(
         context: context,
@@ -89,7 +91,7 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
         confirmText: 'Select',
         initialDatePickerMode: DatePickerMode.day,
       );
-      
+
       if (mounted && picked != null) {
         if (picked.year != _selectedDate.year ||
             picked.month != _selectedDate.month ||
@@ -145,7 +147,7 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
     if (_searchQuery.isEmpty) {
       return _attendances;
     }
-    
+
     final query = _searchQuery.toLowerCase();
     return _attendances.where((attendance) {
       final nameMatch = attendance.employeeName.toLowerCase().contains(query);
@@ -169,7 +171,7 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
   Widget build(BuildContext context) {
     final isMobile = _isMobile(context);
     final theme = Theme.of(context);
-    
+
     return AdminLayout(
       currentRoute: AppRoutes.adminAttendance,
       title: Text(
@@ -185,16 +187,10 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
         if (isMobile) ...[
           // Change Date button for mobile
           IconButton(
-            icon: Icon(
-              Icons.calendar_today_rounded,
-              size: 22,
-            ),
+            icon: Icon(Icons.calendar_today_rounded, size: 22),
             iconSize: 22,
             padding: const EdgeInsets.all(8),
-            constraints: const BoxConstraints(
-              minWidth: 40,
-              minHeight: 40,
-            ),
+            constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
             onPressed: _selectDate,
             tooltip: 'Change Date',
           ),
@@ -202,8 +198,8 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
           _buildAppBarSummaryStats(),
         ],
       ],
-                  child: Column(
-                    children: [
+      child: Column(
+        children: [
           // Date selector, search bar and summary stats
           Padding(
             padding: const EdgeInsets.fromLTRB(12.0, 12.0, 12.0, 8.0),
@@ -211,12 +207,15 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
               children: [
                 // Date selector - More prominent
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.primary.withOpacity(0.08),
+                    color: theme.colorScheme.primary.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: theme.colorScheme.primary.withOpacity(0.2),
+                      color: theme.colorScheme.primary.withValues(alpha: 0.2),
                       width: 1,
                     ),
                   ),
@@ -230,7 +229,9 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          DateFormat('EEEE, MMMM d, yyyy').format(_selectedDate),
+                          DateFormat(
+                            'EEEE, MMMM d, yyyy',
+                          ).format(_selectedDate),
                           style: theme.textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.w600,
                             fontSize: isMobile ? 18 : 20,
@@ -280,8 +281,12 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     filled: true,
-                    fillColor: theme.colorScheme.surfaceVariant.withOpacity(0.3),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    fillColor: theme.colorScheme.surfaceContainerHighest
+                        .withValues(alpha: 0.3),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
                   ),
                   onChanged: _handleSearch,
                 ),
@@ -289,106 +294,106 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
                 // Summary stats
                 if (isMobile)
                   Row(
-                            children: [
-                              Expanded(
-                                child: _buildSummaryCard(
-                                  'Present',
+                    children: [
+                      Expanded(
+                        child: _buildSummaryCard(
+                          'Present',
                           _filteredAttendances
-                                      .where((a) => a.status == AttendanceStatus.present)
-                                      .length
-                                      .toString(),
+                              .where(
+                                (a) => a.status == AttendanceStatus.present,
+                              )
+                              .length
+                              .toString(),
                           AppTheme.statusApproved,
-                                  Icons.check_circle,
-                                ),
-                              ),
+                          Icons.check_circle,
+                        ),
+                      ),
                       const SizedBox(width: 8),
-                              Expanded(
-                                child: _buildSummaryCard(
-                                  'Absent',
+                      Expanded(
+                        child: _buildSummaryCard(
+                          'Absent',
                           _filteredAttendances
-                                      .where((a) => a.status == AttendanceStatus.absent)
-                                      .length
-                                      .toString(),
+                              .where((a) => a.status == AttendanceStatus.absent)
+                              .length
+                              .toString(),
                           AppTheme.statusRejected,
-                                  Icons.cancel,
+                          Icons.cancel,
                         ),
-                                ),
+                      ),
                     ],
-                              ),
-                            ],
-                          ),
-                        ),
+                  ),
+              ],
+            ),
+          ),
           // Main content
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _error != null
-                    ? Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                              Icons.error_outline,
-                                      size: 64,
-                              color: theme.colorScheme.error,
-                                    ),
-                                    const SizedBox(height: 16),
-                                    Text(
-                              'Error: $_error',
-                                      style: TextStyle(
-                                color: theme.colorScheme.error,
-                                      ),
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 16),
-                            ElevatedButton(
-                              onPressed: _loadDailyAttendance,
-                              child: const Text('Retry'),
-                            ),
-                          ],
-                ),
-                      )
-                    : _filteredAttendances.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  _searchQuery.isNotEmpty
-                                      ? Icons.search_off
-                                      : Icons.event_busy,
-                                  size: 64,
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  _searchQuery.isNotEmpty
-                                      ? 'No attendance records found for "$_searchQuery"'
-                                      : 'No attendance records for this date',
-                                  style: theme.textTheme.titleMedium?.copyWith(
-                                    color: theme.colorScheme.onSurfaceVariant,
-        ),
-      ),
-                                if (_searchQuery.isNotEmpty) ...[
-                                  const SizedBox(height: 8),
-                                  TextButton(
-                                    onPressed: () {
-                                      _searchController.clear();
-                                      _handleSearch('');
-                                    },
-                                    child: const Text('Clear search'),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          )
-                        : RefreshIndicator(
-                            onRefresh: _loadDailyAttendance,
-                            color: theme.colorScheme.primary,
-                            child: isMobile
-                                ? _buildMobileCardView()
-                                : _buildDesktopTableView(),
-        ),
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.error_outline,
+                          size: 64,
+                          color: theme.colorScheme.error,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Error: $_error',
+                          style: TextStyle(color: theme.colorScheme.error),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: _loadDailyAttendance,
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  )
+                : _filteredAttendances.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          _searchQuery.isNotEmpty
+                              ? Icons.search_off
+                              : Icons.event_busy,
+                          size: 64,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          _searchQuery.isNotEmpty
+                              ? 'No attendance records found for "$_searchQuery"'
+                              : 'No attendance records for this date',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        if (_searchQuery.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          TextButton(
+                            onPressed: () {
+                              _searchController.clear();
+                              _handleSearch('');
+                            },
+                            child: const Text('Clear search'),
+                          ),
+                        ],
+                      ],
+                    ),
+                  )
+                : RefreshIndicator(
+                    onRefresh: _loadDailyAttendance,
+                    color: theme.colorScheme.primary,
+                    child: isMobile
+                        ? _buildMobileCardView()
+                        : _buildDesktopTableView(),
+                  ),
           ),
         ],
       ),
@@ -403,18 +408,15 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
   ) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         color: isDark
-            ? color.withOpacity(0.15)
-            : color.withOpacity(0.1),
-        border: Border.all(
-          color: color.withOpacity(0.25),
-          width: 1,
-        ),
+            ? color.withValues(alpha: 0.15)
+            : color.withValues(alpha: 0.1),
+        border: Border.all(color: color.withValues(alpha: 0.25), width: 1),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -422,11 +424,7 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                icon,
-                color: color,
-                size: 20,
-              ),
+              Icon(icon, color: color, size: 20),
               const SizedBox(width: 6),
               Text(
                 value,
@@ -461,19 +459,20 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
         .where((a) => a.status == AttendanceStatus.absent)
         .length;
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
-    
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
-            color: AppTheme.statusApproved.withOpacity(isDark ? 0.2 : 0.12),
+            color: AppTheme.statusApproved.withValues(
+              alpha: isDark ? 0.2 : 0.12,
+            ),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: AppTheme.statusApproved.withOpacity(0.3),
+              color: AppTheme.statusApproved.withValues(alpha: 0.3),
               width: 1,
             ),
           ),
@@ -502,10 +501,12 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
-            color: AppTheme.statusRejected.withOpacity(isDark ? 0.2 : 0.12),
+            color: AppTheme.statusRejected.withValues(
+              alpha: isDark ? 0.2 : 0.12,
+            ),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: AppTheme.statusRejected.withOpacity(0.3),
+              color: AppTheme.statusRejected.withValues(alpha: 0.3),
               width: 1,
             ),
           ),
@@ -538,22 +539,22 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
   Widget _buildDesktopTableView() {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    
+
     return LayoutBuilder(
       builder: (context, constraints) {
         // Calculate minimum table width based on content
         final minTableWidth = 1200.0;
-        final tableWidth = constraints.maxWidth > minTableWidth 
-            ? constraints.maxWidth - 32 
+        final tableWidth = constraints.maxWidth > minTableWidth
+            ? constraints.maxWidth - 32
             : minTableWidth;
-        
+
         return Card(
           margin: const EdgeInsets.all(16),
           elevation: 2,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
             side: BorderSide(
-              color: colorScheme.outline.withOpacity(0.2),
+              color: colorScheme.outline.withValues(alpha: 0.2),
               width: 1,
             ),
           ),
@@ -580,7 +581,7 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
                     // Header Row
                     TableRow(
                       decoration: BoxDecoration(
-                        color: colorScheme.surfaceVariant,
+                        color: colorScheme.surfaceContainerHighest,
                         border: Border(
                           bottom: BorderSide(
                             color: colorScheme.outline,
@@ -589,14 +590,34 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
                         ),
                       ),
                       children: [
-                        _buildTableHeaderCell('Full Name (ID)', theme, Icons.person),
+                        _buildTableHeaderCell(
+                          'Full Name (ID)',
+                          theme,
+                          Icons.person,
+                        ),
                         _buildTableHeaderCell('Check In', theme, Icons.login),
-                        _buildTableHeaderCell('Lunch Out', theme, Icons.restaurant),
-                        _buildTableHeaderCell('Lunch In', theme, Icons.restaurant_menu),
+                        _buildTableHeaderCell(
+                          'Lunch Out',
+                          theme,
+                          Icons.restaurant,
+                        ),
+                        _buildTableHeaderCell(
+                          'Lunch In',
+                          theme,
+                          Icons.restaurant_menu,
+                        ),
                         _buildTableHeaderCell('Check Out', theme, Icons.logout),
-                        _buildTableHeaderCell('Working Hours', theme, Icons.access_time),
+                        _buildTableHeaderCell(
+                          'Working Hours',
+                          theme,
+                          Icons.access_time,
+                        ),
                         _buildTableHeaderCell('Overtime', theme, Icons.timer),
-                        _buildTableHeaderCell('Status/Actions', theme, Icons.more_vert),
+                        _buildTableHeaderCell(
+                          'Status/Actions',
+                          theme,
+                          Icons.more_vert,
+                        ),
                       ],
                     ),
                     // Data Rows
@@ -604,7 +625,7 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
                       final index = entry.key;
                       final attendance = entry.value;
                       return _buildTableRow(context, attendance, theme, index);
-                    }).toList(),
+                    }),
                   ],
                 ),
               ),
@@ -619,12 +640,8 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
       child: Row(
-                          children: [
-          Icon(
-            icon,
-            size: 18,
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
+        children: [
+          Icon(icon, size: 18, color: theme.colorScheme.onSurfaceVariant),
           const SizedBox(width: 8),
           Flexible(
             child: Text(
@@ -637,9 +654,9 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
               overflow: TextOverflow.ellipsis,
               maxLines: 1,
             ),
-                            ),
-                          ],
-                        ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -651,58 +668,86 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
   ) {
     final colorScheme = theme.colorScheme;
     final isEven = index % 2 == 0;
-    
+
     return TableRow(
       decoration: BoxDecoration(
-        color: isEven 
-            ? colorScheme.surface 
-            : colorScheme.surfaceVariant.withOpacity(0.3),
+        color: isEven
+            ? colorScheme.surface
+            : colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
         border: Border(
           bottom: BorderSide(
-            color: colorScheme.outline.withOpacity(0.1),
+            color: colorScheme.outline.withValues(alpha: 0.1),
             width: 1,
           ),
         ),
       ),
       children: [
         _buildNameCell(context, attendance, theme),
-        _buildTimeCell(attendance.formattedCheckInTime, theme, Icons.login, Colors.blue),
-        _buildTimeCell(_formatTime(attendance.lunchOutTime), theme, Icons.restaurant, Colors.orange),
-        _buildTimeCell(_formatTime(attendance.lunchInTime), theme, Icons.restaurant_menu, Colors.teal),
-        _buildTimeCell(attendance.formattedCheckOutTime, theme, Icons.logout, Colors.purple),
+        _buildTimeCell(
+          attendance.formattedCheckInTime,
+          theme,
+          Icons.login,
+          Colors.blue,
+        ),
+        _buildTimeCell(
+          _formatTime(attendance.lunchOutTime),
+          theme,
+          Icons.restaurant,
+          Colors.orange,
+        ),
+        _buildTimeCell(
+          _formatTime(attendance.lunchInTime),
+          theme,
+          Icons.restaurant_menu,
+          Colors.teal,
+        ),
+        _buildTimeCell(
+          attendance.formattedCheckOutTime,
+          theme,
+          Icons.logout,
+          Colors.purple,
+        ),
         _buildHoursCell(attendance.formattedWorkingHours, theme, Colors.green),
-        _buildHoursCell(attendance.formattedOvertimeHours, theme, Colors.orange),
+        _buildHoursCell(
+          attendance.formattedOvertimeHours,
+          theme,
+          Colors.orange,
+        ),
         _buildStatusActionsCell(context, attendance, theme),
       ],
     );
   }
 
-  Widget _buildNameCell(BuildContext context, Attendance attendance, ThemeData theme) {
+  Widget _buildNameCell(
+    BuildContext context,
+    Attendance attendance,
+    ThemeData theme,
+  ) {
     final primaryColor = theme.colorScheme.primary;
-    
+
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: InkWell(
         onTap: () => _navigateToEditScreen(attendance),
-        hoverColor: primaryColor.withOpacity(0.1),
+        hoverColor: primaryColor.withValues(alpha: 0.1),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
+            children: [
+              Text(
                 attendance.employeeName,
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurface,
                   fontWeight: FontWeight.w600,
-                            ),
+                ),
                 overflow: TextOverflow.ellipsis,
                 maxLines: 2,
-                        ),
+              ),
               const SizedBox(height: 4),
-                      Row(
-                        children: [
+              Row(
+                children: [
                   Icon(
                     Icons.badge_outlined,
                     size: 14,
@@ -717,79 +762,76 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
-                          ),
-                        ],
-                      ),
-                    ],
                   ),
-                ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildTimeCell(String time, ThemeData theme, IconData icon, Color color) {
+  Widget _buildTimeCell(
+    String time,
+    ThemeData theme,
+    IconData icon,
+    Color color,
+  ) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-          Icon(
-            icon,
-            size: 16,
-            color: color,
-          ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: color),
           const SizedBox(width: 8),
-                              Text(
+          Text(
             time,
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurface,
-                                ),
+            ),
             overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildHoursCell(String? hours, ThemeData theme, Color color) {
     final isDark = theme.brightness == Brightness.dark;
-    
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       child: hours != null
           ? Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
                 color: isDark
-                    ? color.withOpacity(0.2)
-                    : color.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(6),
+                    ? color.withValues(alpha: 0.2)
+                    : color.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(6),
                 border: Border.all(
-                  color: color.withOpacity(0.3),
+                  color: color.withValues(alpha: 0.3),
                   width: 1,
                 ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                  Icon(
-                    Icons.access_time,
-                    size: 16,
-                    color: color,
-                  ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.access_time, size: 16, color: color),
                   const SizedBox(width: 8),
                   Flexible(
                     child: Text(
                       hours,
                       style: theme.textTheme.bodyMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.bold,
                         color: color,
-                                ),
+                      ),
                       overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                    ],
+                    ),
                   ),
+                ],
+              ),
             )
           : Text(
               'N/A',
@@ -808,59 +850,55 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
     final statusColor = _getStatusColor(attendance.status, theme);
     final statusText = attendance.status.displayName;
     final primaryColor = theme.colorScheme.primary;
-    
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         mainAxisSize: MainAxisSize.min,
-                        children: [
+        children: [
           // Status Badge
           Flexible(
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
               decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.15),
+                color: statusColor.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: statusColor.withOpacity(0.3),
+                  color: statusColor.withValues(alpha: 0.3),
                   width: 1,
-                      ),
+                ),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-              Container(
+                  Container(
                     width: 8,
                     height: 8,
-                decoration: BoxDecoration(
-                  color: statusColor,
+                    decoration: BoxDecoration(
+                      color: statusColor,
                       shape: BoxShape.circle,
-                ),
+                    ),
                   ),
                   const SizedBox(width: 6),
                   Flexible(
-                child: Text(
+                    child: Text(
                       statusText,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: statusColor,
                         fontWeight: FontWeight.w600,
                         fontSize: 12,
-                  ),
+                      ),
                       overflow: TextOverflow.ellipsis,
                     ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
-      ),
           const SizedBox(width: 8),
           // Actions Menu
           PopupMenuButton<String>(
-            icon: Icon(
-              Icons.more_vert,
-              color: primaryColor,
-              size: 20,
-            ),
+            icon: Icon(Icons.more_vert, color: primaryColor, size: 20),
             onSelected: (value) {
               if (value == 'edit') {
                 _navigateToEditScreen(attendance);
@@ -886,7 +924,10 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
                     children: [
                       Icon(Icons.cancel_outlined, size: 18, color: Colors.red),
                       SizedBox(width: 8),
-                      Text('Mark as Absent', style: TextStyle(color: Colors.red)),
+                      Text(
+                        'Mark as Absent',
+                        style: TextStyle(color: Colors.red),
+                      ),
                     ],
                   ),
                 ),
@@ -925,7 +966,6 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
           _isLoading = true;
         });
 
-        final dateString = DateFormat('yyyy-MM-dd').format(_selectedDate);
         await _attendanceService.markAbsent(
           employeeId: attendance.employeeId,
           date: attendance.date,
@@ -971,7 +1011,7 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
         return _buildMobileCard(attendance);
       },
     );
-    }
+  }
 
   Widget _buildMobileCard(Attendance attendance) {
     final theme = Theme.of(context);
@@ -981,16 +1021,16 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
     final isDark = theme.brightness == Brightness.dark;
     final screenHeight = MediaQuery.of(context).size.height;
     final isSmallScreen = screenHeight < 700;
-    
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 1,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(
-          color: isDark 
-              ? Colors.white.withOpacity(0.1)
-              : Colors.black.withOpacity(0.1),
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.1)
+              : Colors.black.withValues(alpha: 0.1),
           width: 1,
         ),
       ),
@@ -1041,16 +1081,21 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
-                      color: statusColor.withOpacity(isDark ? 0.2 : 0.12),
+                      color: statusColor.withValues(alpha: isDark ? 0.2 : 0.12),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          attendance.status == AttendanceStatus.present ? Icons.check_circle_rounded : Icons.cancel_rounded,
+                          attendance.status == AttendanceStatus.present
+                              ? Icons.check_circle_rounded
+                              : Icons.cancel_rounded,
                           size: 14,
                           color: statusColor,
                         ),
@@ -1073,15 +1118,21 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
               Divider(
                 height: 1,
                 thickness: 1,
-                color: colorScheme.outline.withOpacity(0.1),
+                color: colorScheme.outline.withValues(alpha: 0.1),
               ),
               const SizedBox(height: 12),
               // Punch Logs Block - Clean Two-Column Layout
               _buildPunchLogRow('Check In', attendance.formattedCheckInTime),
               const SizedBox(height: 8),
-              _buildPunchLogRow('Lunch Out', _formatTime(attendance.lunchOutTime)),
+              _buildPunchLogRow(
+                'Lunch Out',
+                _formatTime(attendance.lunchOutTime),
+              ),
               const SizedBox(height: 8),
-              _buildPunchLogRow('Lunch In', _formatTime(attendance.lunchInTime)),
+              _buildPunchLogRow(
+                'Lunch In',
+                _formatTime(attendance.lunchInTime),
+              ),
               const SizedBox(height: 8),
               _buildPunchLogRow('Check Out', attendance.formattedCheckOutTime),
               const SizedBox(height: 12),
@@ -1089,11 +1140,13 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
               Divider(
                 height: 1,
                 thickness: 1,
-                color: colorScheme.outline.withOpacity(0.1),
+                color: colorScheme.outline.withValues(alpha: 0.1),
               ),
               const SizedBox(height: 12),
               // Summary Row: Working Hours & Overtime
-              if (isSmallScreen && attendance.formattedWorkingHours != null && attendance.formattedOvertimeHours != null)
+              if (isSmallScreen &&
+                  attendance.formattedWorkingHours != null &&
+                  attendance.formattedOvertimeHours != null)
                 // Compact single line for small screens
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -1172,7 +1225,7 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
   Widget _buildPunchLogRow(String label, String time) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    
+
     return Row(
       children: [
         Expanded(
@@ -1199,18 +1252,15 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
 
   Widget _buildHoursCard(String label, String value, Color color, bool isDark) {
     final theme = Theme.of(context);
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: isDark
-            ? color.withOpacity(0.15)
-            : color.withOpacity(0.1),
+            ? color.withValues(alpha: 0.15)
+            : color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: color.withOpacity(0.25),
-          width: 1,
-        ),
+        border: Border.all(color: color.withValues(alpha: 0.25), width: 1),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -1237,20 +1287,22 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
     );
   }
 
-  Widget _buildCompactHoursCard(String label, String value, Color color, bool isDark) {
+  Widget _buildCompactHoursCard(
+    String label,
+    String value,
+    Color color,
+    bool isDark,
+  ) {
     final theme = Theme.of(context);
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: isDark
-            ? color.withOpacity(0.15)
-            : color.withOpacity(0.1),
+            ? color.withValues(alpha: 0.15)
+            : color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: color.withOpacity(0.25),
-          width: 1,
-        ),
+        border: Border.all(color: color.withValues(alpha: 0.25), width: 1),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
