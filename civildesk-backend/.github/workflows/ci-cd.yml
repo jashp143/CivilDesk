@@ -171,14 +171,14 @@ jobs:
         run: |
           # Create necessary directories on server
           ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
-            mkdir -p /opt/civildesk/civildesk-backend
+            mkdir -p /opt/civildesk/backend-civildesk
             mkdir -p /opt/civildesk/backups
           EOF
           
           # Copy docker-compose.yml and deployment script
-          scp -r civildesk-backend/docker-compose.yml ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/opt/civildesk/civildesk-backend/
-          scp -r civildesk-backend/Dockerfile ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/opt/civildesk/civildesk-backend/
-          scp -r civildesk-backend/deploy.sh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/opt/civildesk/civildesk-backend/
+          scp -r civildesk-backend/docker-compose.yml ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/opt/civildesk/backend-civildesk/
+          scp -r civildesk-backend/Dockerfile ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/opt/civildesk/backend-civildesk/
+          scp -r civildesk-backend/deploy.sh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/opt/civildesk/backend-civildesk/
           chmod +x civildesk-backend/deploy.sh || true
 
       - name: Save and transfer Docker image
@@ -200,7 +200,7 @@ jobs:
         run: |
           ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'ENDSSH'
             set -e
-            cd /opt/civildesk/civildesk-backend
+            cd /opt/civildesk/backend-civildesk
             
             # Make deploy script executable
             chmod +x deploy.sh || true
@@ -239,7 +239,7 @@ jobs:
           
           echo "❌ Health check failed after $MAX_RETRIES attempts"
           ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
-            "cd /opt/civildesk/civildesk-backend && docker compose logs --tail=50 backend" || true
+            "cd /opt/civildesk/backend-civildesk && docker compose logs --tail=50 backend" || true
           exit 1
 
       - name: Deployment summary
@@ -254,7 +254,7 @@ jobs:
             echo "Branch: ${{ github.ref_name }}"
             echo ""
             echo "Container Status:"
-            cd /opt/civildesk/civildesk-backend
+            cd /opt/civildesk/backend-civildesk
             docker compose ps
             echo ""
             echo "Recent Backend Logs:"
