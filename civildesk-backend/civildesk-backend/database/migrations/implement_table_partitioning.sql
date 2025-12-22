@@ -2,7 +2,7 @@
 -- TABLE PARTITIONING IMPLEMENTATION
 -- Civildesk Employee Management System
 -- Phase 4 Optimization - Long-term Scalability
--- Generated: December 2025
+-- Generated: December 2025 / January 2026
 -- =============================================================================
 --
 -- PURPOSE:
@@ -35,44 +35,48 @@ CREATE TABLE attendance_new (
 ) PARTITION BY RANGE (date);
 
 -- Create partitions for current and future months
--- Adjust dates based on your current date
+-- December 2025 and all months for 2026
 
--- Current month partition
-CREATE TABLE attendance_2025_01 PARTITION OF attendance_new
-FOR VALUES FROM ('2025-01-01') TO ('2025-02-01');
-
-CREATE TABLE attendance_2025_02 PARTITION OF attendance_new
-FOR VALUES FROM ('2025-02-01') TO ('2025-03-01');
-
-CREATE TABLE attendance_2025_03 PARTITION OF attendance_new
-FOR VALUES FROM ('2025-03-01') TO ('2025-04-01');
-
-CREATE TABLE attendance_2025_04 PARTITION OF attendance_new
-FOR VALUES FROM ('2025-04-01') TO ('2025-05-01');
-
-CREATE TABLE attendance_2025_05 PARTITION OF attendance_new
-FOR VALUES FROM ('2025-05-01') TO ('2025-06-01');
-
-CREATE TABLE attendance_2025_06 PARTITION OF attendance_new
-FOR VALUES FROM ('2025-06-01') TO ('2025-07-01');
-
-CREATE TABLE attendance_2025_07 PARTITION OF attendance_new
-FOR VALUES FROM ('2025-07-01') TO ('2025-08-01');
-
-CREATE TABLE attendance_2025_08 PARTITION OF attendance_new
-FOR VALUES FROM ('2025-08-01') TO ('2025-09-01');
-
-CREATE TABLE attendance_2025_09 PARTITION OF attendance_new
-FOR VALUES FROM ('2025-09-01') TO ('2025-10-01');
-
-CREATE TABLE attendance_2025_10 PARTITION OF attendance_new
-FOR VALUES FROM ('2025-10-01') TO ('2025-11-01');
-
-CREATE TABLE attendance_2025_11 PARTITION OF attendance_new
-FOR VALUES FROM ('2025-11-01') TO ('2025-12-01');
-
+-- December 2025 partition
 CREATE TABLE attendance_2025_12 PARTITION OF attendance_new
 FOR VALUES FROM ('2025-12-01') TO ('2026-01-01');
+
+-- 2026 monthly partitions
+CREATE TABLE attendance_2026_01 PARTITION OF attendance_new
+FOR VALUES FROM ('2026-01-01') TO ('2026-02-01');
+
+CREATE TABLE attendance_2026_02 PARTITION OF attendance_new
+FOR VALUES FROM ('2026-02-01') TO ('2026-03-01');
+
+CREATE TABLE attendance_2026_03 PARTITION OF attendance_new
+FOR VALUES FROM ('2026-03-01') TO ('2026-04-01');
+
+CREATE TABLE attendance_2026_04 PARTITION OF attendance_new
+FOR VALUES FROM ('2026-04-01') TO ('2026-05-01');
+
+CREATE TABLE attendance_2026_05 PARTITION OF attendance_new
+FOR VALUES FROM ('2026-05-01') TO ('2026-06-01');
+
+CREATE TABLE attendance_2026_06 PARTITION OF attendance_new
+FOR VALUES FROM ('2026-06-01') TO ('2026-07-01');
+
+CREATE TABLE attendance_2026_07 PARTITION OF attendance_new
+FOR VALUES FROM ('2026-07-01') TO ('2026-08-01');
+
+CREATE TABLE attendance_2026_08 PARTITION OF attendance_new
+FOR VALUES FROM ('2026-08-01') TO ('2026-09-01');
+
+CREATE TABLE attendance_2026_09 PARTITION OF attendance_new
+FOR VALUES FROM ('2026-09-01') TO ('2026-10-01');
+
+CREATE TABLE attendance_2026_10 PARTITION OF attendance_new
+FOR VALUES FROM ('2026-10-01') TO ('2026-11-01');
+
+CREATE TABLE attendance_2026_11 PARTITION OF attendance_new
+FOR VALUES FROM ('2026-11-01') TO ('2026-12-01');
+
+CREATE TABLE attendance_2026_12 PARTITION OF attendance_new
+FOR VALUES FROM ('2026-12-01') TO ('2027-01-01');
 
 -- Create default partition for future dates
 CREATE TABLE attendance_default PARTITION OF attendance_new
@@ -109,17 +113,47 @@ CREATE TABLE gps_attendance_logs_new (
     LIKE gps_attendance_logs INCLUDING ALL
 ) PARTITION BY RANGE (punch_time);
 
--- Create monthly partitions (adjust dates as needed)
-CREATE TABLE gps_attendance_logs_2025_01 PARTITION OF gps_attendance_logs_new
-FOR VALUES FROM ('2025-01-01') TO ('2025-02-01');
+-- Create monthly partitions for December 2025 and all months for 2026
+-- December 2025 partition
+CREATE TABLE gps_attendance_logs_2025_12 PARTITION OF gps_attendance_logs_new
+FOR VALUES FROM ('2025-12-01') TO ('2026-01-01');
 
-CREATE TABLE gps_attendance_logs_2025_02 PARTITION OF gps_attendance_logs_new
-FOR VALUES FROM ('2025-02-01') TO ('2025-03-01');
+-- 2026 monthly partitions
+CREATE TABLE gps_attendance_logs_2026_01 PARTITION OF gps_attendance_logs_new
+FOR VALUES FROM ('2026-01-01') TO ('2026-02-01');
 
-CREATE TABLE gps_attendance_logs_2025_03 PARTITION OF gps_attendance_logs_new
-FOR VALUES FROM ('2025-03-01') TO ('2025-04-01');
+CREATE TABLE gps_attendance_logs_2026_02 PARTITION OF gps_attendance_logs_new
+FOR VALUES FROM ('2026-02-01') TO ('2026-03-01');
 
--- Add more months as needed...
+CREATE TABLE gps_attendance_logs_2026_03 PARTITION OF gps_attendance_logs_new
+FOR VALUES FROM ('2026-03-01') TO ('2026-04-01');
+
+CREATE TABLE gps_attendance_logs_2026_04 PARTITION OF gps_attendance_logs_new
+FOR VALUES FROM ('2026-04-01') TO ('2026-05-01');
+
+CREATE TABLE gps_attendance_logs_2026_05 PARTITION OF gps_attendance_logs_new
+FOR VALUES FROM ('2026-05-01') TO ('2026-06-01');
+
+CREATE TABLE gps_attendance_logs_2026_06 PARTITION OF gps_attendance_logs_new
+FOR VALUES FROM ('2026-06-01') TO ('2026-07-01');
+
+CREATE TABLE gps_attendance_logs_2026_07 PARTITION OF gps_attendance_logs_new
+FOR VALUES FROM ('2026-07-01') TO ('2026-08-01');
+
+CREATE TABLE gps_attendance_logs_2026_08 PARTITION OF gps_attendance_logs_new
+FOR VALUES FROM ('2026-08-01') TO ('2026-09-01');
+
+CREATE TABLE gps_attendance_logs_2026_09 PARTITION OF gps_attendance_logs_new
+FOR VALUES FROM ('2026-09-01') TO ('2026-10-01');
+
+CREATE TABLE gps_attendance_logs_2026_10 PARTITION OF gps_attendance_logs_new
+FOR VALUES FROM ('2026-10-01') TO ('2026-11-01');
+
+CREATE TABLE gps_attendance_logs_2026_11 PARTITION OF gps_attendance_logs_new
+FOR VALUES FROM ('2026-11-01') TO ('2026-12-01');
+
+CREATE TABLE gps_attendance_logs_2026_12 PARTITION OF gps_attendance_logs_new
+FOR VALUES FROM ('2026-12-01') TO ('2027-01-01');
 
 -- Default partition
 CREATE TABLE gps_attendance_logs_default PARTITION OF gps_attendance_logs_new
@@ -163,6 +197,9 @@ BEGIN
         
         CREATE TABLE salary_slips_2026 PARTITION OF salary_slips_new
         FOR VALUES FROM (2026, 1) TO (2027, 1);
+        
+        CREATE TABLE salary_slips_2027 PARTITION OF salary_slips_new
+        FOR VALUES FROM (2027, 1) TO (2028, 1);
         
         -- Default partition
         CREATE TABLE salary_slips_default PARTITION OF salary_slips_new
