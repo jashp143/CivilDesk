@@ -35,7 +35,7 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
     @Query("SELECT a FROM Attendance a LEFT JOIN FETCH a.employee WHERE a.date = :date")
     List<Attendance> findAllByDate(@Param("date") LocalDate date);
     
-    @Query("SELECT a FROM Attendance a LEFT JOIN FETCH a.employee e WHERE a.date = :date ORDER BY e.firstName ASC, e.lastName ASC")
+    @Query("SELECT a FROM Attendance a LEFT JOIN FETCH a.employee e WHERE a.date = :date ORDER BY e.employeeId ASC")
     Page<Attendance> findAllByDate(@Param("date") LocalDate date, Pageable pageable);
     
     // New optimized query for admin attendance list view

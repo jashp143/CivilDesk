@@ -134,11 +134,26 @@ public class SalaryController {
 
     @GetMapping("/all")
     @PreAuthorize("hasRole('ADMIN') or hasRole('HR_MANAGER')")
-    public ResponseEntity<ApiResponse<List<SalarySlipResponse>>> getAllSalarySlips(
+    public ResponseEntity<ApiResponse<?>> getAllSalarySlips(
             @RequestParam(required = false) Integer year,
-            @RequestParam(required = false) Integer month) {
-        List<SalarySlipResponse> response = salaryService.getAllSalarySlips(year, month);
-        return ResponseEntity.ok(ApiResponse.success("Salary slips retrieved successfully", response));
+            @RequestParam(required = false) Integer month,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false) String sortDir) {
+        // If pagination parameters are provided, return paginated response
+        if (page != null && size != null) {
+            org.springframework.data.domain.Sort sort = org.springframework.data.domain.Sort.by(
+                    org.springframework.data.domain.Sort.Direction.fromString(sortDir != null ? sortDir : "DESC"),
+                    sortBy != null ? sortBy : "year");
+            org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size, sort);
+            org.springframework.data.domain.Page<SalarySlipResponse> pageResponse = salaryService.getAllSalarySlipsPaginated(year, month, pageable);
+            return ResponseEntity.ok(ApiResponse.success("Salary slips retrieved successfully", pageResponse));
+        } else {
+            // Return list for backward compatibility
+            List<SalarySlipResponse> response = salaryService.getAllSalarySlips(year, month);
+            return ResponseEntity.ok(ApiResponse.success("Salary slips retrieved successfully", response));
+        }
     }
 
     @PutMapping("/slip/{id}/finalize")

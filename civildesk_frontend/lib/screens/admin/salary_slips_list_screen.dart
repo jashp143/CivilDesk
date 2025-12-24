@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../core/services/salary_service.dart';
 import '../../models/salary_slip.dart';
+import '../../models/page_response.dart';
 import '../../widgets/admin_layout.dart';
 import '../../core/constants/app_routes.dart';
 import 'salary_slip_detail_screen.dart';
@@ -16,31 +17,80 @@ class SalarySlipsListScreen extends StatefulWidget {
 
 class _SalarySlipsListScreenState extends State<SalarySlipsListScreen> {
   final SalaryService _salaryService = SalaryService();
+  final ScrollController _scrollController = ScrollController();
   List<SalarySlip> _salarySlips = [];
   bool _isLoading = false;
   String? _errorMessage;
   int? _selectedYear;
   int? _selectedMonth;
+  
+  // Pagination state
+  int _currentPage = 0;
+  bool _hasMore = true;
+  bool _isInitialLoad = true;
 
   @override
   void initState() {
     super.initState();
-    _loadSalarySlips();
+    _scrollController.addListener(_onScroll);
+    _loadSalarySlips(refresh: true);
   }
 
-  Future<void> _loadSalarySlips() async {
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= 
+        _scrollController.position.maxScrollExtent * 0.9) {
+      if (_hasMore && !_isLoading) {
+        _loadSalarySlips(refresh: false);
+      }
+    }
+  }
+
+  // Get page size: 25 for first load, 10 for subsequent loads
+  int _getPageSize() {
+    return _isInitialLoad ? 25 : 10;
+  }
+
+  Future<void> _loadSalarySlips({bool refresh = false}) async {
+    if (refresh) {
+      _currentPage = 0;
+      _salarySlips.clear();
+      _hasMore = true;
+      _isInitialLoad = true;
+    }
+
+    if (!_hasMore || _isLoading) return;
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
     try {
-      final slips = await _salaryService.getAllSalarySlips(
+      final pageSize = _getPageSize();
+      final pageResponse = await _salaryService.getAllSalarySlipsPaginated(
         year: _selectedYear,
         month: _selectedMonth,
+        page: _currentPage,
+        size: pageSize,
+        sortBy: 'year',
+        sortDir: 'DESC',
       );
+
       setState(() {
-        _salarySlips = slips;
+        if (refresh || _currentPage == 0) {
+          _salarySlips = pageResponse.content;
+        } else {
+          _salarySlips.addAll(pageResponse.content);
+        }
+        _currentPage = pageResponse.number;
+        _hasMore = pageResponse.hasMore;
+        _isInitialLoad = false;
       });
     } catch (e) {
       setState(() {
@@ -65,10 +115,10 @@ class _SalarySlipsListScreenState extends State<SalarySlipsListScreen> {
 
     if (picked != null) {
       setState(() {
-        _selectedYear = picked.year;
-        _selectedMonth = picked.month;
+      _selectedYear = picked.year;
+      _selectedMonth = picked.month;
       });
-      _loadSalarySlips();
+      _loadSalarySlips(refresh: true);
     }
   }
 
@@ -77,7 +127,7 @@ class _SalarySlipsListScreenState extends State<SalarySlipsListScreen> {
       _selectedYear = null;
       _selectedMonth = null;
     });
-    _loadSalarySlips();
+    _loadSalarySlips(refresh: true);
   }
 
   Future<void> _deleteSalarySlip(SalarySlip slip) async {
@@ -114,7 +164,7 @@ class _SalarySlipsListScreenState extends State<SalarySlipsListScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Salary slip deleted successfully')),
         );
-        _loadSalarySlips();
+        _loadSalarySlips(refresh: true);
       }
     } catch (e) {
       if (context.mounted) {
@@ -201,7 +251,7 @@ class _SalarySlipsListScreenState extends State<SalarySlipsListScreen> {
           // Content
           Expanded(
             child: RefreshIndicator(
-              onRefresh: _loadSalarySlips,
+              onRefresh: () => _loadSalarySlips(refresh: true),
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : _errorMessage != null
@@ -264,7 +314,7 @@ class _SalarySlipsListScreenState extends State<SalarySlipsListScreen> {
                                               MaterialPageRoute(
                                                 builder: (context) => const SalaryCalculationScreen(),
                                               ),
-                                            ).then((_) => _loadSalarySlips());
+                                            ).then((_) => _loadSalarySlips(refresh: true));
                                           },
                                           icon: const Icon(Icons.calculate),
                                           label: const Text('Calculate Salary'),
@@ -276,9 +326,16 @@ class _SalarySlipsListScreenState extends State<SalarySlipsListScreen> {
                               ],
                             )
                           : ListView.builder(
+                              controller: _scrollController,
                               padding: const EdgeInsets.all(16),
-                              itemCount: _salarySlips.length,
+                              itemCount: _salarySlips.length + (_hasMore ? 1 : 0),
                               itemBuilder: (context, index) {
+                                if (index == _salarySlips.length) {
+                                  return const Padding(
+                                    padding: EdgeInsets.all(16.0),
+                                    child: Center(child: CircularProgressIndicator()),
+                                  );
+                                }
                                 final slip = _salarySlips[index];
                                 return Card(
                                   elevation: 2,
@@ -290,7 +347,7 @@ class _SalarySlipsListScreenState extends State<SalarySlipsListScreen> {
                                         MaterialPageRoute(
                                           builder: (context) => SalarySlipDetailScreen(salarySlip: slip),
                                         ),
-                                      ).then((_) => _loadSalarySlips());
+                                      ).then((_) => _loadSalarySlips(refresh: true));
                                     },
                                     child: Padding(
                                       padding: const EdgeInsets.all(16.0),

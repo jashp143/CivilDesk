@@ -101,12 +101,18 @@ class AttendanceService {
   }
 
   /// Get daily attendance overview
-  Future<Map<String, dynamic>> getDailyAttendance({String? date}) async {
+  Future<Map<String, dynamic>> getDailyAttendance({
+    String? date,
+    int page = 0,
+    int size = 25,
+  }) async {
     try {
       final response = await _apiService.get(
         '${AppConstants.attendanceEndpoint}/daily',
         queryParameters: {
           if (date != null) 'date': date,
+          'page': page,
+          'size': size,
         },
       );
 
@@ -117,8 +123,11 @@ class AttendanceService {
   }
 
   /// Update punch time (admin function)
+  /// If attendanceId is null, will create attendance record using employeeId and date
   Future<Map<String, dynamic>> updatePunchTime({
-    required int attendanceId,
+    int? attendanceId,
+    String? employeeId,
+    DateTime? date,
     required String punchType, // CHECK_IN, LUNCH_OUT, LUNCH_IN, CHECK_OUT
     required DateTime newTime,
   }) async {
@@ -126,13 +135,23 @@ class AttendanceService {
       // Format datetime as ISO 8601 string
       final timeString = newTime.toIso8601String();
       
+      final queryParams = <String, dynamic>{
+        'punch_type': punchType,
+        'new_time': timeString,
+      };
+      
+      if (attendanceId != null) {
+        queryParams['attendance_id'] = attendanceId.toString();
+      } else if (employeeId != null && date != null) {
+        queryParams['employee_id'] = employeeId;
+        queryParams['date'] = date.toIso8601String().split('T')[0]; // Format as YYYY-MM-DD
+      } else {
+        throw Exception('Either attendanceId or (employeeId and date) must be provided');
+      }
+      
       final response = await _apiService.put(
         '${AppConstants.attendanceEndpoint}/update-punch-time',
-        queryParameters: {
-          'attendance_id': attendanceId.toString(),
-          'punch_type': punchType,
-          'new_time': timeString,
-        },
+        queryParameters: queryParams,
       );
 
       return response.data;
@@ -160,6 +179,30 @@ class AttendanceService {
       return response.data;
     } catch (e) {
       throw Exception('Error marking absent: $e');
+    }
+  }
+
+  /// Manually mark attendance for a specific employee and date (admin function for emergency)
+  Future<Map<String, dynamic>> markAttendanceManualForDate({
+    required String employeeId,
+    required DateTime date,
+    String attendanceType = 'PUNCH_IN',
+  }) async {
+    try {
+      final dateString = date.toIso8601String().split('T')[0]; // Format as YYYY-MM-DD
+      
+      final response = await _apiService.post(
+        '${AppConstants.attendanceEndpoint}/mark-manual',
+        queryParameters: {
+          'employee_id': employeeId,
+          'date': dateString,
+          'attendance_type': attendanceType,
+        },
+      );
+
+      return response.data;
+    } catch (e) {
+      throw Exception('Error marking attendance: $e');
     }
   }
 }

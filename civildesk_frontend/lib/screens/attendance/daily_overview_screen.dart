@@ -24,10 +24,17 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
   final ScrollController _horizontalScrollController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  
+  // Pagination state
+  int _currentPage = 0;
+  int _totalPages = 0;
+  int _totalElements = 0;
+  bool _hasMore = false;
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     _loadDailyAttendance();
   }
 
@@ -43,7 +50,27 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
     return MediaQuery.of(context).size.shortestSide < 600;
   }
 
-  Future<void> _loadDailyAttendance() async {
+  void _onScroll() {
+    if (!_scrollController.hasClients || !mounted) return;
+    
+    final position = _scrollController.position;
+    final maxScroll = position.maxScrollExtent;
+    final currentScroll = position.pixels;
+    
+    // Load more when user scrolls to 80% of the scroll extent
+    if (currentScroll >= maxScroll * 0.8 && maxScroll > 0) {
+      if (_hasMore && !_isLoading) {
+        _loadMoreAttendance();
+      }
+    }
+  }
+
+  Future<void> _loadDailyAttendance({bool refresh = true}) async {
+    if (refresh) {
+      _currentPage = 0;
+      _attendances.clear();
+    }
+
     setState(() {
       _isLoading = true;
       _error = null;
@@ -53,19 +80,54 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
       final dateString = DateFormat('yyyy-MM-dd').format(_selectedDate);
       final response = await _attendanceService.getDailyAttendance(
         date: dateString,
+        page: _currentPage,
+        size: _currentPage == 0 ? 25 : 20,
       );
 
       if (response['success'] == true && response['data'] != null) {
-        final List<dynamic> attendanceList = response['data'] as List<dynamic>;
-        setState(() {
-          _attendances = attendanceList
+        final data = response['data'] as Map<String, dynamic>;
+        
+        // Check if it's paginated response
+        if (data.containsKey('content')) {
+          // Paginated response
+          final List<dynamic> attendanceList = data['content'] as List<dynamic>;
+          final newAttendances = attendanceList
               .map((json) => Attendance.fromJson(json as Map<String, dynamic>))
               .toList();
-          _isLoading = false;
-        });
+          
+          setState(() {
+            if (refresh || _currentPage == 0) {
+              _attendances = newAttendances;
+            } else {
+              _attendances.addAll(newAttendances);
+            }
+            _currentPage = data['number'] as int? ?? _currentPage;
+            _totalPages = data['totalPages'] as int? ?? 0;
+            _totalElements = data['totalElements'] as int? ?? 0;
+            _hasMore = _currentPage < _totalPages - 1;
+            _isLoading = false;
+          });
+        } else if (data is List) {
+          // Backward compatibility: list response
+          final List<dynamic> attendanceList = data as List<dynamic>;
+          setState(() {
+            _attendances = attendanceList
+                .map((json) => Attendance.fromJson(json as Map<String, dynamic>))
+                .toList();
+            _hasMore = false;
+            _isLoading = false;
+          });
+        } else {
+          setState(() {
+            _attendances = [];
+            _hasMore = false;
+            _isLoading = false;
+          });
+        }
       } else {
         setState(() {
           _attendances = [];
+          _hasMore = false;
           _isLoading = false;
         });
       }
@@ -75,6 +137,11 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
         _isLoading = false;
       });
     }
+  }
+
+  Future<void> _loadMoreAttendance() async {
+    if (!_hasMore || _isLoading) return;
+    await _loadDailyAttendance(refresh: false);
   }
 
   Future<void> _selectDate() async {
@@ -99,7 +166,7 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
           setState(() {
             _selectedDate = picked;
           });
-          _loadDailyAttendance();
+          _loadDailyAttendance(refresh: true);
         }
       }
     } catch (e) {
@@ -162,7 +229,7 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
       builder: (context) => EditPunchTimesDialog(attendance: attendance),
     ).then((_) {
       if (mounted) {
-        _loadDailyAttendance();
+        _loadDailyAttendance(refresh: true);
       }
     });
   }
@@ -548,38 +615,41 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
             ? constraints.maxWidth - 32
             : minTableWidth;
 
-        return Card(
-          margin: const EdgeInsets.all(16),
-          elevation: 2,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: BorderSide(
-              color: colorScheme.outline.withValues(alpha: 0.2),
-              width: 1,
-            ),
-          ),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            controller: _horizontalScrollController,
-            child: SingleChildScrollView(
-              controller: _scrollController,
-              physics: const AlwaysScrollableScrollPhysics(),
-              child: SizedBox(
-                width: tableWidth,
-                child: Table(
-                  columnWidths: const {
-                    0: FlexColumnWidth(2.5), // Full Name with Employee ID
-                    1: FlexColumnWidth(1.2), // Check In
-                    2: FlexColumnWidth(1.2), // Lunch Out
-                    3: FlexColumnWidth(1.2), // Lunch In
-                    4: FlexColumnWidth(1.2), // Check Out
-                    5: FlexColumnWidth(1.5), // Working Hours
-                    6: FlexColumnWidth(1.2), // Overtime
-                    7: FlexColumnWidth(1.8), // Actions/Status
-                  },
-                  children: [
-                    // Header Row
-                    TableRow(
+        return Column(
+          children: [
+            Expanded(
+              child: Card(
+                margin: const EdgeInsets.all(16),
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(
+                    color: colorScheme.outline.withValues(alpha: 0.2),
+                    width: 1,
+                  ),
+                ),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  controller: _horizontalScrollController,
+                  child: SingleChildScrollView(
+                    controller: _scrollController,
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: SizedBox(
+                      width: tableWidth,
+                      child: Table(
+                        columnWidths: const {
+                          0: FlexColumnWidth(2.5), // Full Name with Employee ID
+                          1: FlexColumnWidth(1.2), // Check In
+                          2: FlexColumnWidth(1.2), // Lunch Out
+                          3: FlexColumnWidth(1.2), // Lunch In
+                          4: FlexColumnWidth(1.2), // Check Out
+                          5: FlexColumnWidth(1.5), // Working Hours
+                          6: FlexColumnWidth(1.2), // Overtime
+                          7: FlexColumnWidth(1.8), // Actions/Status
+                        },
+                        children: [
+                          // Header Row
+                          TableRow(
                       decoration: BoxDecoration(
                         color: colorScheme.surfaceContainerHighest,
                         border: Border(
@@ -626,11 +696,48 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
                       final attendance = entry.value;
                       return _buildTableRow(context, attendance, theme, index);
                     }),
-                  ],
+                          // Loading indicator row
+                          if (_hasMore && _isLoading)
+                            TableRow(
+                              children: List.generate(8, (index) {
+                                return Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: Center(
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        theme.colorScheme.primary,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
-          ),
+            // Load More button footer
+            if (_hasMore && !_isLoading)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Center(
+                  child: ElevatedButton.icon(
+                    onPressed: _loadMoreAttendance,
+                    icon: const Icon(Icons.expand_more),
+                    label: Text(
+                      'Load More (${_totalElements - _attendances.length} remaining)',
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    ),
+                  ),
+                ),
+              ),
+          ],
         );
       },
     );
@@ -904,6 +1011,8 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
                 _navigateToEditScreen(attendance);
               } else if (value == 'mark_absent') {
                 _markAsAbsent(attendance);
+              } else if (value == 'mark_present') {
+                _markAsPresent(attendance);
               }
             },
             itemBuilder: (context) => [
@@ -917,6 +1026,20 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
                   ],
                 ),
               ),
+              if (attendance.status == AttendanceStatus.notMarked)
+                const PopupMenuItem(
+                  value: 'mark_present',
+                  child: Row(
+                    children: [
+                      Icon(Icons.check_circle_outline, size: 18, color: Colors.green),
+                      SizedBox(width: 8),
+                      Text(
+                        'Mark as Present (Emergency)',
+                        style: TextStyle(color: Colors.green),
+                      ),
+                    ],
+                  ),
+                ),
               if (attendance.status != AttendanceStatus.absent)
                 const PopupMenuItem(
                   value: 'mark_absent',
@@ -936,6 +1059,71 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _markAsPresent(Attendance attendance) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Mark as Present (Emergency)'),
+        content: Text(
+          'Are you sure you want to manually mark ${attendance.employeeName} as present for ${DateFormat('dd MMM yyyy').format(attendance.date)}?\n\nThis will create an attendance record with current time as check-in.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Mark Present'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        setState(() {
+          _isLoading = true;
+        });
+
+        await _attendanceService.markAttendanceManualForDate(
+          employeeId: attendance.employeeId,
+          date: attendance.date,
+          attendanceType: 'PUNCH_IN',
+        );
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${attendance.employeeName} marked as present'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          _loadDailyAttendance(refresh: true);
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error marking present: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      }
+    }
   }
 
   Future<void> _markAsAbsent(Attendance attendance) async {
@@ -978,7 +1166,7 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
               backgroundColor: Colors.green,
             ),
           );
-          _loadDailyAttendance();
+          _loadDailyAttendance(refresh: true);
         }
       } catch (e) {
         if (mounted) {
@@ -1005,8 +1193,16 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
       controller: _scrollController,
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
-      itemCount: _filteredAttendances.length,
+      itemCount: _filteredAttendances.length + (_hasMore ? 1 : 0),
       itemBuilder: (context, index) {
+        if (index >= _filteredAttendances.length) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(16.0),
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
         final attendance = _filteredAttendances[index];
         return _buildMobileCard(attendance);
       },
@@ -1194,27 +1390,51 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
                   ],
                 ),
               const SizedBox(height: 12),
-              // Edit Button - Improved
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () => _navigateToEditScreen(attendance),
-                  icon: const Icon(Icons.edit_rounded, size: 18),
-                  label: const Text(
-                    'Edit Time Logs',
-                    style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: colorScheme.primary,
-                    foregroundColor: colorScheme.onPrimary,
-                    padding: const EdgeInsets.symmetric(vertical: 11),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+              // Action Buttons
+              if (attendance.status == AttendanceStatus.notMarked)
+                // Mark as Present button for NOT_MARKED employees
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _markAsPresent(attendance),
+                    icon: const Icon(Icons.check_circle_rounded, size: 18),
+                    label: const Text(
+                      'Mark as Present (Emergency)',
+                      style: TextStyle(fontWeight: FontWeight.w600),
                     ),
-                    elevation: 0,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 11),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      elevation: 0,
+                    ),
+                  ),
+                )
+              else
+                // Edit Button for employees with attendance records
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _navigateToEditScreen(attendance),
+                    icon: const Icon(Icons.edit_rounded, size: 18),
+                    label: const Text(
+                      'Edit Time Logs',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: colorScheme.primary,
+                      foregroundColor: colorScheme.onPrimary,
+                      padding: const EdgeInsets.symmetric(vertical: 11),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      elevation: 0,
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
         ),

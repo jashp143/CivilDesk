@@ -5,6 +5,10 @@ import com.civiltech.civildesk_backend.dto.HolidayRequest;
 import com.civiltech.civildesk_backend.dto.HolidayResponse;
 import com.civiltech.civildesk_backend.service.HolidayService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -92,11 +96,26 @@ public class HolidayController {
 
     @GetMapping
     @PreAuthorize("hasRole('ADMIN') or hasRole('HR_MANAGER')")
-    public ResponseEntity<ApiResponse<List<HolidayResponse>>> getAllHolidays() {
+    public ResponseEntity<ApiResponse<?>> getAllHolidays(
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false) String sortDir) {
         try {
-            List<HolidayResponse> responses = holidayService.getAllHolidays();
-            return ResponseEntity.ok(
-                    ApiResponse.success("Holidays retrieved successfully", responses));
+            // If pagination parameters are provided, return paginated response
+            if (page != null && size != null) {
+                Sort sort = Sort.by(Sort.Direction.fromString(sortDir != null ? sortDir : "ASC"), 
+                        sortBy != null ? sortBy : "date");
+                Pageable pageable = PageRequest.of(page, size, sort);
+                Page<HolidayResponse> pageResponse = holidayService.getAllHolidaysPaginated(pageable);
+                return ResponseEntity.ok(
+                        ApiResponse.success("Holidays retrieved successfully", pageResponse));
+            } else {
+                // Return list for backward compatibility
+                List<HolidayResponse> responses = holidayService.getAllHolidays();
+                return ResponseEntity.ok(
+                        ApiResponse.success("Holidays retrieved successfully", responses));
+            }
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Error retrieving holidays: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR.value()));

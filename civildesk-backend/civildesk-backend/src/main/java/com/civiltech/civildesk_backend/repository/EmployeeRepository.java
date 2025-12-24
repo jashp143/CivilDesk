@@ -35,6 +35,9 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
     // Find by user ID
     Optional<Employee> findByUserIdAndDeletedFalse(Long userId);
     
+    // Find all non-deleted employees with pagination
+    Page<Employee> findByDeletedFalse(Pageable pageable);
+    
     // Search and filter
     @Query("SELECT e FROM Employee e WHERE e.deleted = false AND " +
            "(LOWER(e.firstName) LIKE LOWER(CONCAT('%', :search, '%')) OR " +

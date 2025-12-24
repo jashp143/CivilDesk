@@ -1,6 +1,8 @@
 package com.civiltech.civildesk_backend.repository;
 
 import com.civiltech.civildesk_backend.model.Leave;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -61,4 +63,17 @@ public interface LeaveRepository extends JpaRepository<Leave, Long> {
     // Find leaves by department
     @Query("SELECT l FROM Leave l WHERE l.employee.department = :department AND l.deleted = false")
     List<Leave> findLeavesByDepartment(@Param("department") String department);
+    
+    // Paginated queries
+    @EntityGraph(attributePaths = {"employee"})
+    Page<Leave> findByDeletedFalse(Pageable pageable);
+    
+    @EntityGraph(attributePaths = {"employee"})
+    Page<Leave> findByStatusAndDeletedFalse(Leave.LeaveStatus status, Pageable pageable);
+    
+    @EntityGraph(attributePaths = {"employee"})
+    Page<Leave> findByLeaveTypeAndDeletedFalse(Leave.LeaveType leaveType, Pageable pageable);
+    
+    @Query("SELECT l FROM Leave l WHERE l.employee.department = :department AND l.deleted = false")
+    Page<Leave> findLeavesByDepartment(@Param("department") String department, Pageable pageable);
 }

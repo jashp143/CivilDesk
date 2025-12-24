@@ -9,6 +9,10 @@ import com.civiltech.civildesk_backend.model.Task;
 import com.civiltech.civildesk_backend.service.TaskService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.lang.NonNull;
@@ -61,24 +65,38 @@ public class TaskController {
     // Get all tasks (Admin/HR only)
     @GetMapping
     @RequiresRole({"ADMIN", "HR_MANAGER"})
-    public ResponseEntity<ApiResponse<List<TaskResponse>>> getAllTasks(
-            @RequestParam(required = false) String status) {
+    public ResponseEntity<ApiResponse<?>> getAllTasks(
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false) String sortDir) {
         
-        List<TaskResponse> tasks;
-
-        if (status != null && !status.isEmpty()) {
-            try {
-                Task.TaskStatus taskStatus = Task.TaskStatus.valueOf(status.toUpperCase());
-                tasks = taskService.getTasksByStatus(taskStatus);
-            } catch (IllegalArgumentException e) {
-                return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("Invalid status value", 400));
-            }
+        // If pagination parameters are provided, return paginated response
+        if (page != null && size != null) {
+            Sort sort = Sort.by(Sort.Direction.fromString(sortDir != null ? sortDir : "DESC"), 
+                    sortBy != null ? sortBy : "createdAt");
+            Pageable pageable = PageRequest.of(page, size, sort);
+            Page<TaskResponse> pageResponse = taskService.getAllTasksPaginated(status, pageable);
+            return ResponseEntity.ok(ApiResponse.success("Tasks fetched successfully", pageResponse));
         } else {
-            tasks = taskService.getAllTasks();
-        }
+            // Return list for backward compatibility
+            List<TaskResponse> tasks;
 
-        return ResponseEntity.ok(ApiResponse.success("Tasks fetched successfully", tasks));
+            if (status != null && !status.isEmpty()) {
+                try {
+                    Task.TaskStatus taskStatus = Task.TaskStatus.valueOf(status.toUpperCase());
+                    tasks = taskService.getTasksByStatus(taskStatus);
+                } catch (IllegalArgumentException e) {
+                    return ResponseEntity.badRequest()
+                            .body(ApiResponse.error("Invalid status value", 400));
+                }
+            } else {
+                tasks = taskService.getAllTasks();
+            }
+
+            return ResponseEntity.ok(ApiResponse.success("Tasks fetched successfully", tasks));
+        }
     }
 
     // Get task by ID

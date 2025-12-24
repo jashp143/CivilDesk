@@ -17,7 +17,6 @@ import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.lang.NonNull;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -185,28 +184,21 @@ public class AttendanceController {
     public ResponseEntity<ApiResponse<?>> getDailyAttendance(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size,
-            @RequestParam(defaultValue = "employee.firstName") String sortBy,
+            @RequestParam(defaultValue = "25") int size,
+            @RequestParam(defaultValue = "employeeId") String sortBy,
             @RequestParam(defaultValue = "ASC") String sortDir) {
         try {
             if (date == null) {
                 date = LocalDate.now();
             }
             
-            // Use pagination if page/size are provided (non-zero page or size != default)
-            if (page > 0 || size != 20) {
-                Sort sort = sortDir.equalsIgnoreCase("DESC") ? 
-                    Sort.by(sortBy).descending() : Sort.by(sortBy).ascending();
-                Pageable pageable = PageRequest.of(page, size, sort);
-                Page<AttendanceResponse> responses = attendanceService.getDailyAttendancePaginated(date, pageable);
-                return ResponseEntity.ok(
-                        ApiResponse.success("Daily attendance retrieved successfully", responses));
-            } else {
-                // Backward compatibility: return list if pagination not requested
-                List<AttendanceResponse> responses = attendanceService.getDailyAttendance(date);
-                return ResponseEntity.ok(
-                        ApiResponse.success("Daily attendance retrieved successfully", responses));
-            }
+            // Always use pagination when page and size are provided
+            Sort sort = sortDir.equalsIgnoreCase("DESC") ? 
+                Sort.by(sortBy).descending() : Sort.by(sortBy).ascending();
+            Pageable pageable = PageRequest.of(page, size, sort);
+            Page<AttendanceResponse> responses = attendanceService.getDailyAttendancePaginated(date, pageable);
+            return ResponseEntity.ok(
+                    ApiResponse.success("Daily attendance retrieved successfully", responses));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Error retrieving daily attendance: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR.value()));
@@ -321,11 +313,23 @@ public class AttendanceController {
     @PutMapping("/update-punch-time")
     @PreAuthorize("hasRole('ADMIN') or hasRole('HR_MANAGER')")
     public ResponseEntity<ApiResponse<AttendanceResponse>> updatePunchTime(
-            @RequestParam("attendance_id") @NonNull Long attendanceId,
+            @RequestParam(value = "attendance_id", required = false) Long attendanceId,
+            @RequestParam(value = "employee_id", required = false) String employeeId,
+            @RequestParam(value = "date", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             @RequestParam("punch_type") String punchType,
             @RequestParam("new_time") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime newTime) {
         try {
-            AttendanceResponse response = attendanceService.updatePunchTime(attendanceId, punchType, newTime);
+            AttendanceResponse response;
+            if (attendanceId != null) {
+                // Update existing attendance record
+                response = attendanceService.updatePunchTime(attendanceId, punchType, newTime);
+            } else if (employeeId != null && date != null) {
+                // Create or update attendance record for employee and date
+                response = attendanceService.createOrUpdatePunchTime(employeeId, date, punchType, newTime);
+            } else {
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("Either attendance_id or (employee_id and date) must be provided", HttpStatus.BAD_REQUEST.value()));
+            }
             return ResponseEntity.ok(
                     ApiResponse.success("Punch time updated successfully", response));
         } catch (Exception e) {
@@ -367,6 +371,26 @@ public class AttendanceController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Error marking absent: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR.value()));
+        }
+    }
+
+    /**
+     * Manually mark attendance for a specific employee and date (admin function).
+     * Used for emergency situations when employee forgot to mark attendance.
+     */
+    @PostMapping("/mark-manual")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('HR_MANAGER')")
+    public ResponseEntity<ApiResponse<AttendanceResponse>> markAttendanceManual(
+            @RequestParam("employee_id") String employeeId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(value = "attendance_type", defaultValue = "PUNCH_IN") String attendanceType) {
+        try {
+            AttendanceResponse response = attendanceService.markAttendanceForDate(employeeId, date, attendanceType);
+            return ResponseEntity.ok(
+                    ApiResponse.success("Attendance marked successfully", response));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Error marking attendance: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR.value()));
         }
     }
 

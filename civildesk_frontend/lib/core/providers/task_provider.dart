@@ -15,7 +15,7 @@ class TaskProvider with ChangeNotifier {
   int _totalPages = 0;
   int _totalElements = 0;
   bool _hasMore = true;
-  final int _pageSize = 20;
+  bool _isInitialLoad = true; // Track if this is the first load
 
   List<Task> get tasks => _tasks;
   bool get isLoading => _isLoading;
@@ -107,12 +107,18 @@ class TaskProvider with ChangeNotifier {
     }
   }
 
+  // Get page size: 25 for first load, 10 for subsequent loads
+  int _getPageSize() {
+    return _isInitialLoad ? 25 : 10;
+  }
+
   // Fetch all tasks (with pagination support)
   Future<void> fetchAllTasks({String? status, bool refresh = false}) async {
     if (refresh) {
       _currentPage = 0;
       _tasks.clear();
       _hasMore = true;
+      _isInitialLoad = true;
     }
 
     if (!_hasMore || _isLoading) return;
@@ -122,10 +128,11 @@ class TaskProvider with ChangeNotifier {
     notifyListeners();
 
     try {
+      final pageSize = _getPageSize();
       final pageResponse = await _taskService.getAllTasksPaginated(
         status: status,
         page: _currentPage,
-        size: _pageSize,
+        size: pageSize,
       );
 
       if (refresh || _currentPage == 0) {
@@ -138,6 +145,7 @@ class TaskProvider with ChangeNotifier {
       _totalPages = pageResponse.totalPages;
       _totalElements = pageResponse.totalElements;
       _hasMore = pageResponse.hasMore;
+      _isInitialLoad = false;
 
       _isLoading = false;
       notifyListeners();

@@ -321,20 +321,42 @@ public class GpsAttendanceService {
 
     private void updateAttendanceFromPunch(Attendance attendance, GpsAttendanceLog.PunchType punchType, 
                                            LocalDateTime punchTime, Site site) {
+        boolean shouldRecalculate = false;
+        
         switch (punchType) {
             case CHECK_IN:
                 attendance.setCheckInTime(punchTime);
+                // Recalculate if check-out was already done
+                if (attendance.getCheckOutTime() != null) {
+                    shouldRecalculate = true;
+                }
                 break;
             case LUNCH_OUT:
                 attendance.setLunchOutTime(punchTime);
+                // Recalculate if check-out was already done (lunch times affect calculation)
+                if (attendance.getCheckOutTime() != null) {
+                    shouldRecalculate = true;
+                }
                 break;
             case LUNCH_IN:
                 attendance.setLunchInTime(punchTime);
+                // Recalculate if check-out was already done (lunch times affect calculation)
+                if (attendance.getCheckOutTime() != null) {
+                    shouldRecalculate = true;
+                }
                 break;
             case CHECK_OUT:
                 attendance.setCheckOutTime(punchTime);
-                calculateWorkingHours(attendance);
+                // Always recalculate when check-out is set (if check-in exists)
+                if (attendance.getCheckInTime() != null) {
+                    shouldRecalculate = true;
+                }
                 break;
+        }
+
+        // Recalculate working hours if needed (when both check-in and check-out are available)
+        if (shouldRecalculate && attendance.getCheckInTime() != null && attendance.getCheckOutTime() != null) {
+            calculateWorkingHours(attendance);
         }
 
         // Update site info on attendance record

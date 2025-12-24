@@ -37,7 +37,7 @@ class EmployeeProvider extends ChangeNotifier {
 
   Future<void> loadEmployees({
     int page = 0,
-    int size = 10,
+    int size = 25,
     bool refresh = false,
   }) async {
     if (refresh) {
@@ -95,7 +95,7 @@ class EmployeeProvider extends ChangeNotifier {
 
   Future<void> loadMoreEmployees() async {
     if (!hasMore || _isLoading) return;
-    await loadEmployees(page: _currentPage + 1);
+    await loadEmployees(page: _currentPage + 1, size: 20);
   }
 
   Future<void> loadEmployeeById(int id) async {

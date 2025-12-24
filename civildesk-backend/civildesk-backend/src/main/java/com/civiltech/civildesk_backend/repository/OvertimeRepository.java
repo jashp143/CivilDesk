@@ -1,6 +1,8 @@
 package com.civiltech.civildesk_backend.repository;
 
 import com.civiltech.civildesk_backend.model.Overtime;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -38,4 +40,12 @@ public interface OvertimeRepository extends JpaRepository<Overtime, Long> {
     // Find overtimes by department
     @Query("SELECT o FROM Overtime o WHERE o.employee.department = :department AND o.deleted = false")
     List<Overtime> findOvertimesByDepartment(@Param("department") String department);
+    
+    // Paginated queries
+    Page<Overtime> findByDeletedFalse(Pageable pageable);
+    
+    Page<Overtime> findByStatusAndDeletedFalse(Overtime.OvertimeStatus status, Pageable pageable);
+    
+    @Query("SELECT o FROM Overtime o WHERE o.employee.department = :department AND o.deleted = false")
+    Page<Overtime> findOvertimesByDepartment(@Param("department") String department, Pageable pageable);
 }

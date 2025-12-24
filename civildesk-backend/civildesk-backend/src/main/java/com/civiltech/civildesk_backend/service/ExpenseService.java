@@ -16,6 +16,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -223,6 +225,41 @@ public class ExpenseService {
         return expenses.stream()
                 .map(this::convertToResponse)
                 .collect(Collectors.toList());
+    }
+
+    // Paginated methods
+    @Transactional(readOnly = true)
+    public Page<ExpenseResponse> getAllExpensesPaginated(String status, String category, String department, Pageable pageable) {
+        User currentUser = SecurityUtils.getCurrentUser();
+        
+        // Check if user has admin or HR role
+        if (currentUser.getRole() != User.Role.ADMIN && currentUser.getRole() != User.Role.HR_MANAGER) {
+            throw new UnauthorizedException("Only admin or HR can view all expenses");
+        }
+
+        Page<Expense> expenses;
+        
+        if (status != null && !status.isEmpty()) {
+            try {
+                Expense.ExpenseStatus expenseStatus = Expense.ExpenseStatus.valueOf(status.toUpperCase());
+                expenses = expenseRepository.findByStatusAndDeletedFalse(expenseStatus, pageable);
+            } catch (IllegalArgumentException e) {
+                throw new BadRequestException("Invalid status value: " + status);
+            }
+        } else if (category != null && !category.isEmpty()) {
+            try {
+                Expense.ExpenseCategory expenseCategory = Expense.ExpenseCategory.valueOf(category.toUpperCase());
+                expenses = expenseRepository.findByCategoryAndDeletedFalse(expenseCategory, pageable);
+            } catch (IllegalArgumentException e) {
+                throw new BadRequestException("Invalid category value: " + category);
+            }
+        } else if (department != null && !department.isEmpty()) {
+            expenses = expenseRepository.findExpensesByDepartment(department, pageable);
+        } else {
+            expenses = expenseRepository.findByDeletedFalse(pageable);
+        }
+        
+        return expenses.map(this::convertToResponse);
     }
 
     // Get expense by ID

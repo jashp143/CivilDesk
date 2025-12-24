@@ -1,6 +1,8 @@
 package com.civiltech.civildesk_backend.repository;
 
 import com.civiltech.civildesk_backend.model.Task;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -38,4 +40,11 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
     @EntityGraph(attributePaths = {"assignedBy"})
     @NonNull
     Optional<Task> findById(@NonNull Long id);
+    
+    // Paginated queries
+    @EntityGraph(attributePaths = {"assignedBy"})
+    Page<Task> findByDeletedFalseOrderByCreatedAtDesc(Pageable pageable);
+    
+    @EntityGraph(attributePaths = {"assignedBy"})
+    Page<Task> findByStatusAndDeletedFalse(Task.TaskStatus status, Pageable pageable);
 }

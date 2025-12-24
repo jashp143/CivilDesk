@@ -15,7 +15,7 @@ class OvertimeProvider with ChangeNotifier {
   int _totalPages = 0;
   int _totalElements = 0;
   bool _hasMore = true;
-  final int _pageSize = 20;
+  bool _isInitialLoad = true; // Track if this is the first load
 
   // Filters
   String? _selectedStatus;
@@ -33,12 +33,18 @@ class OvertimeProvider with ChangeNotifier {
   String? get selectedDepartment => _selectedDepartment;
   List<String> get departments => _departments;
 
+  // Get page size: 25 for first load, 10 for subsequent loads
+  int _getPageSize() {
+    return _isInitialLoad ? 25 : 10;
+  }
+
   // Fetch all overtimes (with pagination support)
   Future<void> fetchAllOvertimes({bool refresh = false}) async {
     if (refresh) {
       _currentPage = 0;
       _overtimes.clear();
       _hasMore = true;
+      _isInitialLoad = true;
     }
 
     if (!_hasMore || _isLoading) return;
@@ -48,11 +54,12 @@ class OvertimeProvider with ChangeNotifier {
     notifyListeners();
 
     try {
+      final pageSize = _getPageSize();
       final pageResponse = await _overtimeService.getAllOvertimesPaginated(
         status: _selectedStatus,
         department: _selectedDepartment,
         page: _currentPage,
-        size: _pageSize,
+        size: pageSize,
       );
 
       if (refresh || _currentPage == 0) {
@@ -65,6 +72,7 @@ class OvertimeProvider with ChangeNotifier {
       _totalPages = pageResponse.totalPages;
       _totalElements = pageResponse.totalElements;
       _hasMore = pageResponse.hasMore;
+      _isInitialLoad = false;
 
       _applyFilters();
       _isLoading = false;

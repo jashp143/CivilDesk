@@ -16,6 +16,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -293,6 +295,41 @@ public class LeaveService {
         return leaves.stream()
                 .map(this::convertToResponse)
                 .collect(Collectors.toList());
+    }
+
+    // Paginated methods
+    @Transactional(readOnly = true)
+    public Page<LeaveResponse> getAllLeavesPaginated(String status, String leaveType, String department, Pageable pageable) {
+        User currentUser = SecurityUtils.getCurrentUser();
+        
+        // Check if user has admin or HR role
+        if (currentUser.getRole() != User.Role.ADMIN && currentUser.getRole() != User.Role.HR_MANAGER) {
+            throw new UnauthorizedException("Only admin or HR can view all leaves");
+        }
+
+        Page<Leave> leaves;
+        
+        if (status != null && !status.isEmpty()) {
+            try {
+                Leave.LeaveStatus leaveStatus = Leave.LeaveStatus.valueOf(status.toUpperCase());
+                leaves = leaveRepository.findByStatusAndDeletedFalse(leaveStatus, pageable);
+            } catch (IllegalArgumentException e) {
+                throw new BadRequestException("Invalid status value: " + status);
+            }
+        } else if (leaveType != null && !leaveType.isEmpty()) {
+            try {
+                Leave.LeaveType type = Leave.LeaveType.valueOf(leaveType.toUpperCase());
+                leaves = leaveRepository.findByLeaveTypeAndDeletedFalse(type, pageable);
+            } catch (IllegalArgumentException e) {
+                throw new BadRequestException("Invalid leave type value: " + leaveType);
+            }
+        } else if (department != null && !department.isEmpty()) {
+            leaves = leaveRepository.findLeavesByDepartment(department, pageable);
+        } else {
+            leaves = leaveRepository.findByDeletedFalse(pageable);
+        }
+        
+        return leaves.map(this::convertToResponse);
     }
 
     // Get leave by ID

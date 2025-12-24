@@ -14,12 +14,32 @@ class HolidayManagementScreen extends StatefulWidget {
 }
 
 class _HolidayManagementScreenState extends State<HolidayManagementScreen> {
+  late ScrollController _scrollController;
+
   @override
   void initState() {
     super.initState();
+    _scrollController = ScrollController();
+    _scrollController.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<HolidayProvider>().loadHolidays();
+      context.read<HolidayProvider>().refreshHolidays();
     });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= 
+        _scrollController.position.maxScrollExtent * 0.9) {
+      final provider = context.read<HolidayProvider>();
+      if (provider.hasMore && !provider.isLoading) {
+        provider.loadMoreHolidays();
+      }
+    }
   }
 
   void _showAddHolidayDialog({Holiday? holiday}) {
@@ -334,9 +354,10 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen> {
           children: [
             RefreshIndicator(
               onRefresh: () async {
-                await context.read<HolidayProvider>().loadHolidays();
+                await context.read<HolidayProvider>().refreshHolidays();
               },
               child: SingleChildScrollView(
+                controller: _scrollController,
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: EdgeInsets.only(
                   left: 10,
@@ -440,7 +461,19 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen> {
           return _buildEmptyState();
         }
 
-        return _buildHolidaysList(provider.holidays);
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildHolidaysList(provider.holidays),
+            if (provider.isLoading && provider.holidays.isNotEmpty)
+              const Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+            if (provider.hasMore && !provider.isLoading && provider.holidays.isNotEmpty)
+              const SizedBox(height: 16),
+          ],
+        );
       },
     );
   }

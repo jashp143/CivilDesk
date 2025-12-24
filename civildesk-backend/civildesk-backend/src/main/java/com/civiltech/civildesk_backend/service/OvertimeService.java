@@ -13,6 +13,8 @@ import com.civiltech.civildesk_backend.repository.EmployeeRepository;
 import com.civiltech.civildesk_backend.repository.OvertimeRepository;
 import com.civiltech.civildesk_backend.security.SecurityUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -176,6 +178,34 @@ public class OvertimeService {
         return overtimes.stream()
                 .map(this::convertToResponse)
                 .collect(Collectors.toList());
+    }
+
+    // Paginated methods
+    @Transactional(readOnly = true)
+    public Page<OvertimeResponse> getAllOvertimesPaginated(String status, String department, Pageable pageable) {
+        User currentUser = SecurityUtils.getCurrentUser();
+        
+        // Check if user has admin or HR role
+        if (currentUser.getRole() != User.Role.ADMIN && currentUser.getRole() != User.Role.HR_MANAGER) {
+            throw new UnauthorizedException("Only admin or HR can view all overtimes");
+        }
+
+        Page<Overtime> overtimes;
+        
+        if (status != null && !status.isEmpty()) {
+            try {
+                Overtime.OvertimeStatus overtimeStatus = Overtime.OvertimeStatus.valueOf(status.toUpperCase());
+                overtimes = overtimeRepository.findByStatusAndDeletedFalse(overtimeStatus, pageable);
+            } catch (IllegalArgumentException e) {
+                throw new BadRequestException("Invalid status value: " + status);
+            }
+        } else if (department != null && !department.isEmpty()) {
+            overtimes = overtimeRepository.findOvertimesByDepartment(department, pageable);
+        } else {
+            overtimes = overtimeRepository.findByDeletedFalse(pageable);
+        }
+        
+        return overtimes.map(this::convertToResponse);
     }
 
     // Get overtime by ID

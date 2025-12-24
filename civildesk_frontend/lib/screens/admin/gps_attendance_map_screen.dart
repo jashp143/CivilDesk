@@ -116,7 +116,7 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
   Future<BitmapDescriptor> _createCustomSiteMarker() async {
     final ui.PictureRecorder pictureRecorder = ui.PictureRecorder();
     final Canvas canvas = Canvas(pictureRecorder);
-    final Size size = const Size(100, 120);
+    final Size size = const Size(56, 72);
 
     // Draw the marker pin shape (teardrop design)
     final Paint pinPaint = Paint()
@@ -126,7 +126,7 @@ class _GpsAttendanceMapScreenState extends State<GpsAttendanceMapScreen> {
     final Paint borderPaint = Paint()
       ..color = Colors.white
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 3.5;
+      ..strokeWidth = 2.0;
 
     // Draw teardrop pin shape - simplified version
     final Path pinPath = Path()

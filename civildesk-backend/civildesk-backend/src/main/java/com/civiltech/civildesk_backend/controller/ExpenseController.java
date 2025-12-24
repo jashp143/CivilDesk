@@ -9,6 +9,10 @@ import com.civiltech.civildesk_backend.model.Expense;
 import com.civiltech.civildesk_backend.service.ExpenseService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.lang.NonNull;
@@ -58,36 +62,50 @@ public class ExpenseController {
     // Get all expenses (Admin/HR only)
     @GetMapping
     @RequiresRole({"ADMIN", "HR_MANAGER"})
-    public ResponseEntity<ApiResponse<List<ExpenseResponse>>> getAllExpenses(
+    public ResponseEntity<ApiResponse<?>> getAllExpenses(
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String category,
-            @RequestParam(required = false) String department) {
+            @RequestParam(required = false) String department,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false) String sortDir) {
         
-        List<ExpenseResponse> expenses;
-
-        if (status != null && !status.isEmpty()) {
-            try {
-                Expense.ExpenseStatus expenseStatus = Expense.ExpenseStatus.valueOf(status.toUpperCase());
-                expenses = expenseService.getExpensesByStatus(expenseStatus);
-            } catch (IllegalArgumentException e) {
-                return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("Invalid status value", 400));
-            }
-        } else if (category != null && !category.isEmpty()) {
-            try {
-                Expense.ExpenseCategory expenseCategory = Expense.ExpenseCategory.valueOf(category.toUpperCase());
-                expenses = expenseService.getExpensesByCategory(expenseCategory);
-            } catch (IllegalArgumentException e) {
-                return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("Invalid category value", 400));
-            }
-        } else if (department != null && !department.isEmpty()) {
-            expenses = expenseService.getExpensesByDepartment(department);
+        // If pagination parameters are provided, return paginated response
+        if (page != null && size != null) {
+            Sort sort = Sort.by(Sort.Direction.fromString(sortDir != null ? sortDir : "DESC"), 
+                    sortBy != null ? sortBy : "createdAt");
+            Pageable pageable = PageRequest.of(page, size, sort);
+            Page<ExpenseResponse> pageResponse = expenseService.getAllExpensesPaginated(status, category, department, pageable);
+            return ResponseEntity.ok(ApiResponse.success("Expenses fetched successfully", pageResponse));
         } else {
-            expenses = expenseService.getAllExpenses();
-        }
+            // Return list for backward compatibility
+            List<ExpenseResponse> expenses;
 
-        return ResponseEntity.ok(ApiResponse.success("Expenses fetched successfully", expenses));
+            if (status != null && !status.isEmpty()) {
+                try {
+                    Expense.ExpenseStatus expenseStatus = Expense.ExpenseStatus.valueOf(status.toUpperCase());
+                    expenses = expenseService.getExpensesByStatus(expenseStatus);
+                } catch (IllegalArgumentException e) {
+                    return ResponseEntity.badRequest()
+                            .body(ApiResponse.error("Invalid status value", 400));
+                }
+            } else if (category != null && !category.isEmpty()) {
+                try {
+                    Expense.ExpenseCategory expenseCategory = Expense.ExpenseCategory.valueOf(category.toUpperCase());
+                    expenses = expenseService.getExpensesByCategory(expenseCategory);
+                } catch (IllegalArgumentException e) {
+                    return ResponseEntity.badRequest()
+                            .body(ApiResponse.error("Invalid category value", 400));
+                }
+            } else if (department != null && !department.isEmpty()) {
+                expenses = expenseService.getExpensesByDepartment(department);
+            } else {
+                expenses = expenseService.getAllExpenses();
+            }
+
+            return ResponseEntity.ok(ApiResponse.success("Expenses fetched successfully", expenses));
+        }
     }
 
     // Get expense by ID

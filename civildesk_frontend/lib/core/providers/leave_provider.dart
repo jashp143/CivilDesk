@@ -15,7 +15,7 @@ class LeaveProvider with ChangeNotifier {
   int _totalPages = 0;
   int _totalElements = 0;
   bool _hasMore = true;
-  final int _pageSize = 20;
+  bool _isInitialLoad = true; // Track if this is the first load
 
   // Filters
   String? _selectedStatus;
@@ -35,12 +35,18 @@ class LeaveProvider with ChangeNotifier {
   String? get selectedDepartment => _selectedDepartment;
   List<String> get departments => _departments;
 
+  // Get page size: 25 for first load, 10 for subsequent loads
+  int _getPageSize() {
+    return _isInitialLoad ? 25 : 10;
+  }
+
   // Fetch all leaves (with pagination support)
   Future<void> fetchAllLeaves({bool refresh = false}) async {
     if (refresh) {
       _currentPage = 0;
       _leaves.clear();
       _hasMore = true;
+      _isInitialLoad = true;
     }
 
     if (!_hasMore || _isLoading) return;
@@ -50,12 +56,13 @@ class LeaveProvider with ChangeNotifier {
     notifyListeners();
 
     try {
+      final pageSize = _getPageSize();
       final pageResponse = await _leaveService.getAllLeavesPaginated(
         status: _selectedStatus,
         leaveType: _selectedLeaveType,
         department: _selectedDepartment,
         page: _currentPage,
-        size: _pageSize,
+        size: pageSize,
       );
 
       if (refresh || _currentPage == 0) {
@@ -68,6 +75,7 @@ class LeaveProvider with ChangeNotifier {
       _totalPages = pageResponse.totalPages;
       _totalElements = pageResponse.totalElements;
       _hasMore = pageResponse.hasMore;
+      _isInitialLoad = false;
 
       _applyFilters();
       _isLoading = false;

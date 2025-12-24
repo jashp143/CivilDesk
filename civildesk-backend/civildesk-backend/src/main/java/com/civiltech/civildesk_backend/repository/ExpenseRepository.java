@@ -1,6 +1,8 @@
 package com.civiltech.civildesk_backend.repository;
 
 import com.civiltech.civildesk_backend.model.Expense;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -43,4 +45,14 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
     // Find expenses by department
     @Query("SELECT e FROM Expense e WHERE e.employee.department = :department AND e.deleted = false")
     List<Expense> findExpensesByDepartment(@Param("department") String department);
+    
+    // Paginated queries
+    Page<Expense> findByDeletedFalse(Pageable pageable);
+    
+    Page<Expense> findByStatusAndDeletedFalse(Expense.ExpenseStatus status, Pageable pageable);
+    
+    Page<Expense> findByCategoryAndDeletedFalse(Expense.ExpenseCategory category, Pageable pageable);
+    
+    @Query("SELECT e FROM Expense e WHERE e.employee.department = :department AND e.deleted = false")
+    Page<Expense> findExpensesByDepartment(@Param("department") String department, Pageable pageable);
 }

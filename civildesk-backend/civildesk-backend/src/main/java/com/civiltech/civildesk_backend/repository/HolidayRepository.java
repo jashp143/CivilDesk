@@ -1,6 +1,8 @@
 package com.civiltech.civildesk_backend.repository;
 
 import com.civiltech.civildesk_backend.model.Holiday;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -21,6 +23,9 @@ public interface HolidayRepository extends JpaRepository<Holiday, Long> {
     
     // Find active holidays
     List<Holiday> findByIsActiveTrueAndDeletedFalseOrderByDateAsc();
+    
+    // Find active holidays with pagination
+    Page<Holiday> findByIsActiveTrueAndDeletedFalseOrderByDateAsc(Pageable pageable);
     
     // Find holidays in date range
     @Query("SELECT h FROM Holiday h WHERE h.deleted = false AND h.isActive = true AND h.date BETWEEN :startDate AND :endDate ORDER BY h.date ASC")

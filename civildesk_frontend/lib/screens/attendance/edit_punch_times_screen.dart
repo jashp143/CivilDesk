@@ -23,6 +23,9 @@ class _EditPunchTimesDialogState extends State<EditPunchTimesDialog>
   String? _error;
   String? _updatingPunchType; // Track which punch type is being updated
 
+  // Track attendance ID (may be null initially for NOT_MARKED employees)
+  int? _attendanceId;
+
   // Controllers for date and time pickers
   DateTime? _checkInTime;
   DateTime? _lunchOutTime;
@@ -39,6 +42,8 @@ class _EditPunchTimesDialogState extends State<EditPunchTimesDialog>
   @override
   void initState() {
     super.initState();
+    // Initialize attendance ID (may be null for NOT_MARKED employees)
+    _attendanceId = widget.attendance.id;
     // Initialize with existing times
     _checkInTime = widget.attendance.checkInTime;
     _lunchOutTime = widget.attendance.lunchOutTime;
@@ -153,11 +158,6 @@ class _EditPunchTimesDialogState extends State<EditPunchTimesDialog>
   }
 
   Future<void> _updatePunchTime(String punchType, DateTime newTime) async {
-    if (widget.attendance.id == null) {
-      _showErrorSnackBar('Invalid attendance record');
-      return;
-    }
-
     setState(() {
       _isLoading = true;
       _updatingPunchType = punchType;
@@ -166,7 +166,9 @@ class _EditPunchTimesDialogState extends State<EditPunchTimesDialog>
 
     try {
       final response = await _attendanceService.updatePunchTime(
-        attendanceId: widget.attendance.id!,
+        attendanceId: _attendanceId,
+        employeeId: _attendanceId == null ? widget.attendance.employeeId : null,
+        date: _attendanceId == null ? widget.attendance.date : null,
         punchType: punchType,
         newTime: newTime,
       );
@@ -182,6 +184,10 @@ class _EditPunchTimesDialogState extends State<EditPunchTimesDialog>
 
               // Update local state with new times and calculated hours
               setState(() {
+                // Update attendance ID if it was created
+                if (_attendanceId == null && updatedAttendance.id != null) {
+                  _attendanceId = updatedAttendance.id;
+                }
                 switch (punchType) {
                   case 'CHECK_IN':
                     _checkInTime = newTime;

@@ -9,6 +9,10 @@ import com.civiltech.civildesk_backend.model.Leave;
 import com.civiltech.civildesk_backend.service.LeaveService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.lang.NonNull;
@@ -65,36 +69,50 @@ public class LeaveController {
     // Get all leaves (Admin/HR only)
     @GetMapping
     @RequiresRole({"ADMIN", "HR_MANAGER"})
-    public ResponseEntity<ApiResponse<List<LeaveResponse>>> getAllLeaves(
+    public ResponseEntity<ApiResponse<?>> getAllLeaves(
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String leaveType,
-            @RequestParam(required = false) String department) {
+            @RequestParam(required = false) String department,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false) String sortDir) {
         
-        List<LeaveResponse> leaves;
-
-        if (status != null && !status.isEmpty()) {
-            try {
-                Leave.LeaveStatus leaveStatus = Leave.LeaveStatus.valueOf(status.toUpperCase());
-                leaves = leaveService.getLeavesByStatus(leaveStatus);
-            } catch (IllegalArgumentException e) {
-                return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("Invalid status value", 400));
-            }
-        } else if (leaveType != null && !leaveType.isEmpty()) {
-            try {
-                Leave.LeaveType type = Leave.LeaveType.valueOf(leaveType.toUpperCase());
-                leaves = leaveService.getLeavesByType(type);
-            } catch (IllegalArgumentException e) {
-                return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("Invalid leave type value", 400));
-            }
-        } else if (department != null && !department.isEmpty()) {
-            leaves = leaveService.getLeavesByDepartment(department);
+        // If pagination parameters are provided, return paginated response
+        if (page != null && size != null) {
+            Sort sort = Sort.by(Sort.Direction.fromString(sortDir != null ? sortDir : "DESC"), 
+                    sortBy != null ? sortBy : "createdAt");
+            Pageable pageable = PageRequest.of(page, size, sort);
+            Page<LeaveResponse> pageResponse = leaveService.getAllLeavesPaginated(status, leaveType, department, pageable);
+            return ResponseEntity.ok(ApiResponse.success("Leaves fetched successfully", pageResponse));
         } else {
-            leaves = leaveService.getAllLeaves();
-        }
+            // Return list for backward compatibility
+            List<LeaveResponse> leaves;
 
-        return ResponseEntity.ok(ApiResponse.success("Leaves fetched successfully", leaves));
+            if (status != null && !status.isEmpty()) {
+                try {
+                    Leave.LeaveStatus leaveStatus = Leave.LeaveStatus.valueOf(status.toUpperCase());
+                    leaves = leaveService.getLeavesByStatus(leaveStatus);
+                } catch (IllegalArgumentException e) {
+                    return ResponseEntity.badRequest()
+                            .body(ApiResponse.error("Invalid status value", 400));
+                }
+            } else if (leaveType != null && !leaveType.isEmpty()) {
+                try {
+                    Leave.LeaveType type = Leave.LeaveType.valueOf(leaveType.toUpperCase());
+                    leaves = leaveService.getLeavesByType(type);
+                } catch (IllegalArgumentException e) {
+                    return ResponseEntity.badRequest()
+                            .body(ApiResponse.error("Invalid leave type value", 400));
+                }
+            } else if (department != null && !department.isEmpty()) {
+                leaves = leaveService.getLeavesByDepartment(department);
+            } else {
+                leaves = leaveService.getAllLeaves();
+            }
+
+            return ResponseEntity.ok(ApiResponse.success("Leaves fetched successfully", leaves));
+        }
     }
 
     // Get leave by ID

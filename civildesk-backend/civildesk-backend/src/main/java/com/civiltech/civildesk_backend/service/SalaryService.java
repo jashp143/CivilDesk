@@ -11,6 +11,8 @@ import com.civiltech.civildesk_backend.repository.EmployeeRepository;
 import com.civiltech.civildesk_backend.repository.SalarySlipRepository;
 import com.civiltech.civildesk_backend.security.SecurityUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -151,6 +153,17 @@ public class SalaryService {
                 .filter(slip -> !Boolean.TRUE.equals(slip.getDeleted()))
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public Page<SalarySlipResponse> getAllSalarySlipsPaginated(Integer year, Integer month, Pageable pageable) {
+        Page<SalarySlip> salarySlips;
+        if (year != null && month != null) {
+            salarySlips = salarySlipRepository.findByYearAndMonthPaginated(year, month, pageable);
+        } else {
+            salarySlips = salarySlipRepository.findAllWithEmployeePaginated(pageable);
+        }
+        return salarySlips.map(this::mapToResponse);
     }
 
     @Transactional

@@ -23,6 +23,7 @@ import java.time.format.TextStyle;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -42,6 +43,80 @@ public class AttendanceService {
 
     public Employee getEmployeeByUserId(Long userId) {
         return employeeRepository.findByUserIdAndDeletedFalse(userId).orElse(null);
+    }
+
+    /**
+     * Mark attendance for a specific date (admin manual marking).
+     * Used for emergency situations when employee forgot to mark attendance.
+     */
+    @Transactional
+    public AttendanceResponse markAttendanceForDate(String employeeId, LocalDate date, String attendanceType) {
+        Employee employee = employeeRepository.findByEmployeeIdAndDeletedFalse(employeeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with ID: " + employeeId));
+
+        Attendance attendance = attendanceRepository.findByEmployeeAndDate(employee, date)
+                .orElse(new Attendance());
+
+        // Ensure BaseEntity fields are set for new records
+        if (attendance.getId() == null) {
+            attendance.setDeleted(false);
+        }
+
+        attendance.setEmployee(employee);
+        attendance.setDate(date);
+        
+        LocalDateTime now = LocalDateTime.now();
+        String type = attendanceType != null ? attendanceType : "PUNCH_IN";
+        
+        boolean shouldRecalculate = false;
+        
+        switch (type.toUpperCase()) {
+            case "PUNCH_IN":
+                if (attendance.getCheckInTime() == null) {
+                    attendance.setCheckInTime(now);
+                }
+                attendance.setStatus(Attendance.AttendanceStatus.PRESENT);
+                if (attendance.getCheckOutTime() != null) {
+                    shouldRecalculate = true;
+                }
+                break;
+            case "LUNCH_OUT":
+                attendance.setLunchOutTime(now);
+                if (attendance.getCheckInTime() == null) {
+                    attendance.setCheckInTime(now);
+                    attendance.setStatus(Attendance.AttendanceStatus.PRESENT);
+                }
+                if (attendance.getCheckOutTime() != null) {
+                    shouldRecalculate = true;
+                }
+                break;
+            case "LUNCH_IN":
+                attendance.setLunchInTime(now);
+                if (attendance.getCheckOutTime() != null) {
+                    shouldRecalculate = true;
+                }
+                break;
+            case "PUNCH_OUT":
+                attendance.setCheckOutTime(now);
+                if (attendance.getCheckInTime() != null) {
+                    shouldRecalculate = true;
+                }
+                break;
+        }
+        
+        attendance.setRecognitionMethod("MANUAL_ADMIN");
+        attendance.setNotes("Manually marked by admin for emergency");
+        
+        // Calculate working hours and overtime if check-in and check-out are available
+        if (shouldRecalculate && attendance.getCheckInTime() != null && attendance.getCheckOutTime() != null) {
+            AttendanceCalculationService.CalculationResult result = 
+                calculationService.calculateAttendance(attendance);
+            attendance.setWorkingHours(result.getWorkingHours());
+            attendance.setOvertimeHours(result.getOvertimeHours());
+        }
+        
+        attendance = attendanceRepository.saveAndFlush(attendance);
+        return mapToResponse(attendance);
     }
 
     @Transactional
@@ -78,6 +153,8 @@ public class AttendanceService {
             LocalDateTime now = LocalDateTime.now();
             String attendanceType = request.getAttendanceType() != null ? request.getAttendanceType() : "PUNCH_IN";
             
+            boolean shouldRecalculate = false;
+            
             switch (attendanceType.toUpperCase()) {
                 case "PUNCH_IN":
                     if (attendance.getCheckInTime() == null) {
@@ -85,6 +162,10 @@ public class AttendanceService {
                         System.out.println("Setting check-in time: " + now);
                     }
                     attendance.setStatus(Attendance.AttendanceStatus.PRESENT);
+                    // Recalculate if check-out was already done
+                    if (attendance.getCheckOutTime() != null) {
+                        shouldRecalculate = true;
+                    }
                     break;
                 case "LUNCH_OUT":
                     attendance.setLunchOutTime(now);
@@ -92,14 +173,26 @@ public class AttendanceService {
                     if (attendance.getCheckInTime() == null) {
                         attendance.setCheckInTime(now);
                     }
+                    // Recalculate if check-out was already done (lunch times affect calculation)
+                    if (attendance.getCheckOutTime() != null) {
+                        shouldRecalculate = true;
+                    }
                     break;
                 case "LUNCH_IN":
                     attendance.setLunchInTime(now);
                     System.out.println("Setting lunch in time: " + now);
+                    // Recalculate if check-out was already done (lunch times affect calculation)
+                    if (attendance.getCheckOutTime() != null) {
+                        shouldRecalculate = true;
+                    }
                     break;
                 case "PUNCH_OUT":
                     attendance.setCheckOutTime(now);
                     System.out.println("Setting check-out time: " + now);
+                    // Always recalculate when check-out is set (if check-in exists)
+                    if (attendance.getCheckInTime() != null) {
+                        shouldRecalculate = true;
+                    }
                     break;
             }
             
@@ -107,11 +200,14 @@ public class AttendanceService {
             attendance.setFaceRecognitionConfidence(request.getFaceRecognitionConfidence());
             
             // Calculate working hours and overtime if check-in and check-out are available
-            if (attendance.getCheckInTime() != null && attendance.getCheckOutTime() != null) {
+            // This ensures calculation happens whenever any punch time is updated and both check-in and check-out exist
+            if (shouldRecalculate && attendance.getCheckInTime() != null && attendance.getCheckOutTime() != null) {
                 AttendanceCalculationService.CalculationResult result = 
                     calculationService.calculateAttendance(attendance);
                 attendance.setWorkingHours(result.getWorkingHours());
                 attendance.setOvertimeHours(result.getOvertimeHours());
+                System.out.println("Recalculated attendance - Working Hours: " + result.getWorkingHours() + 
+                                 ", Overtime Hours: " + result.getOvertimeHours());
             }
             
             System.out.println("Saving attendance record...");
@@ -281,12 +377,121 @@ public class AttendanceService {
 
     /**
      * Get daily attendance for all employees with pagination.
-     * Returns only actual attendance records (no virtual responses for pagination).
+     * Includes employees without attendance records (will show as absent if past date, or "Not Marked" if today).
+     * For future dates, only shows employees with actual attendance records.
      */
     @Transactional(readOnly = true)
     public Page<AttendanceResponse> getDailyAttendancePaginated(LocalDate date, Pageable pageable) {
-        Page<Attendance> attendances = attendanceRepository.findAllByDate(date, pageable);
-        return attendances.map(this::mapToResponse);
+        LocalDate today = LocalDate.now();
+        boolean isFutureDate = date.isAfter(today);
+        
+        if (isFutureDate) {
+            // For future dates, only return actual attendance records (no virtual responses)
+            // The repository query already has ORDER BY, so we create a new Pageable without sort
+            // to avoid conflicts, or use page and size only
+            Pageable simplePageable = org.springframework.data.domain.PageRequest.of(
+                    pageable.getPageNumber(), 
+                    pageable.getPageSize()
+            );
+            Page<Attendance> attendances = attendanceRepository.findAllByDate(date, simplePageable);
+            return attendances.map(this::mapToResponse);
+        } else {
+            // For today and past dates, include all employees with virtual responses if needed
+            // Map sort field from "employee.firstName" to "firstName" for Employee entity
+            String sortField = pageable.getSort().stream()
+                    .findFirst()
+                    .map(org.springframework.data.domain.Sort.Order::getProperty)
+                    .orElse("employeeId");
+            
+            // Remove "employee." prefix if present
+            if (sortField != null && sortField.startsWith("employee.")) {
+                sortField = sortField.substring("employee.".length());
+            }
+            
+            // Default to employeeId if sortField is null or empty
+            if (sortField == null || sortField.isEmpty()) {
+                sortField = "employeeId";
+            }
+            
+            // Map common fields to valid Employee entity fields
+            // Valid Employee fields: id, firstName, lastName, employeeId, email, department, designation, etc.
+            // If the field doesn't exist, default to employeeId
+            try {
+                // Validate that the field exists by checking if it's a common Employee field
+                String[] validFields = {"id", "firstName", "lastName", "employeeId", "email", "department", "designation"};
+                boolean isValid = false;
+                for (String validField : validFields) {
+                    if (sortField.equals(validField)) {
+                        isValid = true;
+                        break;
+                    }
+                }
+                if (!isValid) {
+                    sortField = "employeeId"; // Default to employeeId if invalid
+                }
+            } catch (Exception e) {
+                sortField = "employeeId"; // Default to employeeId on any error
+            }
+            
+            // Create new Pageable with corrected sort field
+            org.springframework.data.domain.Sort.Direction direction = pageable.getSort().stream()
+                    .findFirst()
+                    .map(org.springframework.data.domain.Sort.Order::getDirection)
+                    .orElse(org.springframework.data.domain.Sort.Direction.ASC);
+            
+            // Ensure direction is not null
+            if (direction == null) {
+                direction = org.springframework.data.domain.Sort.Direction.ASC;
+            }
+            
+            org.springframework.data.domain.Sort employeeSort = org.springframework.data.domain.Sort.by(
+                    direction, sortField
+            );
+            
+            Pageable employeePageable = org.springframework.data.domain.PageRequest.of(
+                    pageable.getPageNumber(),
+                    pageable.getPageSize(),
+                    employeeSort
+            );
+            
+            // Get paginated active employees
+            Page<Employee> employeesPage = employeeRepository.findByEmploymentStatusAndDeletedFalse(
+                    Employee.EmploymentStatus.ACTIVE, employeePageable);
+            
+            // Get existing attendance records for the date
+            List<Attendance> existingAttendances = attendanceRepository.findAllByDate(date);
+            
+            // Create a map of employee ID to attendance for quick lookup
+            java.util.Map<Long, Attendance> attendanceMap = existingAttendances.stream()
+                    .collect(Collectors.toMap(
+                            a -> a.getEmployee().getId(),
+                            a -> a,
+                            (a1, a2) -> a1 // In case of duplicates, keep first
+                    ));
+            
+            // Build attendance responses for the current page of employees
+            List<AttendanceResponse> responses = new ArrayList<>();
+            for (Employee employee : employeesPage.getContent()) {
+                Attendance attendance = attendanceMap.get(employee.getId());
+                
+                if (attendance != null) {
+                    // Attendance record exists, use it
+                    responses.add(mapToResponse(attendance));
+                } else {
+                    // No attendance record exists, create virtual response
+                    AttendanceResponse response = createVirtualAttendanceResponse(employee, date, today);
+                    responses.add(response);
+                }
+            }
+            
+            // Create a custom Page implementation
+            Pageable nonNullPageable = Objects.requireNonNull(pageable, "Pageable cannot be null");
+            return new org.springframework.data.domain.PageImpl<>(
+                    responses,
+                    nonNullPageable,
+                    employeesPage.getTotalElements()
+            );
+        }
     }
 
     /**
@@ -336,6 +541,76 @@ public class AttendanceService {
         }
         
         return response;
+    }
+
+    /**
+     * Create or update punch time for an employee on a specific date.
+     * If attendance record doesn't exist, creates it first.
+     */
+    @Transactional
+    public AttendanceResponse createOrUpdatePunchTime(String employeeId, LocalDate date, String punchType, LocalDateTime newTime) {
+        Employee employee = employeeRepository.findByEmployeeIdAndDeletedFalse(employeeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with ID: " + employeeId));
+
+        // Get or create attendance record
+        Attendance attendance = attendanceRepository.findByEmployeeAndDate(employee, date)
+                .orElse(new Attendance());
+
+        // Initialize new attendance record
+        if (attendance.getId() == null) {
+            attendance.setEmployee(employee);
+            attendance.setDate(date);
+            attendance.setDeleted(false);
+            attendance.setRecognitionMethod("MANUAL_ADMIN");
+            attendance.setNotes("Attendance record created by admin when editing punch times");
+        }
+
+        // Update the appropriate punch time based on punch type
+        boolean shouldRecalculate = false;
+        switch (punchType.toUpperCase()) {
+            case "CHECK_IN":
+                attendance.setCheckInTime(newTime);
+                attendance.setStatus(Attendance.AttendanceStatus.PRESENT);
+                if (attendance.getCheckOutTime() != null) {
+                    shouldRecalculate = true;
+                }
+                break;
+            case "LUNCH_OUT":
+                attendance.setLunchOutTime(newTime);
+                if (attendance.getCheckInTime() == null) {
+                    attendance.setCheckInTime(newTime);
+                    attendance.setStatus(Attendance.AttendanceStatus.PRESENT);
+                }
+                if (attendance.getCheckOutTime() != null) {
+                    shouldRecalculate = true;
+                }
+                break;
+            case "LUNCH_IN":
+                attendance.setLunchInTime(newTime);
+                if (attendance.getCheckOutTime() != null) {
+                    shouldRecalculate = true;
+                }
+                break;
+            case "CHECK_OUT":
+                attendance.setCheckOutTime(newTime);
+                if (attendance.getCheckInTime() != null) {
+                    shouldRecalculate = true;
+                }
+                break;
+            default:
+                throw new IllegalArgumentException("Invalid punch type: " + punchType);
+        }
+
+        // Recalculate working hours and overtime after updating punch time
+        if (shouldRecalculate && attendance.getCheckInTime() != null && attendance.getCheckOutTime() != null) {
+            AttendanceCalculationService.CalculationResult result = 
+                calculationService.calculateAttendance(attendance);
+            attendance.setWorkingHours(result.getWorkingHours());
+            attendance.setOvertimeHours(result.getOvertimeHours());
+        }
+
+        attendance = attendanceRepository.saveAndFlush(attendance);
+        return mapToResponse(attendance);
     }
 
     @Transactional

@@ -42,9 +42,18 @@ class _EmployeeListScreenState extends State<EmployeeListScreen> {
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent * 0.9) {
-      context.read<EmployeeProvider>().loadMoreEmployees();
+    if (!_scrollController.hasClients || !mounted) return;
+    
+    final position = _scrollController.position;
+    final maxScroll = position.maxScrollExtent;
+    final currentScroll = position.pixels;
+    
+    // Load more when user scrolls to 80% of the scroll extent
+    if (currentScroll >= maxScroll * 0.8 && maxScroll > 0) {
+      final provider = context.read<EmployeeProvider>();
+      if (provider.hasMore && !provider.isLoading) {
+        provider.loadMoreEmployees();
+      }
     }
   }
 
@@ -284,69 +293,104 @@ class _EmployeeListScreenState extends State<EmployeeListScreen> {
             ? constraints.maxWidth - 32 
             : minTableWidth;
         
-        return Card(
-          margin: const EdgeInsets.all(16),
-          elevation: 2,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: BorderSide(
-              color: colorScheme.outline.withValues(alpha: 0.2),
-              width: 1,
-            ),
-          ),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.6,
-            ),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: SingleChildScrollView(
-                controller: _scrollController,
-                physics: const AlwaysScrollableScrollPhysics(),
-                child: SizedBox(
-                  width: tableWidth,
-                  child: Table(
-                    columnWidths: const {
-                      0: FlexColumnWidth(1.8), // Employee ID
-                      1: FlexColumnWidth(3.0), // Full Name
-                      2: FlexColumnWidth(2.2), // Department
-                      3: FlexColumnWidth(2.2), // Designation
-                      4: FlexColumnWidth(1.8), // Status
-                      5: FixedColumnWidth(170), // Actions column needs fixed width for 3 icons
-                    },
-                    children: [
-                      // Header Row
-                      TableRow(
-                        decoration: BoxDecoration(
-                          color: colorScheme.surfaceContainerHighest,
-                          border: Border(
-                            bottom: BorderSide(
-                              color: colorScheme.outline,
-                              width: 2,
-                            ),
-                          ),
-                        ),
+        return Column(
+          children: [
+            Expanded(
+              child: Card(
+                margin: const EdgeInsets.all(16),
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(
+                    color: colorScheme.outline.withValues(alpha: 0.2),
+                    width: 1,
+                  ),
+                ),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: SingleChildScrollView(
+                    controller: _scrollController,
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: SizedBox(
+                      width: tableWidth,
+                      child: Table(
+                        columnWidths: const {
+                          0: FlexColumnWidth(1.8), // Employee ID
+                          1: FlexColumnWidth(3.0), // Full Name
+                          2: FlexColumnWidth(2.2), // Department
+                          3: FlexColumnWidth(2.2), // Designation
+                          4: FlexColumnWidth(1.8), // Status
+                          5: FixedColumnWidth(170), // Actions column needs fixed width for 3 icons
+                        },
                         children: [
-                          _buildTableHeaderCell('Employee ID', theme, Icons.badge),
-                          _buildTableHeaderCell('Full Name', theme, Icons.person),
-                          _buildTableHeaderCell('Department', theme, Icons.business),
-                          _buildTableHeaderCell('Designation', theme, Icons.work),
-                          _buildTableHeaderCell('Status', theme, Icons.circle),
-                          _buildTableHeaderCell('Actions', theme, Icons.more_vert),
+                          // Header Row
+                          TableRow(
+                            decoration: BoxDecoration(
+                              color: colorScheme.surfaceContainerHighest,
+                              border: Border(
+                                bottom: BorderSide(
+                                  color: colorScheme.outline,
+                                  width: 2,
+                                ),
+                              ),
+                            ),
+                            children: [
+                              _buildTableHeaderCell('Employee ID', theme, Icons.badge),
+                              _buildTableHeaderCell('Full Name', theme, Icons.person),
+                              _buildTableHeaderCell('Department', theme, Icons.business),
+                              _buildTableHeaderCell('Designation', theme, Icons.work),
+                              _buildTableHeaderCell('Status', theme, Icons.circle),
+                              _buildTableHeaderCell('Actions', theme, Icons.more_vert),
+                            ],
+                          ),
+                          // Data Rows
+                          ...provider.employees.asMap().entries.map((entry) {
+                            final index = entry.key;
+                            final employee = entry.value;
+                            return _buildTableRow(context, employee, theme, index);
+                          }),
+                          // Loading indicator row
+                          if (provider.hasMore && provider.isLoading)
+                            TableRow(
+                              children: List.generate(6, (index) {
+                                return Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: Center(
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        theme.colorScheme.primary,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }),
+                            ),
                         ],
                       ),
-                      // Data Rows
-                      ...provider.employees.asMap().entries.map((entry) {
-                        final index = entry.key;
-                        final employee = entry.value;
-                        return _buildTableRow(context, employee, theme, index);
-                      }),
-                    ],
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
+            // Load More button footer
+            if (provider.hasMore && !provider.isLoading)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Center(
+                  child: ElevatedButton.icon(
+                    onPressed: () => provider.loadMoreEmployees(),
+                    icon: const Icon(Icons.expand_more),
+                    label: Text(
+                      'Load More (${provider.totalElements - provider.employees.length} remaining)',
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    ),
+                  ),
+                ),
+              ),
+          ],
         );
       },
     );

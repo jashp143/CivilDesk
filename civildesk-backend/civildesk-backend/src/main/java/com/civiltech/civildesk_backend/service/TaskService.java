@@ -18,6 +18,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -278,6 +280,40 @@ public class TaskService {
         return tasks.stream()
                 .map(task -> convertToResponseWithAssignments(task, assignmentsByTaskId.getOrDefault(task.getId(), new ArrayList<>())))
                 .collect(Collectors.toList());
+    }
+
+    // Paginated methods
+    @Transactional(readOnly = true)
+    public Page<TaskResponse> getAllTasksPaginated(String status, Pageable pageable) {
+        User currentUser = SecurityUtils.getCurrentUser();
+
+        // Check if user has admin or HR role
+        if (currentUser.getRole() != User.Role.ADMIN && currentUser.getRole() != User.Role.HR_MANAGER) {
+            throw new UnauthorizedException("Only admin or HR can view all tasks");
+        }
+
+        Page<Task> tasks;
+        
+        if (status != null && !status.isEmpty()) {
+            try {
+                Task.TaskStatus taskStatus = Task.TaskStatus.valueOf(status.toUpperCase());
+                tasks = taskRepository.findByStatusAndDeletedFalse(taskStatus, pageable);
+            } catch (IllegalArgumentException e) {
+                throw new BadRequestException("Invalid status value: " + status);
+            }
+        } else {
+            tasks = taskRepository.findByDeletedFalseOrderByCreatedAtDesc(pageable);
+        }
+
+        // Batch fetch all assignments to avoid N+1 queries
+        List<Long> taskIds = tasks.getContent().stream().map(Task::getId).toList();
+        List<TaskAssignment> allAssignments = taskAssignmentRepository.findByTaskIds(taskIds);
+        
+        // Create a map of task ID to assignments for efficient lookup
+        java.util.Map<Long, List<TaskAssignment>> assignmentsByTaskId = allAssignments.stream()
+                .collect(Collectors.groupingBy(ta -> ta.getTask().getId()));
+
+        return tasks.map(task -> convertToResponseWithAssignments(task, assignmentsByTaskId.getOrDefault(task.getId(), new ArrayList<>())));
     }
 
     // Get task by ID

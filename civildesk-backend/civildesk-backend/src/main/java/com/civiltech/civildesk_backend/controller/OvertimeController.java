@@ -9,6 +9,10 @@ import com.civiltech.civildesk_backend.model.Overtime;
 import com.civiltech.civildesk_backend.service.OvertimeService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.lang.NonNull;
@@ -58,27 +62,41 @@ public class OvertimeController {
     // Get all overtimes (Admin/HR only)
     @GetMapping
     @RequiresRole({"ADMIN", "HR_MANAGER"})
-    public ResponseEntity<ApiResponse<List<OvertimeResponse>>> getAllOvertimes(
+    public ResponseEntity<ApiResponse<?>> getAllOvertimes(
             @RequestParam(required = false) String status,
-            @RequestParam(required = false) String department) {
+            @RequestParam(required = false) String department,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false) String sortDir) {
         
-        List<OvertimeResponse> overtimes;
-
-        if (status != null && !status.isEmpty()) {
-            try {
-                Overtime.OvertimeStatus overtimeStatus = Overtime.OvertimeStatus.valueOf(status.toUpperCase());
-                overtimes = overtimeService.getOvertimesByStatus(overtimeStatus);
-            } catch (IllegalArgumentException e) {
-                return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("Invalid status value", 400));
-            }
-        } else if (department != null && !department.isEmpty()) {
-            overtimes = overtimeService.getOvertimesByDepartment(department);
+        // If pagination parameters are provided, return paginated response
+        if (page != null && size != null) {
+            Sort sort = Sort.by(Sort.Direction.fromString(sortDir != null ? sortDir : "DESC"), 
+                    sortBy != null ? sortBy : "createdAt");
+            Pageable pageable = PageRequest.of(page, size, sort);
+            Page<OvertimeResponse> pageResponse = overtimeService.getAllOvertimesPaginated(status, department, pageable);
+            return ResponseEntity.ok(ApiResponse.success("Overtimes fetched successfully", pageResponse));
         } else {
-            overtimes = overtimeService.getAllOvertimes();
-        }
+            // Return list for backward compatibility
+            List<OvertimeResponse> overtimes;
 
-        return ResponseEntity.ok(ApiResponse.success("Overtimes fetched successfully", overtimes));
+            if (status != null && !status.isEmpty()) {
+                try {
+                    Overtime.OvertimeStatus overtimeStatus = Overtime.OvertimeStatus.valueOf(status.toUpperCase());
+                    overtimes = overtimeService.getOvertimesByStatus(overtimeStatus);
+                } catch (IllegalArgumentException e) {
+                    return ResponseEntity.badRequest()
+                            .body(ApiResponse.error("Invalid status value", 400));
+                }
+            } else if (department != null && !department.isEmpty()) {
+                overtimes = overtimeService.getOvertimesByDepartment(department);
+            } else {
+                overtimes = overtimeService.getAllOvertimes();
+            }
+
+            return ResponseEntity.ok(ApiResponse.success("Overtimes fetched successfully", overtimes));
+        }
     }
 
     // Get overtime by ID

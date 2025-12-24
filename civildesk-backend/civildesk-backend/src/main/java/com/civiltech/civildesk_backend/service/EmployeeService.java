@@ -188,7 +188,7 @@ public class EmployeeService {
     @Transactional(readOnly = true)
     public Page<EmployeeResponse> getAllEmployees(Pageable pageable) {
         Pageable nonNullPageable = Objects.requireNonNull(pageable, "Pageable cannot be null");
-        Page<Employee> employees = employeeRepository.findAll(nonNullPageable);
+        Page<Employee> employees = employeeRepository.findByDeletedFalse(nonNullPageable);
         return employees.map(this::mapToResponse);
     }
 

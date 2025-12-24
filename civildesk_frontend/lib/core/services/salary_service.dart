@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import '../../models/salary_slip.dart';
+import '../../models/page_response.dart';
 import 'api_service.dart';
 
 class SalaryService {
@@ -108,6 +109,64 @@ class SalaryService {
         if (responseData['success'] == true && responseData['data'] != null) {
           final data = responseData['data'] as List<dynamic>;
           return data.map((json) => SalarySlip.fromJson(json as Map<String, dynamic>)).toList();
+        }
+      }
+      throw Exception('Failed to fetch salary slips');
+    } catch (e) {
+      if (e is DioException) {
+        throw _handleError(e);
+      }
+      rethrow;
+    }
+  }
+
+  Future<PageResponse<SalarySlip>> getAllSalarySlipsPaginated({
+    int? year,
+    int? month,
+    int page = 0,
+    int size = 20,
+    String sortBy = 'year',
+    String sortDir = 'DESC',
+  }) async {
+    try {
+      final queryParams = <String, dynamic>{
+        'page': page,
+        'size': size,
+        'sortBy': sortBy,
+        'sortDir': sortDir,
+      };
+      if (year != null) queryParams['year'] = year;
+      if (month != null) queryParams['month'] = month;
+
+      final response = await _apiService.get(
+        '$_basePath/all',
+        queryParameters: queryParams,
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = response.data;
+        if (responseData['success'] == true && responseData['data'] != null) {
+          final data = responseData['data'];
+          // Check if response is paginated (has 'content' field) or a list
+          if (data is Map && data.containsKey('content')) {
+            return PageResponse.fromJson(
+              data as Map<String, dynamic>,
+              (json) => SalarySlip.fromJson(json as Map<String, dynamic>),
+            );
+          } else {
+            // Fallback for non-paginated response
+            final List<dynamic> slipsJson = data as List<dynamic>;
+            final slips = slipsJson.map((json) => SalarySlip.fromJson(json as Map<String, dynamic>)).toList();
+            return PageResponse<SalarySlip>(
+              content: slips,
+              totalElements: slips.length,
+              totalPages: 1,
+              size: slips.length,
+              number: 0,
+              first: true,
+              last: true,
+            );
+          }
         }
       }
       throw Exception('Failed to fetch salary slips');
