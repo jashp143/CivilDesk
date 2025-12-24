@@ -5,14 +5,36 @@ import 'api_service.dart';
 class EmployeeService {
   final ApiService _apiService = ApiService();
 
-  // Get all employees (for handover dropdown)
-  Future<List<Employee>> getAllEmployees() async {
+  // Get all employees (for handover dropdown) - uses new endpoint accessible to employees
+  Future<List<Employee>> getAllEmployees({String? search}) async {
     try {
-      final response = await _apiService.get('/employees');
+      final queryParams = <String, dynamic>{
+        'page': 0,
+        'size': 100, // Get a large number of employees for dropdown
+        'sortBy': 'firstName',
+        'sortDir': 'ASC',
+      };
+      
+      if (search != null && search.isNotEmpty) {
+        queryParams['search'] = search;
+      }
+
+      final response = await _apiService.get(
+        '/employees/for-handover',
+        queryParameters: queryParams,
+      );
 
       if (response.data['success']) {
-        final List<dynamic> employeesJson = response.data['data']['content'] ?? response.data['data'];
-        return employeesJson.map((json) => Employee.fromJson(json)).toList();
+        final data = response.data['data'];
+        // Handle paginated response
+        if (data is Map && data.containsKey('content')) {
+          final List<dynamic> employeesJson = data['content'];
+          return employeesJson.map((json) => Employee.fromJson(json)).toList();
+        } else if (data is List) {
+          return data.map((json) => Employee.fromJson(json)).toList();
+        } else {
+          return [];
+        }
       } else {
         throw Exception(response.data['message'] ?? 'Failed to fetch employees');
       }

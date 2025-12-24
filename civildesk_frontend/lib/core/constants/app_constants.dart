@@ -18,7 +18,7 @@ class AppConstants {
   static const String _devFaceServiceUrl = 'http://192.168.0.193:8000';
 
   // Set to true for production, false for local development
-  static const bool _isProduction = false; // TODO: Set to false for local development
+  static const bool _isProduction = true; // TODO: Set to false for local development
 
   static String get baseUrl {
     if (_isProduction) {

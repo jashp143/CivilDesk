@@ -143,5 +143,21 @@ public class EmployeeController {
         return ResponseEntity.ok(ApiResponse.success("Designations retrieved successfully", 
                 java.util.Collections.emptyList()));
     }
+
+    // Get employees for handover selection (accessible to all authenticated users)
+    @GetMapping("/for-handover")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<Page<EmployeeResponse>>> getEmployeesForHandover(
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size,
+            @RequestParam(defaultValue = "firstName") String sortBy,
+            @RequestParam(defaultValue = "ASC") String sortDir) {
+        Sort sort = sortDir.equalsIgnoreCase("DESC") ? Sort.by(sortBy).descending() 
+                : Sort.by(sortBy).ascending();
+        Pageable pageable = PageRequest.of(page, size, sort);
+        Page<EmployeeResponse> employees = employeeService.getEmployeesForHandover(search, pageable);
+        return ResponseEntity.ok(ApiResponse.success("Employees retrieved successfully", employees));
+    }
 }
 

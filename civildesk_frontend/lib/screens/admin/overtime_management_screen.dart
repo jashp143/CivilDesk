@@ -38,11 +38,25 @@ class _OvertimeManagementScreenState extends State<OvertimeManagementScreen> {
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels >= 
-        _scrollController.position.maxScrollExtent * 0.9) {
+    if (!_scrollController.hasClients || !mounted) return;
+    
+    final position = _scrollController.position;
+    final maxScroll = position.maxScrollExtent;
+    final currentScroll = position.pixels;
+    
+    if (maxScroll > 0 && currentScroll >= maxScroll * 0.9) {
       final provider = Provider.of<OvertimeProvider>(context, listen: false);
       if (provider.hasMore && !provider.isLoading) {
         provider.loadMoreOvertimes();
+      }
+    } else if (maxScroll <= 0 && position.viewportDimension > 0) {
+      final provider = Provider.of<OvertimeProvider>(context, listen: false);
+      if (provider.hasMore && !provider.isLoading && provider.overtimes.isNotEmpty) {
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (mounted && provider.hasMore && !provider.isLoading) {
+            provider.loadMoreOvertimes();
+          }
+        });
       }
     }
   }
@@ -362,24 +376,55 @@ class _OvertimeManagementScreenState extends State<OvertimeManagementScreen> {
                       final isMobile = constraints.maxWidth < 600;
                       
                       if (isMobile) {
-                        // Card view for mobile with pagination
-                        return ListView.builder(
-                          controller: _scrollController,
-                          padding: const EdgeInsets.all(16),
-                          itemCount: provider.overtimes.length + (provider.hasMore ? 1 : 0),
-                          itemBuilder: (context, index) {
-                            if (index == provider.overtimes.length) {
-                              return const Padding(
-                                padding: EdgeInsets.all(16.0),
-                                child: Center(child: CircularProgressIndicator()),
-                              );
+                        // Check if we need to load more when content fits on screen
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (_scrollController.hasClients && mounted) {
+                            final position = _scrollController.position;
+                            if (position.maxScrollExtent <= 0 && 
+                                position.viewportDimension > 0 &&
+                                provider.hasMore && 
+                                !provider.isLoading && 
+                                provider.overtimes.isNotEmpty) {
+                              Future.delayed(const Duration(milliseconds: 500), () {
+                                if (mounted && provider.hasMore && !provider.isLoading) {
+                                  provider.loadMoreOvertimes();
+                                }
+                              });
                             }
-                            final overtime = provider.overtimes[index];
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 16),
-                              child: _buildOvertimeCard(overtime),
-                            );
+                          }
+                        });
+
+                        // Card view for mobile with pagination
+                        return NotificationListener<ScrollNotification>(
+                          onNotification: (ScrollNotification notification) {
+                            if (notification is ScrollEndNotification) {
+                              final metrics = notification.metrics;
+                              if (metrics.pixels >= metrics.maxScrollExtent * 0.9) {
+                                if (provider.hasMore && !provider.isLoading) {
+                                  provider.loadMoreOvertimes();
+                                }
+                              }
+                            }
+                            return false;
                           },
+                          child: ListView.builder(
+                            controller: _scrollController,
+                            padding: const EdgeInsets.all(16),
+                            itemCount: provider.overtimes.length + (provider.hasMore ? 1 : 0),
+                            itemBuilder: (context, index) {
+                              if (index == provider.overtimes.length) {
+                                return const Padding(
+                                  padding: EdgeInsets.all(16.0),
+                                  child: Center(child: CircularProgressIndicator()),
+                                );
+                              }
+                              final overtime = provider.overtimes[index];
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 16),
+                                child: _buildOvertimeCard(overtime),
+                              );
+                            },
+                          ),
                         );
                       } else {
                         // Table view for tablet/desktop

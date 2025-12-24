@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import '../../models/employee.dart';
 import 'api_service.dart';
 
@@ -127,7 +128,12 @@ class EmployeeService {
       if (response.statusCode == 200) {
         final responseData = response.data;
         if (responseData['success'] == true && responseData['data'] != null) {
-          return EmployeeListResponse.fromJson(responseData['data'] as Map<String, dynamic>);
+          final data = responseData['data'];
+          if (data is Map<String, dynamic>) {
+            return EmployeeListResponse.fromJson(data);
+          } else {
+            throw Exception('Invalid response format: expected Map but got ${data.runtimeType}');
+          }
         }
       }
       throw Exception('Failed to fetch employees');
@@ -182,7 +188,12 @@ class EmployeeService {
       if (response.statusCode == 200) {
         final responseData = response.data;
         if (responseData['success'] == true && responseData['data'] != null) {
-          return EmployeeListResponse.fromJson(responseData['data'] as Map<String, dynamic>);
+          final data = responseData['data'];
+          if (data is Map<String, dynamic>) {
+            return EmployeeListResponse.fromJson(data);
+          } else {
+            throw Exception('Invalid response format: expected Map but got ${data.runtimeType}');
+          }
         }
       }
       throw Exception('Failed to search employees');
@@ -259,17 +270,29 @@ class EmployeeListResponse {
   });
 
   factory EmployeeListResponse.fromJson(Map<String, dynamic> json) {
+    // Spring Data Page with VIA_DTO mode wraps pagination metadata in a 'page' object
+    final pageData = json['page'] as Map<String, dynamic>?;
+    
+    // Extract pagination data from page object if available, otherwise from top level
+    final paginationData = pageData ?? json;
+    
+    // Calculate first and last if not provided
+    final number = paginationData['number'] as int? ?? 0;
+    final totalPages = paginationData['totalPages'] as int? ?? 0;
+    final first = paginationData['first'] as bool? ?? (number == 0);
+    final last = paginationData['last'] as bool? ?? (totalPages > 0 && number >= totalPages - 1);
+    
     return EmployeeListResponse(
       content: (json['content'] as List<dynamic>?)
               ?.map((e) => Employee.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
-      totalElements: json['totalElements'] as int? ?? 0,
-      totalPages: json['totalPages'] as int? ?? 0,
-      size: json['size'] as int? ?? 10,
-      number: json['number'] as int? ?? 0,
-      first: json['first'] as bool? ?? true,
-      last: json['last'] as bool? ?? true,
+      totalElements: paginationData['totalElements'] as int? ?? 0,
+      totalPages: totalPages,
+      size: paginationData['size'] as int? ?? 10,
+      number: number,
+      first: first,
+      last: last,
     );
   }
 }

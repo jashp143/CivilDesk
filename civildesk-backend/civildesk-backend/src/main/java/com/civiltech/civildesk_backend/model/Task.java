@@ -1,5 +1,7 @@
 package com.civiltech.civildesk_backend.model;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonValue;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -74,6 +76,25 @@ public class Task extends BaseEntity {
 
         public String getDisplayName() {
             return displayName;
+        }
+
+        @JsonValue
+        public String toValue() {
+            return name();
+        }
+
+        @JsonCreator
+        public static TaskStatus fromValue(String value) {
+            if (value == null) {
+                return null;
+            }
+            // Case-insensitive lookup
+            for (TaskStatus status : TaskStatus.values()) {
+                if (status.name().equalsIgnoreCase(value)) {
+                    return status;
+                }
+            }
+            throw new IllegalArgumentException("Unknown TaskStatus value: " + value);
         }
     }
 }

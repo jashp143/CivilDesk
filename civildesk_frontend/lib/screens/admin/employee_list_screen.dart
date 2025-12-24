@@ -21,6 +21,7 @@ class EmployeeListScreen extends StatefulWidget {
 class _EmployeeListScreenState extends State<EmployeeListScreen> {
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  bool _isLoadingMore = false;
 
   @override
   void initState() {
@@ -48,11 +49,46 @@ class _EmployeeListScreenState extends State<EmployeeListScreen> {
     final maxScroll = position.maxScrollExtent;
     final currentScroll = position.pixels;
     
-    // Load more when user scrolls to 80% of the scroll extent
-    if (currentScroll >= maxScroll * 0.8 && maxScroll > 0) {
+    // Load more when user scrolls to 70% of the scroll extent
+    if (maxScroll > 0 && currentScroll >= maxScroll * 0.7) {
+      _loadMore();
+    } else if (maxScroll <= 0 && position.viewportDimension > 0) {
+      // Content fits on screen, check if we need to load more
       final provider = context.read<EmployeeProvider>();
-      if (provider.hasMore && !provider.isLoading) {
-        provider.loadMoreEmployees();
+      if (provider.hasMore && !provider.isLoading && !_isLoadingMore && provider.employees.isNotEmpty) {
+        _loadMore();
+      }
+    }
+  }
+
+  Future<void> _loadMore() async {
+    if (_isLoadingMore) return;
+    
+    final provider = context.read<EmployeeProvider>();
+    if (!provider.hasMore || provider.isLoading) return;
+    
+    setState(() => _isLoadingMore = true);
+    
+    try {
+      await provider.loadMoreEmployees();
+      
+      // After loading, check if content still fits on screen and load more if needed
+      if (mounted && _scrollController.hasClients) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _scrollController.hasClients) {
+            final position = _scrollController.position;
+            if (position.maxScrollExtent <= 0 && 
+                position.viewportDimension > 0 &&
+                provider.hasMore && 
+                !provider.isLoading) {
+              _loadMore();
+            }
+          }
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingMore = false);
       }
     }
   }
@@ -250,10 +286,25 @@ class _EmployeeListScreenState extends State<EmployeeListScreen> {
   }
 
   Widget _buildMobileView(EmployeeProvider provider) {
+    // Check if we need to load more when content fits on screen
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients && mounted) {
+        final position = _scrollController.position;
+        if (position.maxScrollExtent <= 0 && 
+            position.viewportDimension > 0 &&
+            provider.hasMore && 
+            !provider.isLoading && 
+            !_isLoadingMore &&
+            provider.employees.isNotEmpty) {
+          _loadMore();
+        }
+      }
+    });
+
     return ListView.builder(
       controller: _scrollController,
       physics: const AlwaysScrollableScrollPhysics(),
-      itemCount: provider.employees.length + (provider.hasMore ? 1 : 0),
+      itemCount: provider.employees.length + (provider.hasMore && (provider.isLoading || _isLoadingMore) ? 1 : 0),
       itemBuilder: (context, index) {
         if (index >= provider.employees.length) {
           return const Center(

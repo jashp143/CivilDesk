@@ -34,6 +34,7 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
   List<Employee> _employees = [];
   bool _loadingEmployees = false;
   bool _isSubmitting = false;
+  final TextEditingController _employeeSearchController = TextEditingController();
 
   @override
   void initState() {
@@ -61,10 +62,10 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
     });
   }
 
-  Future<void> _loadEmployees() async {
+  Future<void> _loadEmployees({String? search}) async {
     setState(() => _loadingEmployees = true);
     try {
-      final employees = await _employeeService.getAllEmployees();
+      final employees = await _employeeService.getAllEmployees(search: search);
       setState(() {
         _employees = employees;
         _loadingEmployees = false;
@@ -590,13 +591,44 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
   void _showEmployeeSelectionDialog() {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    _employeeSearchController.clear();
     
     showDialog(
       context: context,
       builder: (context) {
         List<int> tempSelected = List.from(_selectedEmployeeIds);
+        List<Employee> filteredEmployees = List.from(_employees);
+        bool isLoading = false;
+        
         return StatefulBuilder(
           builder: (context, setDialogState) {
+            Future<void> performSearch(String searchTerm) async {
+              if (searchTerm.isEmpty) {
+                // Reload all employees
+                setDialogState(() => isLoading = true);
+                try {
+                  await _loadEmployees();
+                  setDialogState(() {
+                    filteredEmployees = List.from(_employees);
+                    isLoading = false;
+                  });
+                } catch (e) {
+                  setDialogState(() => isLoading = false);
+                }
+              } else {
+                // Search on server
+                setDialogState(() => isLoading = true);
+                try {
+                  await _loadEmployees(search: searchTerm);
+                  setDialogState(() {
+                    filteredEmployees = List.from(_employees);
+                    isLoading = false;
+                  });
+                } catch (e) {
+                  setDialogState(() => isLoading = false);
+                }
+              }
+            }
             return AlertDialog(
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
@@ -605,56 +637,110 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
                 children: [
                   Icon(Icons.people_rounded, color: colorScheme.primary),
                   const SizedBox(width: 12),
-                  const Text('Select Employees'),
+                  const Expanded(child: Text('Select Employees')),
                 ],
               ),
               content: SizedBox(
                 width: double.maxFinite,
-                child: _employees.isEmpty
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Text(
-                            'No employees available',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: colorScheme.onSurfaceVariant,
-                                ),
+                height: MediaQuery.of(context).size.height * 0.6,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Search field
+                    StatefulBuilder(
+                      builder: (context, setSearchState) {
+                        return TextField(
+                          controller: _employeeSearchController,
+                          decoration: InputDecoration(
+                            hintText: 'Search employees...',
+                            prefixIcon: Icon(Icons.search, color: colorScheme.primary),
+                            suffixIcon: _employeeSearchController.text.isNotEmpty
+                                ? IconButton(
+                                    icon: Icon(Icons.clear, color: colorScheme.onSurfaceVariant),
+                                    onPressed: () {
+                                      _employeeSearchController.clear();
+                                      setSearchState(() {});
+                                      performSearch('');
+                                    },
+                                  )
+                                : null,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            filled: true,
+                            fillColor: colorScheme.surface,
                           ),
-                        ),
-                      )
-                    : ListView.builder(
-                        shrinkWrap: true,
-                        itemCount: _employees.length,
-                        itemBuilder: (context, index) {
-                          final employee = _employees[index];
-                          final isSelected = tempSelected.contains(employee.id);
-                          return CheckboxListTile(
-                            title: Text(
-                              employee.fullName,
-                              style: theme.textTheme.bodyLarge?.copyWith(
-                                    color: colorScheme.onSurface,
+                          onChanged: (value) {
+                            setSearchState(() {});
+                            // Debounce search - wait 500ms after user stops typing
+                            Future.delayed(const Duration(milliseconds: 500), () {
+                              if (_employeeSearchController.text == value) {
+                                performSearch(value);
+                              }
+                            });
+                          },
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    // Employee list
+                    Expanded(
+                      child: isLoading
+                          ? Center(
+                              child: CircularProgressIndicator(
+                                color: colorScheme.primary,
+                              ),
+                            )
+                          : filteredEmployees.isEmpty
+                              ? Center(
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(24),
+                                    child: Text(
+                                      _employeeSearchController.text.isNotEmpty
+                                          ? 'No employees found'
+                                          : 'No employees available',
+                                      style: theme.textTheme.bodyMedium?.copyWith(
+                                            color: colorScheme.onSurfaceVariant,
+                                          ),
+                                    ),
                                   ),
-                            ),
-                            subtitle: Text(
-                              '${employee.employeeId} - ${employee.designation ?? "N/A"}',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                    color: colorScheme.onSurfaceVariant,
-                                  ),
-                            ),
-                            value: isSelected,
-                            activeColor: colorScheme.primary,
-                            onChanged: (checked) {
-                              setDialogState(() {
-                                if (checked == true) {
-                                  tempSelected.add(employee.id);
-                                } else {
-                                  tempSelected.remove(employee.id);
-                                }
-                              });
-                            },
-                          );
-                        },
-                      ),
+                                )
+                              : ListView.builder(
+                                  shrinkWrap: true,
+                                  itemCount: filteredEmployees.length,
+                                  itemBuilder: (context, index) {
+                                    final employee = filteredEmployees[index];
+                                    final isSelected = tempSelected.contains(employee.id);
+                                    return CheckboxListTile(
+                                      title: Text(
+                                        employee.fullName,
+                                        style: theme.textTheme.bodyLarge?.copyWith(
+                                              color: colorScheme.onSurface,
+                                            ),
+                                      ),
+                                      subtitle: Text(
+                                        '${employee.employeeId} - ${employee.designation ?? "N/A"}',
+                                        style: theme.textTheme.bodySmall?.copyWith(
+                                              color: colorScheme.onSurfaceVariant,
+                                            ),
+                                      ),
+                                      value: isSelected,
+                                      activeColor: colorScheme.primary,
+                                      onChanged: (checked) {
+                                        setDialogState(() {
+                                          if (checked == true) {
+                                            tempSelected.add(employee.id);
+                                          } else {
+                                            tempSelected.remove(employee.id);
+                                          }
+                                        });
+                                      },
+                                    );
+                                  },
+                                ),
+                    ),
+                  ],
+                ),
               ),
               actions: [
                 TextButton(
@@ -824,6 +910,7 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
   void dispose() {
     _contactController.dispose();
     _reasonController.dispose();
+    _employeeSearchController.dispose();
     super.dispose();
   }
 }

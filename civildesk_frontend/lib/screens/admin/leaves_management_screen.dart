@@ -38,11 +38,25 @@ class _LeavesManagementScreenState extends State<LeavesManagementScreen> {
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels >= 
-        _scrollController.position.maxScrollExtent * 0.9) {
+    if (!_scrollController.hasClients || !mounted) return;
+    
+    final position = _scrollController.position;
+    final maxScroll = position.maxScrollExtent;
+    final currentScroll = position.pixels;
+    
+    if (maxScroll > 0 && currentScroll >= maxScroll * 0.9) {
       final provider = Provider.of<LeaveProvider>(context, listen: false);
       if (provider.hasMore && !provider.isLoading) {
         provider.loadMoreLeaves();
+      }
+    } else if (maxScroll <= 0 && position.viewportDimension > 0) {
+      final provider = Provider.of<LeaveProvider>(context, listen: false);
+      if (provider.hasMore && !provider.isLoading && provider.leaves.isNotEmpty) {
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (mounted && provider.hasMore && !provider.isLoading) {
+            provider.loadMoreLeaves();
+          }
+        });
       }
     }
   }
@@ -396,24 +410,55 @@ class _LeavesManagementScreenState extends State<LeavesManagementScreen> {
                       final isMobile = constraints.maxWidth < 600;
                       
                       if (isMobile) {
-                        // Card view for mobile with pagination
-                        return ListView.builder(
-                          controller: _scrollController,
-                          padding: const EdgeInsets.all(16),
-                          itemCount: provider.leaves.length + (provider.hasMore ? 1 : 0),
-                          itemBuilder: (context, index) {
-                            if (index == provider.leaves.length) {
-                              return const Padding(
-                                padding: EdgeInsets.all(16.0),
-                                child: Center(child: CircularProgressIndicator()),
-                              );
+                        // Check if we need to load more when content fits on screen
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (_scrollController.hasClients && mounted) {
+                            final position = _scrollController.position;
+                            if (position.maxScrollExtent <= 0 && 
+                                position.viewportDimension > 0 &&
+                                provider.hasMore && 
+                                !provider.isLoading && 
+                                provider.leaves.isNotEmpty) {
+                              Future.delayed(const Duration(milliseconds: 500), () {
+                                if (mounted && provider.hasMore && !provider.isLoading) {
+                                  provider.loadMoreLeaves();
+                                }
+                              });
                             }
+                          }
+                        });
+
+                        // Card view for mobile with pagination
+                        return NotificationListener<ScrollNotification>(
+                          onNotification: (ScrollNotification notification) {
+                            if (notification is ScrollEndNotification) {
+                              final metrics = notification.metrics;
+                              if (metrics.pixels >= metrics.maxScrollExtent * 0.9) {
+                                if (provider.hasMore && !provider.isLoading) {
+                                  provider.loadMoreLeaves();
+                                }
+                              }
+                            }
+                            return false;
+                          },
+                          child: ListView.builder(
+                            controller: _scrollController,
+                            padding: const EdgeInsets.all(16),
+                            itemCount: provider.leaves.length + (provider.hasMore ? 1 : 0),
+                            itemBuilder: (context, index) {
+                              if (index == provider.leaves.length) {
+                                return const Padding(
+                                  padding: EdgeInsets.all(16.0),
+                                  child: Center(child: CircularProgressIndicator()),
+                                );
+                              }
                             final leave = provider.leaves[index];
                             return Padding(
                               padding: const EdgeInsets.only(bottom: 16),
                               child: _buildLeaveCard(leave),
                             );
                           },
+                          ),
                         );
                       } else {
                         // Table view for tablet/desktop

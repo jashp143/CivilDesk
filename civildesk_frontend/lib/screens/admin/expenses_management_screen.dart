@@ -38,11 +38,25 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen> {
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels >= 
-        _scrollController.position.maxScrollExtent * 0.9) {
+    if (!_scrollController.hasClients || !mounted) return;
+    
+    final position = _scrollController.position;
+    final maxScroll = position.maxScrollExtent;
+    final currentScroll = position.pixels;
+    
+    if (maxScroll > 0 && currentScroll >= maxScroll * 0.9) {
       final provider = Provider.of<ExpenseProvider>(context, listen: false);
       if (provider.hasMore && !provider.isLoading) {
         provider.loadMoreExpenses();
+      }
+    } else if (maxScroll <= 0 && position.viewportDimension > 0) {
+      final provider = Provider.of<ExpenseProvider>(context, listen: false);
+      if (provider.hasMore && !provider.isLoading && provider.expenses.isNotEmpty) {
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (mounted && provider.hasMore && !provider.isLoading) {
+            provider.loadMoreExpenses();
+          }
+        });
       }
     }
   }
@@ -395,24 +409,55 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen> {
                       final isMobile = constraints.maxWidth < 600;
                       
                       if (isMobile) {
-                        // Card view for mobile with pagination
-                        return ListView.builder(
-                          controller: _scrollController,
-                          padding: const EdgeInsets.all(16),
-                          itemCount: provider.expenses.length + (provider.hasMore ? 1 : 0),
-                          itemBuilder: (context, index) {
-                            if (index == provider.expenses.length) {
-                              return const Padding(
-                                padding: EdgeInsets.all(16.0),
-                                child: Center(child: CircularProgressIndicator()),
-                              );
+                        // Check if we need to load more when content fits on screen
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (_scrollController.hasClients && mounted) {
+                            final position = _scrollController.position;
+                            if (position.maxScrollExtent <= 0 && 
+                                position.viewportDimension > 0 &&
+                                provider.hasMore && 
+                                !provider.isLoading && 
+                                provider.expenses.isNotEmpty) {
+                              Future.delayed(const Duration(milliseconds: 500), () {
+                                if (mounted && provider.hasMore && !provider.isLoading) {
+                                  provider.loadMoreExpenses();
+                                }
+                              });
                             }
-                            final expense = provider.expenses[index];
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 16),
-                              child: _buildExpenseCard(expense),
-                            );
+                          }
+                        });
+
+                        // Card view for mobile with pagination
+                        return NotificationListener<ScrollNotification>(
+                          onNotification: (ScrollNotification notification) {
+                            if (notification is ScrollEndNotification) {
+                              final metrics = notification.metrics;
+                              if (metrics.pixels >= metrics.maxScrollExtent * 0.9) {
+                                if (provider.hasMore && !provider.isLoading) {
+                                  provider.loadMoreExpenses();
+                                }
+                              }
+                            }
+                            return false;
                           },
+                          child: ListView.builder(
+                            controller: _scrollController,
+                            padding: const EdgeInsets.all(16),
+                            itemCount: provider.expenses.length + (provider.hasMore ? 1 : 0),
+                            itemBuilder: (context, index) {
+                              if (index == provider.expenses.length) {
+                                return const Padding(
+                                  padding: EdgeInsets.all(16.0),
+                                  child: Center(child: CircularProgressIndicator()),
+                                );
+                              }
+                              final expense = provider.expenses[index];
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 16),
+                                child: _buildExpenseCard(expense),
+                              );
+                            },
+                          ),
                         );
                       } else {
                         // Table view for tablet/desktop

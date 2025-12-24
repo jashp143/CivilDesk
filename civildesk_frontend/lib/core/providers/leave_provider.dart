@@ -35,9 +35,9 @@ class LeaveProvider with ChangeNotifier {
   String? get selectedDepartment => _selectedDepartment;
   List<String> get departments => _departments;
 
-  // Get page size: 25 for first load, 10 for subsequent loads
+  // Use consistent page size of 15
   int _getPageSize() {
-    return _isInitialLoad ? 25 : 10;
+    return 15;
   }
 
   // Fetch all leaves (with pagination support)
@@ -57,15 +57,17 @@ class LeaveProvider with ChangeNotifier {
 
     try {
       final pageSize = _getPageSize();
+      // Use next page number when loading more
+      final pageToLoad = refresh ? 0 : _currentPage + 1;
       final pageResponse = await _leaveService.getAllLeavesPaginated(
         status: _selectedStatus,
         leaveType: _selectedLeaveType,
         department: _selectedDepartment,
-        page: _currentPage,
+        page: pageToLoad,
         size: pageSize,
       );
 
-      if (refresh || _currentPage == 0) {
+      if (refresh || pageToLoad == 0) {
         _leaves = pageResponse.content;
       } else {
         _leaves.addAll(pageResponse.content);

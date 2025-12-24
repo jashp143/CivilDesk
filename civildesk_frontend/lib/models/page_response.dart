@@ -23,17 +23,29 @@ class PageResponse<T> {
     Map<String, dynamic> json,
     T Function(Map<String, dynamic>) fromJsonT,
   ) {
+    // Spring Data Page with VIA_DTO mode wraps pagination metadata in a 'page' object
+    final pageData = json['page'] as Map<String, dynamic>?;
+    
+    // Extract pagination data from page object if available, otherwise from top level
+    final paginationData = pageData ?? json;
+    
+    // Calculate first and last if not provided
+    final number = paginationData['number'] as int? ?? 0;
+    final totalPages = paginationData['totalPages'] as int? ?? 0;
+    final first = paginationData['first'] as bool? ?? (number == 0);
+    final last = paginationData['last'] as bool? ?? (totalPages > 0 && number >= totalPages - 1);
+    
     return PageResponse<T>(
       content: (json['content'] as List<dynamic>?)
               ?.map((e) => fromJsonT(e as Map<String, dynamic>))
               .toList() ??
           [],
-      totalElements: json['totalElements'] as int? ?? 0,
-      totalPages: json['totalPages'] as int? ?? 0,
-      size: json['size'] as int? ?? 10,
-      number: json['number'] as int? ?? 0,
-      first: json['first'] as bool? ?? true,
-      last: json['last'] as bool? ?? true,
+      totalElements: paginationData['totalElements'] as int? ?? 0,
+      totalPages: totalPages,
+      size: paginationData['size'] as int? ?? 10,
+      number: number,
+      first: first,
+      last: last,
     );
   }
 

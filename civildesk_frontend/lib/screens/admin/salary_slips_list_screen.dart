@@ -43,17 +43,30 @@ class _SalarySlipsListScreenState extends State<SalarySlipsListScreen> {
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels >= 
-        _scrollController.position.maxScrollExtent * 0.9) {
+    if (!_scrollController.hasClients || !mounted) return;
+    
+    final position = _scrollController.position;
+    final maxScroll = position.maxScrollExtent;
+    final currentScroll = position.pixels;
+    
+    if (maxScroll > 0 && currentScroll >= maxScroll * 0.9) {
       if (_hasMore && !_isLoading) {
         _loadSalarySlips(refresh: false);
+      }
+    } else if (maxScroll <= 0 && position.viewportDimension > 0) {
+      if (_hasMore && !_isLoading && _salarySlips.isNotEmpty) {
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (mounted && _hasMore && !_isLoading) {
+            _loadSalarySlips(refresh: false);
+          }
+        });
       }
     }
   }
 
-  // Get page size: 25 for first load, 10 for subsequent loads
+  // Use consistent page size of 15
   int _getPageSize() {
-    return _isInitialLoad ? 25 : 10;
+    return 15;
   }
 
   Future<void> _loadSalarySlips({bool refresh = false}) async {
@@ -73,17 +86,19 @@ class _SalarySlipsListScreenState extends State<SalarySlipsListScreen> {
 
     try {
       final pageSize = _getPageSize();
+      // Use next page number when loading more
+      final pageToLoad = refresh ? 0 : _currentPage + 1;
       final pageResponse = await _salaryService.getAllSalarySlipsPaginated(
         year: _selectedYear,
         month: _selectedMonth,
-        page: _currentPage,
+        page: pageToLoad,
         size: pageSize,
         sortBy: 'year',
         sortDir: 'DESC',
       );
 
       setState(() {
-        if (refresh || _currentPage == 0) {
+        if (refresh || pageToLoad == 0) {
           _salarySlips = pageResponse.content;
         } else {
           _salarySlips.addAll(pageResponse.content);
@@ -325,19 +340,51 @@ class _SalarySlipsListScreenState extends State<SalarySlipsListScreen> {
                                 ),
                               ],
                             )
-                          : ListView.builder(
-                              controller: _scrollController,
-                              padding: const EdgeInsets.all(16),
-                              itemCount: _salarySlips.length + (_hasMore ? 1 : 0),
-                              itemBuilder: (context, index) {
-                                if (index == _salarySlips.length) {
-                                  return const Padding(
-                                    padding: EdgeInsets.all(16.0),
-                                    child: Center(child: CircularProgressIndicator()),
-                                  );
-                                }
-                                final slip = _salarySlips[index];
-                                return Card(
+                          : Builder(
+                              builder: (context) {
+                                // Check if we need to load more when content fits on screen
+                                WidgetsBinding.instance.addPostFrameCallback((_) {
+                                  if (_scrollController.hasClients && mounted) {
+                                    final position = _scrollController.position;
+                                    if (position.maxScrollExtent <= 0 && 
+                                        position.viewportDimension > 0 &&
+                                        _hasMore && 
+                                        !_isLoading && 
+                                        _salarySlips.isNotEmpty) {
+                                      Future.delayed(const Duration(milliseconds: 500), () {
+                                        if (mounted && _hasMore && !_isLoading) {
+                                          _loadSalarySlips(refresh: false);
+                                        }
+                                      });
+                                    }
+                                  }
+                                });
+
+                                return NotificationListener<ScrollNotification>(
+                                  onNotification: (ScrollNotification notification) {
+                                    if (notification is ScrollEndNotification) {
+                                      final metrics = notification.metrics;
+                                      if (metrics.pixels >= metrics.maxScrollExtent * 0.9) {
+                                        if (_hasMore && !_isLoading) {
+                                          _loadSalarySlips(refresh: false);
+                                        }
+                                      }
+                                    }
+                                    return false;
+                                  },
+                                  child: ListView.builder(
+                                    controller: _scrollController,
+                                    padding: const EdgeInsets.all(16),
+                                    itemCount: _salarySlips.length + (_hasMore ? 1 : 0),
+                                    itemBuilder: (context, index) {
+                                      if (index == _salarySlips.length) {
+                                        return const Padding(
+                                          padding: EdgeInsets.all(16.0),
+                                          child: Center(child: CircularProgressIndicator()),
+                                        );
+                                      }
+                                      final slip = _salarySlips[index];
+                                      return Card(
                                   elevation: 2,
                                   margin: const EdgeInsets.only(bottom: 12),
                                   child: InkWell(
@@ -457,6 +504,9 @@ class _SalarySlipsListScreenState extends State<SalarySlipsListScreen> {
                                 );
                               },
                             ),
+                          );
+                        },
+                      ),
             ),
           ),
         ],

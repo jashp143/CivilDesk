@@ -25,9 +25,9 @@ class HolidayProvider extends ChangeNotifier {
   int get totalElements => _totalElements;
   bool get hasMore => _hasMore;
 
-  // Get page size: 25 for first load, 10 for subsequent loads
+  // Use consistent page size of 15
   int _getPageSize() {
-    return _isInitialLoad ? 25 : 10;
+    return 15;
   }
 
   Future<void> loadHolidays({bool refresh = false}) async {
@@ -46,10 +46,12 @@ class HolidayProvider extends ChangeNotifier {
 
     try {
       final pageSize = _getPageSize();
+      // Use next page number when loading more
+      final pageToLoad = refresh ? 0 : _currentPage + 1;
       final response = await _apiService.get(
         '/holidays',
         queryParameters: {
-          'page': _currentPage,
+          'page': pageToLoad,
           'size': pageSize,
           'sortBy': 'date',
           'sortDir': 'ASC',
@@ -66,7 +68,7 @@ class HolidayProvider extends ChangeNotifier {
             (json) => Holiday.fromJson(json),
           );
 
-          if (refresh || _currentPage == 0) {
+          if (refresh || pageToLoad == 0) {
             _holidays = pageResponse.content;
           } else {
             _holidays.addAll(pageResponse.content);

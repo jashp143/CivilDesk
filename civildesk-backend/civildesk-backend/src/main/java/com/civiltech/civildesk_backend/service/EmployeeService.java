@@ -8,6 +8,7 @@ import com.civiltech.civildesk_backend.model.Employee;
 import com.civiltech.civildesk_backend.model.User;
 import com.civiltech.civildesk_backend.repository.EmployeeRepository;
 import com.civiltech.civildesk_backend.repository.UserRepository;
+import com.civiltech.civildesk_backend.security.SecurityUtils;
 import org.hibernate.Hibernate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
@@ -209,6 +210,24 @@ public class EmployeeService {
     ) {
         return employeeRepository.findWithFilters(search, department, designation, status, type, pageable)
                 .map(this::mapToResponse);
+    }
+
+    // Get employees for handover selection (excludes current employee)
+    @Transactional(readOnly = true)
+    public Page<EmployeeResponse> getEmployeesForHandover(String search, Pageable pageable) {
+        // Get current user's employee ID
+        User currentUser = SecurityUtils.getCurrentUser();
+        Employee currentEmployee = employeeRepository.findByUserIdAndDeletedFalse(currentUser.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found for current user"));
+        
+        // Search employees excluding current employee
+        Page<Employee> employees = employeeRepository.findEmployeesForHandover(
+                currentEmployee.getId(),
+                search,
+                pageable
+        );
+        
+        return employees.map(this::mapToResponse);
     }
 
     @Caching(evict = {

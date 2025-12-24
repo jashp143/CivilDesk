@@ -78,10 +78,14 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
 
     try {
       final dateString = DateFormat('yyyy-MM-dd').format(_selectedDate);
+      // Use consistent page size of 15
+      final pageSize = 15;
+      // Use next page number when loading more
+      final pageToLoad = refresh ? 0 : _currentPage + 1;
       final response = await _attendanceService.getDailyAttendance(
         date: dateString,
-        page: _currentPage,
-        size: _currentPage == 0 ? 25 : 20,
+        page: pageToLoad,
+        size: pageSize,
       );
 
       if (response['success'] == true && response['data'] != null) {
@@ -89,22 +93,30 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
         
         // Check if it's paginated response
         if (data.containsKey('content')) {
-          // Paginated response
+          // Paginated response - Spring Data Page with VIA_DTO mode wraps pagination metadata in a 'page' object
+          final pageData = data['page'] as Map<String, dynamic>?;
+          final paginationData = pageData ?? data;
+          
           final List<dynamic> attendanceList = data['content'] as List<dynamic>;
           final newAttendances = attendanceList
               .map((json) => Attendance.fromJson(json as Map<String, dynamic>))
               .toList();
           
+          // Calculate first and last if not provided
+          final number = paginationData['number'] as int? ?? 0;
+          final totalPages = paginationData['totalPages'] as int? ?? 0;
+          final last = paginationData['last'] as bool? ?? (totalPages > 0 && number >= totalPages - 1);
+          
           setState(() {
-            if (refresh || _currentPage == 0) {
+            if (refresh || pageToLoad == 0) {
               _attendances = newAttendances;
             } else {
               _attendances.addAll(newAttendances);
             }
-            _currentPage = data['number'] as int? ?? _currentPage;
-            _totalPages = data['totalPages'] as int? ?? 0;
-            _totalElements = data['totalElements'] as int? ?? 0;
-            _hasMore = _currentPage < _totalPages - 1;
+            _currentPage = number;
+            _totalPages = totalPages;
+            _totalElements = paginationData['totalElements'] as int? ?? 0;
+            _hasMore = !last;
             _isLoading = false;
           });
         } else if (data is List) {

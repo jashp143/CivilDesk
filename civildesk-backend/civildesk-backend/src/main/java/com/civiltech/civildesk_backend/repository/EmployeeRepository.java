@@ -114,5 +114,21 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
      */
     @Query("SELECT e FROM Employee e WHERE e.employeeId IN :employeeIds AND e.deleted = false")
     List<Employee> findByEmployeeIds(@Param("employeeIds") List<String> employeeIds);
+    
+    // Find employees for handover selection (excludes current employee, supports search)
+    @Query("SELECT e FROM Employee e WHERE e.deleted = false " +
+           "AND e.id != :excludeEmployeeId " +
+           "AND e.employmentStatus = 'ACTIVE' " +
+           "AND (:search IS NULL OR :search = '' OR " +
+           "LOWER(e.firstName) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(e.lastName) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(e.employeeId) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(e.email) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(e.designation) LIKE LOWER(CONCAT('%', :search, '%')))")
+    Page<Employee> findEmployeesForHandover(
+            @Param("excludeEmployeeId") Long excludeEmployeeId,
+            @Param("search") String search,
+            Pageable pageable
+    );
 }
 

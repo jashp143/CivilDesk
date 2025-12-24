@@ -107,9 +107,9 @@ class TaskProvider with ChangeNotifier {
     }
   }
 
-  // Get page size: 25 for first load, 10 for subsequent loads
+  // Use consistent page size of 15
   int _getPageSize() {
-    return _isInitialLoad ? 25 : 10;
+    return 15;
   }
 
   // Fetch all tasks (with pagination support)
@@ -129,13 +129,15 @@ class TaskProvider with ChangeNotifier {
 
     try {
       final pageSize = _getPageSize();
+      // Use next page number when loading more
+      final pageToLoad = refresh ? 0 : _currentPage + 1;
       final pageResponse = await _taskService.getAllTasksPaginated(
         status: status,
-        page: _currentPage,
+        page: pageToLoad,
         size: pageSize,
       );
 
-      if (refresh || _currentPage == 0) {
+      if (refresh || pageToLoad == 0) {
         _tasks = pageResponse.content;
       } else {
         _tasks.addAll(pageResponse.content);

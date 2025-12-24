@@ -12,6 +12,7 @@ class EmployeeProvider extends ChangeNotifier {
   int _currentPage = 0;
   int _totalPages = 0;
   int _totalElements = 0;
+  bool _isLastPage = false;
 
   // Filters
   String? _searchQuery;
@@ -27,7 +28,16 @@ class EmployeeProvider extends ChangeNotifier {
   int get currentPage => _currentPage;
   int get totalPages => _totalPages;
   int get totalElements => _totalElements;
-  bool get hasMore => _currentPage < _totalPages - 1;
+  bool get hasMore {
+    // Use the last property from the API response for more reliable pagination
+    // If we haven't loaded yet or totalPages is 0, return false
+    if (_totalPages == 0) return false;
+    // If we're on the last page, there's no more data
+    if (_isLastPage) return false;
+    // Fallback: check if currentPage is less than totalPages - 1
+    // (Pages are 0-indexed, so if we're on page 0 of 2, we have pages 0 and 1)
+    return _currentPage < _totalPages - 1;
+  }
 
   String? get searchQuery => _searchQuery;
   String? get departmentFilter => _departmentFilter;
@@ -36,13 +46,14 @@ class EmployeeProvider extends ChangeNotifier {
   EmploymentType? get typeFilter => _typeFilter;
 
   Future<void> loadEmployees({
-    int page = 0,
-    int size = 25,
+    int? page,
+    int? size,
     bool refresh = false,
   }) async {
     if (refresh) {
       _currentPage = 0;
       _employees.clear();
+      _isLastPage = false;
     }
 
     _isLoading = true;
@@ -50,6 +61,18 @@ class EmployeeProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      // Determine page and size to use
+      // When loading more, use currentPage + 1 (next page)
+      final pageSize = size ?? 15;
+      final pageToLoad = page ?? (refresh ? 0 : _currentPage + 1);
+      
+      // Safety check: don't load beyond total pages
+      if (!refresh && _totalPages > 0 && pageToLoad >= _totalPages) {
+        _isLoading = false;
+        notifyListeners();
+        return;
+      }
+      
       EmployeeListResponse response;
 
       if (_searchQuery != null ||
@@ -63,17 +86,17 @@ class EmployeeProvider extends ChangeNotifier {
           designation: _designationFilter,
           status: _statusFilter,
           type: _typeFilter,
-          page: page,
-          size: size,
+          page: pageToLoad,
+          size: pageSize,
         );
       } else {
         response = await _employeeService.getAllEmployees(
-          page: page,
-          size: size,
+          page: pageToLoad,
+          size: pageSize,
         );
       }
 
-      if (refresh || page == 0) {
+      if (refresh || pageToLoad == 0) {
         _employees = response.content;
       } else {
         _employees.addAll(response.content);
@@ -82,6 +105,7 @@ class EmployeeProvider extends ChangeNotifier {
       _currentPage = response.number;
       _totalPages = response.totalPages;
       _totalElements = response.totalElements;
+      _isLastPage = response.last;
 
       _error = null;
     } catch (e) {
@@ -95,7 +119,7 @@ class EmployeeProvider extends ChangeNotifier {
 
   Future<void> loadMoreEmployees() async {
     if (!hasMore || _isLoading) return;
-    await loadEmployees(page: _currentPage + 1, size: 20);
+    await loadEmployees(refresh: false);
   }
 
   Future<void> loadEmployeeById(int id) async {

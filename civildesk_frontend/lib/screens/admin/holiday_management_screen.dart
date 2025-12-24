@@ -33,11 +33,30 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen> {
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels >= 
-        _scrollController.position.maxScrollExtent * 0.9) {
+    if (!_scrollController.hasClients || !mounted) return;
+    
+    final position = _scrollController.position;
+    final maxScroll = position.maxScrollExtent;
+    final currentScroll = position.pixels;
+    
+    // Load more when user scrolls to 80% of the scroll extent
+    // Also check if content is not scrollable (maxScrollExtent is 0 or very small)
+    // In that case, if we have items and hasMore, load more
+    if (maxScroll > 0 && currentScroll >= maxScroll * 0.8) {
       final provider = context.read<HolidayProvider>();
       if (provider.hasMore && !provider.isLoading) {
         provider.loadMoreHolidays();
+      }
+    } else if (maxScroll <= 0 && position.viewportDimension > 0) {
+      // Content fits on screen, check if we need to load more
+      final provider = context.read<HolidayProvider>();
+      if (provider.hasMore && !provider.isLoading && provider.holidays.isNotEmpty) {
+        // Use a small delay to avoid multiple calls
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (mounted && provider.hasMore && !provider.isLoading) {
+            provider.loadMoreHolidays();
+          }
+        });
       }
     }
   }
@@ -356,22 +375,48 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen> {
               onRefresh: () async {
                 await context.read<HolidayProvider>().refreshHolidays();
               },
-              child: SingleChildScrollView(
-                controller: _scrollController,
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: EdgeInsets.only(
-                  left: 10,
-                  right: 10,
-                  top: 10,
-                  bottom: isMobile ? 80 : 10,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildHeader(),
-                    const SizedBox(height: 10),
-                    _buildContent(),
-                  ],
+              child: NotificationListener<ScrollNotification>(
+                onNotification: (ScrollNotification notification) {
+                  if (notification is ScrollEndNotification) {
+                    final metrics = notification.metrics;
+                    final provider = context.read<HolidayProvider>();
+                    
+                    // Check if scrolled to bottom (90% threshold)
+                    if (metrics.pixels >= metrics.maxScrollExtent * 0.9) {
+                      if (provider.hasMore && !provider.isLoading) {
+                        provider.loadMoreHolidays();
+                      }
+                    }
+                    // If content doesn't scroll (fits on screen), load more if needed
+                    else if (metrics.maxScrollExtent <= 0 && metrics.viewportDimension > 0) {
+                      if (provider.hasMore && !provider.isLoading && provider.holidays.isNotEmpty) {
+                        Future.delayed(const Duration(milliseconds: 300), () {
+                          if (mounted && provider.hasMore && !provider.isLoading) {
+                            provider.loadMoreHolidays();
+                          }
+                        });
+                      }
+                    }
+                  }
+                  return false;
+                },
+                child: SingleChildScrollView(
+                  controller: _scrollController,
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: EdgeInsets.only(
+                    left: 10,
+                    right: 10,
+                    top: 10,
+                    bottom: isMobile ? 80 : 10,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildHeader(),
+                      const SizedBox(height: 10),
+                      _buildContent(),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -444,6 +489,25 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen> {
   Widget _buildContent() {
     return Consumer<HolidayProvider>(
       builder: (context, provider, _) {
+        // Check if we need to load more when content fits on screen
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_scrollController.hasClients && mounted) {
+            final position = _scrollController.position;
+            // If content doesn't scroll and we have more items, load them
+            if (position.maxScrollExtent <= 0 && 
+                position.viewportDimension > 0 &&
+                provider.hasMore && 
+                !provider.isLoading && 
+                provider.holidays.isNotEmpty) {
+              Future.delayed(const Duration(milliseconds: 500), () {
+                if (mounted && provider.hasMore && !provider.isLoading) {
+                  provider.loadMoreHolidays();
+                }
+              });
+            }
+          }
+        });
+
         if (provider.isLoading && provider.holidays.isEmpty) {
           return const Center(
             child: Padding(
@@ -471,7 +535,16 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen> {
                 child: Center(child: CircularProgressIndicator()),
               ),
             if (provider.hasMore && !provider.isLoading && provider.holidays.isNotEmpty)
-              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Center(
+                  child: TextButton.icon(
+                    onPressed: () => provider.loadMoreHolidays(),
+                    icon: const Icon(Icons.expand_more),
+                    label: Text('Load More (${provider.totalElements - provider.holidays.length} remaining)'),
+                  ),
+                ),
+              ),
           ],
         );
       },
