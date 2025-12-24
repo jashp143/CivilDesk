@@ -1,0 +1,104 @@
+# Environment variables (server-specific, never commit!)
+.env
+.env.local
+.env.*.local
+*.env
+.env.backup
+.env.*.backup
+
+# Docker Compose overrides (server-specific configurations)
+docker-compose.override.yml
+docker-compose.local.yml
+docker-compose.prod.yml
+
+# Deployment backups
+backups/
+*.backup
+*.tar.gz
+deployment_*.tar.gz
+
+# Deployment logs
+deploy.log
+deployment.log
+*.log
+
+# SSH keys and sensitive files
+*.pem
+*.key
+*_rsa
+*_ed25519
+github_actions_deploy
+deploy_key
+*.pub
+!*.pub.example
+id_rsa*
+id_ed25519*
+
+# IDE
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+.cursor/
+.classpath
+.project
+.settings/
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Build artifacts
+target/
+build/
+dist/
+*.jar
+*.war
+*.ear
+!civildesk-backend/target/*.jar  # Allow JAR in nested project
+
+# Temporary files
+*.tmp
+*.temp
+tmp/
+temp/
+
+# Maven
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# Docker
+*.tar
+*.tar.gz
+civildesk-backend-image.tar.gz
+civildesk-backend-latest.tar.gz
+
+# Node modules (if any scripts use Node)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Python (if any scripts use Python)
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# Database dumps
+*.sql.gz
+*.dump
+*.sql.backup
+
+# Local test files
+test-*.sh
+check-*.sh
+local-*.sh
+
