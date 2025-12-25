@@ -53,7 +53,7 @@ services:
 
       # JWT
       JWT_SECRET: ${JWT_SECRET:-change_me_to_secure_secret_key}
-      JWT_EXPIRATION: ${JWT_EXPIRATION:-86400000}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-1296000000}
 
       # Server
       SERVER_PORT: 8080
