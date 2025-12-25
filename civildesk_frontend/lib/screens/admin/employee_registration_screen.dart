@@ -6,6 +6,7 @@ import '../../core/providers/employee_provider.dart';
 import '../../models/employee.dart';
 import '../../core/utils/validators.dart';
 import '../../widgets/admin_layout.dart';
+import '../../widgets/toast.dart';
 
 class EmployeeRegistrationScreen extends StatefulWidget {
   const EmployeeRegistrationScreen({super.key});
@@ -298,17 +299,10 @@ class _EmployeeRegistrationScreenState extends State<EmployeeRegistrationScreen>
 
     if (mounted) {
       if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Employee created successfully')),
-        );
+        Toast.success(context, 'Employee created successfully');
         Navigator.pop(context);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${provider.error ?? "Failed to create employee"}'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        Toast.error(context, 'Error: ${provider.error ?? "Failed to create employee"}');
       }
     }
   }

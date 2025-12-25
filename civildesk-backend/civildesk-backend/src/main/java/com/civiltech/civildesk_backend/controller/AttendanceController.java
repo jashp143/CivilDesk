@@ -205,6 +205,24 @@ public class AttendanceController {
         }
     }
 
+    @GetMapping("/daily/summary")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('HR_MANAGER')")
+    public ResponseEntity<ApiResponse<Map<String, Long>>> getDailyAttendanceSummary(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        try {
+            if (date == null) {
+                date = LocalDate.now();
+            }
+            
+            Map<String, Long> summary = attendanceService.getDailyAttendanceSummary(date);
+            return ResponseEntity.ok(
+                    ApiResponse.success("Daily attendance summary retrieved successfully", summary));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Error retrieving daily attendance summary: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR.value()));
+        }
+    }
+
     // Employee-specific endpoints (using authenticated user's ID)
     @PostMapping("/my-attendance/mark")
     @PreAuthorize("hasRole('EMPLOYEE')")

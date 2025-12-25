@@ -21,8 +21,10 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.TextStyle;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
@@ -122,29 +124,16 @@ public class AttendanceService {
     @Transactional
     public AttendanceResponse markAttendance(AttendanceRequest request) {
         try {
-            System.out.println("=== Marking Attendance ===");
-            System.out.println("Employee ID: " + request.getEmployeeId());
-            System.out.println("Attendance Type: " + request.getAttendanceType());
-            System.out.println("Recognition Method: " + request.getRecognitionMethod());
-            
             Employee employee = employeeRepository.findByEmployeeIdAndDeletedFalse(request.getEmployeeId())
-                    .orElseThrow(() -> {
-                        System.err.println("Employee not found with ID: " + request.getEmployeeId());
-                        return new ResourceNotFoundException("Employee not found with ID: " + request.getEmployeeId());
-                    });
-
-            System.out.println("Employee found: " + employee.getFirstName() + " " + employee.getLastName());
+                    .orElseThrow(() -> new ResourceNotFoundException("Employee not found with ID: " + request.getEmployeeId()));
 
             LocalDate today = LocalDate.now();
             Attendance attendance = attendanceRepository.findByEmployeeAndDate(employee, today)
                     .orElse(new Attendance());
 
-            System.out.println("Existing attendance record: " + (attendance.getId() != null ? "Found (ID: " + attendance.getId() + ")" : "New"));
-
             // Ensure BaseEntity fields are set for new records
             if (attendance.getId() == null) {
                 attendance.setDeleted(false);
-                System.out.println("Initialized new attendance record");
             }
 
             attendance.setEmployee(employee);
@@ -159,7 +148,6 @@ public class AttendanceService {
                 case "PUNCH_IN":
                     if (attendance.getCheckInTime() == null) {
                         attendance.setCheckInTime(now);
-                        System.out.println("Setting check-in time: " + now);
                     }
                     attendance.setStatus(Attendance.AttendanceStatus.PRESENT);
                     // Recalculate if check-out was already done
@@ -169,7 +157,6 @@ public class AttendanceService {
                     break;
                 case "LUNCH_OUT":
                     attendance.setLunchOutTime(now);
-                    System.out.println("Setting lunch out time: " + now);
                     if (attendance.getCheckInTime() == null) {
                         attendance.setCheckInTime(now);
                     }
@@ -180,7 +167,6 @@ public class AttendanceService {
                     break;
                 case "LUNCH_IN":
                     attendance.setLunchInTime(now);
-                    System.out.println("Setting lunch in time: " + now);
                     // Recalculate if check-out was already done (lunch times affect calculation)
                     if (attendance.getCheckOutTime() != null) {
                         shouldRecalculate = true;
@@ -188,7 +174,6 @@ public class AttendanceService {
                     break;
                 case "PUNCH_OUT":
                     attendance.setCheckOutTime(now);
-                    System.out.println("Setting check-out time: " + now);
                     // Always recalculate when check-out is set (if check-in exists)
                     if (attendance.getCheckInTime() != null) {
                         shouldRecalculate = true;
@@ -206,26 +191,12 @@ public class AttendanceService {
                     calculationService.calculateAttendance(attendance);
                 attendance.setWorkingHours(result.getWorkingHours());
                 attendance.setOvertimeHours(result.getOvertimeHours());
-                System.out.println("Recalculated attendance - Working Hours: " + result.getWorkingHours() + 
-                                 ", Overtime Hours: " + result.getOvertimeHours());
             }
-            
-            System.out.println("Saving attendance record...");
-            System.out.println("Before save - Employee ID: " + attendance.getEmployee().getId());
-            System.out.println("Before save - Date: " + attendance.getDate());
-            System.out.println("Before save - Status: " + attendance.getStatus());
-            System.out.println("Before save - Check-in time: " + attendance.getCheckInTime());
             
             attendance = attendanceRepository.saveAndFlush(attendance);
             
-            System.out.println("After save - Attendance ID: " + attendance.getId());
-            System.out.println("After save - Created at: " + attendance.getCreatedAt());
-            System.out.println("Attendance saved and flushed to database successfully!");
-            
             return mapToResponse(attendance);
         } catch (Exception e) {
-            System.err.println("Error in markAttendance: " + e.getMessage());
-            e.printStackTrace();
             throw e;
         }
     }
@@ -759,6 +730,41 @@ public class AttendanceService {
         response.setWorkingHours(attendance.getWorkingHours());
         response.setOvertimeHours(attendance.getOvertimeHours());
         return response;
+    }
+    
+    /**
+     * Get daily attendance summary statistics (total present/absent/notMarked counts for a date)
+     * For today's date, also includes count of employees who haven't marked attendance yet
+     */
+    public Map<String, Long> getDailyAttendanceSummary(LocalDate date) {
+        Map<String, Long> summary = new HashMap<>();
+        LocalDate today = LocalDate.now();
+        
+        Long presentCount = attendanceRepository.countPresentByDate(date);
+        Long absentCount = attendanceRepository.countAbsentByDate(date);
+        
+        summary.put("present", presentCount);
+        summary.put("absent", absentCount);
+        
+        // For today's date, calculate not marked employees
+        if (date.equals(today) || date.isAfter(today)) {
+            // Get total active employees
+            List<Employee> activeEmployees = employeeRepository
+                    .findByEmploymentStatusAndDeletedFalse(Employee.EmploymentStatus.ACTIVE);
+            Long totalActiveEmployees = (long) activeEmployees.size();
+            
+            // Count employees who have marked attendance (any status)
+            Long employeesWithAttendance = attendanceRepository.countEmployeesWithAttendanceByDate(date);
+            
+            // Not marked = total active - employees with attendance
+            Long notMarkedCount = Math.max(0, totalActiveEmployees - employeesWithAttendance);
+            summary.put("notMarked", notMarkedCount);
+        } else {
+            // For past dates, not marked is 0 (should be marked as absent)
+            summary.put("notMarked", 0L);
+        }
+        
+        return summary;
     }
 }
 

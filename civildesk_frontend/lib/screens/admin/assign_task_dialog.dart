@@ -5,6 +5,7 @@ import '../../core/providers/task_provider.dart';
 import '../../core/services/employee_service.dart';
 import '../../models/task.dart';
 import '../../models/employee.dart';
+import '../../widgets/toast.dart';
 
 class AssignTaskDialog extends StatefulWidget {
   final Task? existingTask;
@@ -56,9 +57,7 @@ class _AssignTaskDialogState extends State<AssignTaskDialog> {
         _loadingEmployees = false;
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load employees: $e')),
-        );
+        Toast.error(context, 'Failed to load employees: $e');
       }
     }
   }
@@ -110,16 +109,12 @@ class _AssignTaskDialogState extends State<AssignTaskDialog> {
     }
 
     if (_selectedEmployeeIds.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select at least one employee')),
-      );
+      Toast.warning(context, 'Please select at least one employee');
       return;
     }
 
     if (_startDate == null || _endDate == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select date range')),
-      );
+      Toast.warning(context, 'Please select date range');
       return;
     }
 
@@ -152,20 +147,16 @@ class _AssignTaskDialogState extends State<AssignTaskDialog> {
     if (mounted) {
       if (success) {
         Navigator.pop(context, true);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              widget.existingTask != null
-                  ? 'Task updated successfully'
-                  : 'Task assigned successfully',
-            ),
-          ),
+        Toast.success(
+          context,
+          widget.existingTask != null
+              ? 'Task updated successfully'
+              : 'Task assigned successfully',
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(provider.error ?? 'Failed to ${widget.existingTask != null ? 'update' : 'assign'} task'),
-          ),
+        Toast.error(
+          context,
+          provider.error ?? 'Failed to ${widget.existingTask != null ? 'update' : 'assign'} task',
         );
       }
     }

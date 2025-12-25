@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_routes.dart';
 import '../../core/providers/auth_provider.dart';
+import '../../widgets/toast.dart';
 
 class VerifyOtpScreen extends StatefulWidget {
   final String email;
@@ -68,12 +69,7 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> with SingleTickerProv
     final otp = _otpControllers.map((c) => c.text).join();
     
     if (otp.length != 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter the complete 6-digit OTP'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      Toast.warning(context, 'Please enter the complete 6-digit OTP');
       return;
     }
 
@@ -104,12 +100,7 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> with SingleTickerProv
       Navigator.of(context).pushReplacementNamed(route);
     } else if (mounted) {
       final errorMessage = authProvider.lastError ?? 'OTP verification failed. Please try again.';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(errorMessage),
-          backgroundColor: Colors.red,
-        ),
-      );
+      Toast.error(context, errorMessage);
     }
   }
 
@@ -133,19 +124,9 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> with SingleTickerProv
         }
         _focusNodes[0].requestFocus();
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('OTP sent successfully to your email'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        Toast.success(context, 'OTP sent successfully to your email');
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(authProvider.lastError ?? 'Failed to resend OTP'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        Toast.error(context, authProvider.lastError ?? 'Failed to resend OTP');
       }
     }
   }

@@ -7,6 +7,7 @@ import '../../core/services/face_recognition_service.dart';
 import '../../core/services/employee_service.dart';
 import '../../models/face_recognition.dart';
 import '../../widgets/admin_layout.dart';
+import '../../widgets/toast.dart';
 import '../../core/constants/app_routes.dart';
 
 enum AttendanceType {
@@ -247,13 +248,10 @@ class _AdminAttendanceMarkingScreenState
 
       if (mounted) {
         if (response['success'] == true) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                  '${attendanceType.displayName} marked successfully for $_detectedEmployeeName'),
-              backgroundColor: Colors.green,
-              duration: const Duration(seconds: 3),
-            ),
+          Toast.success(
+            context,
+            '${attendanceType.displayName} marked successfully for $_detectedEmployeeName',
+            duration: const Duration(seconds: 3),
           );
 
           // Reset for next detection
@@ -270,23 +268,12 @@ class _AdminAttendanceMarkingScreenState
             }
           });
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                  response['message'] ?? 'Failed to mark attendance'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          Toast.error(context, response['message'] ?? 'Failed to mark attendance');
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        Toast.error(context, 'Error: $e');
       }
     } finally {
       if (mounted) {

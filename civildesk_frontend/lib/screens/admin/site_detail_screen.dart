@@ -3,6 +3,7 @@ import '../../models/site.dart';
 import '../../core/services/site_service.dart';
 import '../../core/services/employee_service.dart';
 import '../../widgets/admin_layout.dart';
+import '../../widgets/toast.dart';
 import '../../core/constants/app_routes.dart';
 import 'site_management_screen.dart' show EmployeeAssignmentDialog, SiteFormDialog;
 
@@ -127,15 +128,11 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                 await _siteService.deleteSite(_site!.id!);
                 if (mounted) {
                   navigator.pop(true); // Return to site list
-                  scaffoldMessenger.showSnackBar(
-                    const SnackBar(content: Text('Site deleted successfully')),
-                  );
+                  Toast.success(context, 'Site deleted successfully');
                 }
               } catch (e) {
                 if (mounted) {
-                  scaffoldMessenger.showSnackBar(
-                    SnackBar(content: Text('Error: $e')),
-                  );
+                  Toast.error(context, 'Error: $e');
                 }
               }
             },

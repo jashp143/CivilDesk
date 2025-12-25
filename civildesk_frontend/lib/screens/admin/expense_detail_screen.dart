@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'dart:io';
 import '../../models/expense.dart';
 import '../../core/providers/expense_provider.dart';
+import '../../widgets/toast.dart';
 
 class ExpenseDetailScreen extends StatefulWidget {
   final Expense expense;
@@ -84,22 +85,13 @@ class _ExpenseDetailScreenState extends State<ExpenseDetailScreen> {
 
     if (mounted) {
       if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Expense ${status == ExpenseStatus.APPROVED ? 'approved' : 'rejected'} successfully',
-            ),
-            backgroundColor: status == ExpenseStatus.APPROVED ? Colors.green : Colors.red,
-          ),
+        Toast.success(
+          context,
+          'Expense ${status == ExpenseStatus.APPROVED ? 'approved' : 'rejected'} successfully',
         );
         Navigator.pop(context, true); // Return true to refresh parent screen
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(provider.error ?? 'Failed to review expense'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        Toast.error(context, provider.error ?? 'Failed to review expense');
       }
     }
   }
@@ -133,16 +125,12 @@ class _ExpenseDetailScreenState extends State<ExpenseDetailScreen> {
         await launchUrl(url, mode: LaunchMode.externalApplication);
       } else {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not open receipt')),
-          );
+          Toast.error(context, 'Could not open receipt');
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error opening receipt: $e')),
-        );
+        Toast.error(context, 'Error opening receipt: $e');
       }
     }
   }

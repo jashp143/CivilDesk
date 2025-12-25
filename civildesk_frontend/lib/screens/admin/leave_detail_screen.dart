@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'dart:io';
 import '../../models/leave.dart';
 import '../../core/providers/leave_provider.dart';
+import '../../widgets/toast.dart';
 
 class LeaveDetailScreen extends StatefulWidget {
   final Leave leave;
@@ -166,22 +167,13 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
 
     if (mounted) {
       if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Leave ${status == LeaveStatus.APPROVED ? 'approved' : 'rejected'} successfully',
-            ),
-            backgroundColor: status == LeaveStatus.APPROVED ? Colors.green : Colors.red,
-          ),
+        Toast.success(
+          context,
+          'Leave ${status == LeaveStatus.APPROVED ? 'approved' : 'rejected'} successfully',
         );
         Navigator.pop(context, true); // Return true to refresh parent screen
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(provider.error ?? 'Failed to review leave'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        Toast.error(context, provider.error ?? 'Failed to review leave');
       }
     }
   }
@@ -216,16 +208,12 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
           await launchUrl(url, mode: LaunchMode.externalApplication);
         } else {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Could not open certificate')),
-            );
+            Toast.error(context, 'Could not open certificate');
           }
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error opening certificate: $e')),
-          );
+          Toast.error(context, 'Error opening certificate: $e');
         }
       }
     }

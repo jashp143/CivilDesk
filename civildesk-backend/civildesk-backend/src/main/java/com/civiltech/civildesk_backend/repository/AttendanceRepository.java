@@ -73,5 +73,15 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
      */
     @Query("SELECT a FROM Attendance a WHERE a.employee.id IN :employeeIds AND a.date = :date AND a.deleted = false")
     List<Attendance> findByEmployeeIdsAndDate(@Param("employeeIds") List<Long> employeeIds, @Param("date") LocalDate date);
+    
+    // Count attendance by status for a specific date
+    @Query("SELECT COUNT(a) FROM Attendance a WHERE a.date = :date AND a.status = 'PRESENT' AND a.deleted = false")
+    Long countPresentByDate(@Param("date") LocalDate date);
+    
+    @Query("SELECT COUNT(a) FROM Attendance a WHERE a.date = :date AND a.status = 'ABSENT' AND a.deleted = false")
+    Long countAbsentByDate(@Param("date") LocalDate date);
+    
+    @Query("SELECT COUNT(DISTINCT a.employee.id) FROM Attendance a WHERE a.date = :date AND a.deleted = false")
+    Long countEmployeesWithAttendanceByDate(@Param("date") LocalDate date);
 }
 

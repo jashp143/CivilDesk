@@ -5,6 +5,7 @@ import '../../core/providers/employee_provider.dart';
 import '../../core/services/face_recognition_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/employee.dart';
+import '../../widgets/toast.dart';
 import '../attendance/face_registration_screen.dart';
 import 'employee_edit_dialog.dart';
 
@@ -87,32 +88,15 @@ class _EmployeeDetailDialogState extends State<EmployeeDetailDialog>
           
           if (success) {
             Navigator.of(context).pop(); // Close detail dialog
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: const Text('Employee deleted successfully'),
-                backgroundColor: AppTheme.statusApproved,
-              ),
-            );
+            Toast.success(context, 'Employee deleted successfully');
           } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  'Failed to delete employee: ${provider.error ?? "Unknown error"}',
-                ),
-                backgroundColor: Theme.of(context).colorScheme.error,
-              ),
-            );
+            Toast.error(context, 'Failed to delete employee: ${provider.error ?? "Unknown error"}');
           }
         }
       } catch (e) {
         if (context.mounted) {
           Navigator.of(context).pop(); // Close loading dialog
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error deleting employee: $e'),
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
-          );
+          Toast.error(context, 'Error deleting employee: $e');
         }
       }
     }
@@ -193,12 +177,7 @@ class _EmployeeDetailDialogState extends State<EmployeeDetailDialog>
                               ),
                             ).then((success) {
                             if (success == true && context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: const Text('Face registered successfully!'),
-                                  backgroundColor: AppTheme.statusApproved,
-                                ),
-                              );
+                              Toast.success(context, 'Face registered successfully!');
                             }
                             });
                           },
@@ -326,12 +305,7 @@ class _EmployeeDetailDialogState extends State<EmployeeDetailDialog>
                   ),
                 ).then((success) {
                 if (success == true && mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Text('Face registered successfully!'),
-                      backgroundColor: AppTheme.statusApproved,
-                    ),
-                  );
+                  Toast.success(context, 'Face registered successfully!');
                 }
                 });
               },
@@ -787,12 +761,7 @@ class _EmployeeDetailDialogState extends State<EmployeeDetailDialog>
                 ),
               ).then((success) {
                 if (success == true && mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Text('Face registered successfully!'),
-                      backgroundColor: AppTheme.statusApproved,
-                    ),
-                  );
+                  Toast.success(context, 'Face registered successfully!');
                 }
               });
             },
@@ -952,17 +921,15 @@ class _EmployeeDetailDialogState extends State<EmployeeDetailDialog>
       if (context.mounted) {
         Navigator.of(context).pop(); // Close loading dialog
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              success
-                  ? 'Credentials generated successfully! An email has been sent to ${employee.email}'
-                  : 'Failed to generate credentials: ${provider.error ?? "Unknown error"}',
-            ),
-            backgroundColor: success ? AppTheme.statusApproved : Theme.of(context).colorScheme.error,
+        if (success) {
+          Toast.success(
+            context,
+            'Credentials generated successfully! An email has been sent to ${employee.email}',
             duration: const Duration(seconds: 4),
-          ),
-        );
+          );
+        } else {
+          Toast.error(context, 'Failed to generate credentials: ${provider.error ?? "Unknown error"}');
+        }
       }
     }
   }

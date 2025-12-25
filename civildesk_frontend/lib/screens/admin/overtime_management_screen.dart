@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../widgets/admin_layout.dart';
+import '../../widgets/toast.dart';
 import '../../core/constants/app_routes.dart';
 import '../../core/providers/overtime_provider.dart';
 import '../../models/overtime.dart';
@@ -229,22 +230,13 @@ class _OvertimeManagementScreenState extends State<OvertimeManagementScreen> {
     
     if (mounted) {
       if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Overtime ${status == OvertimeStatus.APPROVED ? 'approved' : 'rejected'} successfully',
-            ),
-            backgroundColor: status == OvertimeStatus.APPROVED ? Colors.green : Colors.red,
-          ),
+        Toast.success(
+          context,
+          'Overtime ${status == OvertimeStatus.APPROVED ? 'approved' : 'rejected'} successfully',
         );
         _refreshOvertimes();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(provider.error ?? 'Failed to review overtime'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        Toast.error(context, provider.error ?? 'Failed to review overtime');
       }
     }
   }

@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import '../../core/services/face_recognition_service.dart';
+import '../../widgets/toast.dart';
 
 class FaceRegistrationScreen extends StatefulWidget {
   final String employeeId;
@@ -71,12 +72,7 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
     } catch (e) {
       debugPrint('Error starting recording: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error starting recording: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        Toast.error(context, 'Error starting recording: $e');
       }
     }
   }
@@ -121,12 +117,7 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
     } catch (e) {
       debugPrint('Error stopping recording: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error stopping recording: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        Toast.error(context, 'Error stopping recording: $e');
       }
       setState(() {
         _isRecording = false;
@@ -158,30 +149,15 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
 
       if (mounted) {
         if (response['success'] == true) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Face registered successfully!'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          Toast.success(context, 'Face registered successfully!');
           Navigator.of(context).pop(true);
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(response['error'] ?? 'Failed to register face'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          Toast.error(context, response['error'] ?? 'Failed to register face');
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        Toast.error(context, 'Error: $e');
       }
     } finally {
       if (mounted) {

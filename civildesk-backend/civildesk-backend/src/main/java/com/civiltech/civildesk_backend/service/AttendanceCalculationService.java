@@ -58,9 +58,29 @@ public class AttendanceCalculationService {
         DayOfWeek dayOfWeek = date.getDayOfWeek();
         boolean isSunday = dayOfWeek == DayOfWeek.SUNDAY;
 
+        // Validate that check-out is after check-in
+        if (checkOut.isBefore(checkIn) || checkOut.isEqual(checkIn)) {
+            // Invalid time range - return zero hours
+            return new CalculationResult(0.0, 0.0);
+        }
+
         if (isSunday) {
             // For Sunday, all working hours are counted as overtime (Sunday is non-working day)
             double totalMinutes = Duration.between(checkIn, checkOut).toMinutes();
+            
+            // Subtract lunch break if recorded
+            if (lunchOut != null && lunchIn != null) {
+                long lunchMinutes = Duration.between(lunchOut, lunchIn).toMinutes();
+                if (lunchMinutes > 0) {
+                    totalMinutes -= lunchMinutes;
+                }
+            } else {
+                // If no lunch recorded, still deduct standard 1 hour lunch break
+                totalMinutes -= 60;
+            }
+            
+            // Ensure non-negative
+            totalMinutes = Math.max(0, totalMinutes);
             return new CalculationResult(0.0, totalMinutes / 60.0);
         }
 

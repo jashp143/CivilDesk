@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/constants/app_routes.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/utils/validators.dart';
+import '../../widgets/toast.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -69,12 +70,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
       );
     } else if (mounted) {
       final errorMessage = authProvider.lastError ?? 'Signup failed. Please try again.';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(errorMessage),
-          backgroundColor: Colors.red,
-        ),
-      );
+      Toast.error(context, errorMessage);
     }
   }
 

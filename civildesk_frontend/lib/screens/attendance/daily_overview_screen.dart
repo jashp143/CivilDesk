@@ -1,8 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../core/services/attendance_service.dart';
 import '../../models/attendance.dart';
 import '../../widgets/admin_layout.dart';
+import '../../widgets/toast.dart';
 import '../../core/constants/app_routes.dart';
 import '../../core/theme/app_theme.dart';
 import 'edit_punch_times_screen.dart';
@@ -24,12 +26,17 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
   final ScrollController _horizontalScrollController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  bool _isLoadingMore = false;
   
   // Pagination state
   int _currentPage = 0;
   int _totalPages = 0;
   int _totalElements = 0;
   bool _hasMore = false;
+  
+  // Total stats from all loaded items
+  int _totalPresentCount = 0;
+  int _totalAbsentCount = 0;
 
   @override
   void initState() {
@@ -57,11 +64,32 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
     final maxScroll = position.maxScrollExtent;
     final currentScroll = position.pixels;
     
-    // Load more when user scrolls to 80% of the scroll extent
-    if (currentScroll >= maxScroll * 0.8 && maxScroll > 0) {
-      if (_hasMore && !_isLoading) {
+    // Load more when user scrolls to 70% of the scroll extent
+    if (maxScroll > 0 && currentScroll >= maxScroll * 0.7) {
+      _loadMoreAttendance();
+    } else if (maxScroll <= 0 && position.viewportDimension > 0) {
+      // Content fits on screen, check if we need to load more
+      if (_hasMore && !_isLoading && !_isLoadingMore && _attendances.isNotEmpty) {
         _loadMoreAttendance();
       }
+    }
+  }
+
+  Future<void> _loadDailyAttendanceSummary() async {
+    try {
+      final dateString = DateFormat('yyyy-MM-dd').format(_selectedDate);
+      final response = await _attendanceService.getDailyAttendanceSummary(date: dateString);
+      
+      if (response['success'] == true && response['data'] != null) {
+        final data = response['data'] as Map<String, dynamic>;
+        setState(() {
+          _totalPresentCount = (data['present'] as num?)?.toInt() ?? 0;
+          _totalAbsentCount = (data['absent'] as num?)?.toInt() ?? 0;
+        });
+      }
+    } catch (e) {
+      // Silently fail - we'll just use loaded items count as fallback
+      debugPrint('Error loading daily attendance summary: $e');
     }
   }
 
@@ -69,12 +97,16 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
     if (refresh) {
       _currentPage = 0;
       _attendances.clear();
+      _totalPresentCount = 0;
+      _totalAbsentCount = 0;
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+      
+      // Load summary stats for total counts
+      _loadDailyAttendanceSummary();
     }
-
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
 
     try {
       final dateString = DateFormat('yyyy-MM-dd').format(_selectedDate);
@@ -113,6 +145,14 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
             } else {
               _attendances.addAll(newAttendances);
             }
+            
+            // Only update counts from loaded items if summary hasn't been loaded yet
+            // (Summary stats will override these with true totals from database)
+            if (_totalPresentCount == 0 && _totalAbsentCount == 0) {
+              _totalPresentCount = _attendances.where((a) => a.status == AttendanceStatus.present).length;
+              _totalAbsentCount = _attendances.where((a) => a.status == AttendanceStatus.absent).length;
+            }
+            
             _currentPage = number;
             _totalPages = totalPages;
             _totalElements = paginationData['totalElements'] as int? ?? 0;
@@ -122,16 +162,22 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
         } else if (data is List) {
           // Backward compatibility: list response
           final List<dynamic> attendanceList = data as List<dynamic>;
+          final allAttendances = attendanceList
+              .map((json) => Attendance.fromJson(json as Map<String, dynamic>))
+              .toList();
+          
           setState(() {
-            _attendances = attendanceList
-                .map((json) => Attendance.fromJson(json as Map<String, dynamic>))
-                .toList();
+            _attendances = allAttendances;
+            _totalPresentCount = allAttendances.where((a) => a.status == AttendanceStatus.present).length;
+            _totalAbsentCount = allAttendances.where((a) => a.status == AttendanceStatus.absent).length;
             _hasMore = false;
             _isLoading = false;
           });
         } else {
           setState(() {
             _attendances = [];
+            _totalPresentCount = 0;
+            _totalAbsentCount = 0;
             _hasMore = false;
             _isLoading = false;
           });
@@ -139,6 +185,8 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
       } else {
         setState(() {
           _attendances = [];
+          _totalPresentCount = 0;
+          _totalAbsentCount = 0;
           _hasMore = false;
           _isLoading = false;
         });
@@ -152,8 +200,59 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
   }
 
   Future<void> _loadMoreAttendance() async {
+    if (_isLoadingMore) return;
+    
     if (!_hasMore || _isLoading) return;
-    await _loadDailyAttendance(refresh: false);
+    
+    // Preserve scroll position before loading more (important for Table widget)
+    final double? savedScrollPosition = _scrollController.hasClients
+        ? _scrollController.position.pixels
+        : null;
+    
+    setState(() => _isLoadingMore = true);
+    
+    try {
+      await _loadDailyAttendance(refresh: false);
+      
+      // Restore scroll position after loading more items
+      // This is necessary because Table widget doesn't preserve scroll position automatically
+      if (savedScrollPosition != null && _scrollController.hasClients && mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_scrollController.hasClients && mounted) {
+            // Restore the scroll position to where it was before loading
+            // Use a small delay to ensure the table has been rendered
+            Future.delayed(const Duration(milliseconds: 50), () {
+              if (_scrollController.hasClients && mounted) {
+                final currentPosition = _scrollController.position.pixels;
+                // Only restore if position was reset (close to 0) or significantly different
+                if (currentPosition < savedScrollPosition * 0.5) {
+                  _scrollController.jumpTo(savedScrollPosition);
+                }
+              }
+            });
+          }
+        });
+      }
+      
+      // After loading, check if content still fits on screen and load more if needed
+      if (mounted && _scrollController.hasClients) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _scrollController.hasClients) {
+            final position = _scrollController.position;
+            if (position.maxScrollExtent <= 0 && 
+                position.viewportDimension > 0 &&
+                _hasMore && 
+                !_isLoading) {
+              _loadMoreAttendance();
+            }
+          }
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingMore = false);
+      }
+    }
   }
 
   Future<void> _selectDate() async {
@@ -183,13 +282,7 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error selecting date: $e'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-            duration: const Duration(seconds: 3),
-          ),
-        );
+        Toast.error(context, 'Error selecting date: $e');
       }
     }
   }
@@ -236,12 +329,74 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
   }
 
   void _navigateToEditScreen(Attendance attendance) {
+    // Save the exact scroll position before editing
+    double? savedScrollPosition;
+    if (_scrollController.hasClients) {
+      savedScrollPosition = _scrollController.position.pixels;
+    }
+    
+    // Save which page we're currently on to restore it
+    final savedCurrentPage = _currentPage;
+    
     showDialog(
       context: context,
       builder: (context) => EditPunchTimesDialog(attendance: attendance),
-    ).then((_) {
-      if (mounted) {
-        _loadDailyAttendance(refresh: true);
+    ).then((_) async {
+      if (mounted && savedScrollPosition != null) {
+        // Load the data
+        await _loadDailyAttendance(refresh: true);
+        
+        // Calculate how many pages we need to load to cover the saved scroll position
+        // Each page has 15 items, each row is ~65px, header is ~60px
+        const double headerHeight = 60.0;
+        const double rowHeight = 65.0;
+        const int pageSize = 15;
+        final double itemsPerPageHeight = pageSize * rowHeight;
+        
+        // Estimate which page the scroll position corresponds to
+        final double scrollWithoutHeader = savedScrollPosition - headerHeight;
+        final int estimatedPage = scrollWithoutHeader > 0 
+            ? (scrollWithoutHeader / itemsPerPageHeight).floor() 
+            : 0;
+        
+        // Load pages up to the estimated page (or saved page, whichever is higher)
+        final int targetPage = estimatedPage > savedCurrentPage ? estimatedPage : savedCurrentPage;
+        
+        // Load additional pages if needed
+        if (targetPage > 0 && _hasMore) {
+          for (int page = 1; page <= targetPage && _hasMore && mounted; page++) {
+            await _loadDailyAttendance(refresh: false);
+            if (!_hasMore) break;
+          }
+        }
+        
+        // Now restore the scroll position
+        if (mounted && _scrollController.hasClients) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            Future.delayed(const Duration(milliseconds: 300), () {
+              if (mounted && _scrollController.hasClients) {
+                final maxScroll = _scrollController.position.maxScrollExtent.toDouble();
+                final targetPosition = savedScrollPosition! > maxScroll 
+                    ? maxScroll 
+                    : (savedScrollPosition < 0 ? 0.0 : savedScrollPosition);
+                _scrollController.jumpTo(targetPosition);
+                
+                // Fine-tune after another delay
+                Future.delayed(const Duration(milliseconds: 100), () {
+                  if (mounted && _scrollController.hasClients) {
+                    final currentPos = _scrollController.position.pixels;
+                    if ((currentPos - targetPosition).abs() > 5) {
+                      _scrollController.jumpTo(targetPosition);
+                    }
+                  }
+                });
+              }
+            });
+          });
+        }
+      } else if (mounted) {
+        // If no saved position, just refresh
+        await _loadDailyAttendance(refresh: true);
       }
     });
   }
@@ -281,7 +436,7 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
         children: [
           // Date selector, search bar and summary stats
           Padding(
-            padding: const EdgeInsets.fromLTRB(12.0, 12.0, 12.0, 8.0),
+            padding: const EdgeInsets.fromLTRB(12.0, 12.0, 12.0, 4.0),
             child: Column(
               children: [
                 // Date selector - More prominent
@@ -369,7 +524,7 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
                   ),
                   onChanged: _handleSearch,
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 1),
                 // Summary stats
                 if (isMobile)
                   Row(
@@ -377,12 +532,12 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
                       Expanded(
                         child: _buildSummaryCard(
                           'Present',
-                          _filteredAttendances
-                              .where(
-                                (a) => a.status == AttendanceStatus.present,
-                              )
-                              .length
-                              .toString(),
+                          _searchQuery.isEmpty 
+                              ? _totalPresentCount.toString()
+                              : _filteredAttendances
+                                  .where((a) => a.status == AttendanceStatus.present)
+                                  .length
+                                  .toString(),
                           AppTheme.statusApproved,
                           Icons.check_circle,
                         ),
@@ -391,10 +546,12 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
                       Expanded(
                         child: _buildSummaryCard(
                           'Absent',
-                          _filteredAttendances
-                              .where((a) => a.status == AttendanceStatus.absent)
-                              .length
-                              .toString(),
+                          _searchQuery.isEmpty
+                              ? _totalAbsentCount.toString()
+                              : _filteredAttendances
+                                  .where((a) => a.status == AttendanceStatus.absent)
+                                  .length
+                                  .toString(),
                           AppTheme.statusRejected,
                           Icons.cancel,
                         ),
@@ -531,12 +688,16 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
   }
 
   Widget _buildAppBarSummaryStats() {
-    final presentCount = _filteredAttendances
-        .where((a) => a.status == AttendanceStatus.present)
-        .length;
-    final absentCount = _filteredAttendances
-        .where((a) => a.status == AttendanceStatus.absent)
-        .length;
+    final presentCount = _searchQuery.isEmpty
+        ? _totalPresentCount
+        : _filteredAttendances
+            .where((a) => a.status == AttendanceStatus.present)
+            .length;
+    final absentCount = _searchQuery.isEmpty
+        ? _totalAbsentCount
+        : _filteredAttendances
+            .where((a) => a.status == AttendanceStatus.absent)
+            .length;
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
@@ -709,7 +870,7 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
                       return _buildTableRow(context, attendance, theme, index);
                     }),
                           // Loading indicator row
-                          if (_hasMore && _isLoading)
+                          if (_hasMore && (_isLoading || _isLoadingMore))
                             TableRow(
                               children: List.generate(8, (index) {
                                 return Padding(
@@ -733,7 +894,7 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
               ),
             ),
             // Load More button footer
-            if (_hasMore && !_isLoading)
+            if (_hasMore && !_isLoading && !_isLoadingMore)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: Center(
@@ -1074,6 +1235,13 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
   }
 
   Future<void> _markAsPresent(Attendance attendance) async {
+    // Save scroll position before marking present
+    double? savedScrollPosition;
+    if (_scrollController.hasClients) {
+      savedScrollPosition = _scrollController.position.pixels;
+    }
+    final savedCurrentPage = _currentPage;
+    
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -1111,22 +1279,36 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
         );
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('${attendance.employeeName} marked as present'),
-              backgroundColor: Colors.green,
-            ),
-          );
-          _loadDailyAttendance(refresh: true);
+          Toast.success(context, '${attendance.employeeName} marked as present');
+          
+          await _loadDailyAttendance(refresh: true);
+          
+          // Load pages up to saved page if needed
+          if (savedCurrentPage > 0 && _hasMore && savedScrollPosition != null) {
+            for (int page = 1; page <= savedCurrentPage && _hasMore && mounted; page++) {
+              await _loadDailyAttendance(refresh: false);
+              if (!_hasMore) break;
+            }
+          }
+          
+          // Restore scroll position
+          if (mounted && savedScrollPosition != null && _scrollController.hasClients) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              Future.delayed(const Duration(milliseconds: 300), () {
+                if (mounted && _scrollController.hasClients) {
+                  final maxScroll = _scrollController.position.maxScrollExtent.toDouble();
+                  final targetPosition = savedScrollPosition! > maxScroll 
+                      ? maxScroll 
+                      : (savedScrollPosition < 0 ? 0.0 : savedScrollPosition);
+                  _scrollController.jumpTo(targetPosition);
+                }
+              });
+            });
+          }
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error marking present: $e'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          Toast.error(context, 'Error marking present: $e');
         }
       } finally {
         if (mounted) {
@@ -1139,6 +1321,13 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
   }
 
   Future<void> _markAsAbsent(Attendance attendance) async {
+    // Save scroll position before marking absent
+    double? savedScrollPosition;
+    if (_scrollController.hasClients) {
+      savedScrollPosition = _scrollController.position.pixels;
+    }
+    final savedCurrentPage = _currentPage;
+    
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -1172,22 +1361,36 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
         );
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('${attendance.employeeName} marked as absent'),
-              backgroundColor: Colors.green,
-            ),
-          );
-          _loadDailyAttendance(refresh: true);
+          Toast.success(context, '${attendance.employeeName} marked as absent');
+          
+          await _loadDailyAttendance(refresh: true);
+          
+          // Load pages up to saved page if needed
+          if (savedCurrentPage > 0 && _hasMore && savedScrollPosition != null) {
+            for (int page = 1; page <= savedCurrentPage && _hasMore && mounted; page++) {
+              await _loadDailyAttendance(refresh: false);
+              if (!_hasMore) break;
+            }
+          }
+          
+          // Restore scroll position
+          if (mounted && savedScrollPosition != null && _scrollController.hasClients) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              Future.delayed(const Duration(milliseconds: 300), () {
+                if (mounted && _scrollController.hasClients) {
+                  final maxScroll = _scrollController.position.maxScrollExtent.toDouble();
+                  final targetPosition = savedScrollPosition! > maxScroll 
+                      ? maxScroll 
+                      : (savedScrollPosition < 0 ? 0.0 : savedScrollPosition);
+                  _scrollController.jumpTo(targetPosition);
+                }
+              });
+            });
+          }
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error marking absent: $e'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          Toast.error(context, 'Error marking absent: $e');
         }
       } finally {
         if (mounted) {
@@ -1201,11 +1404,26 @@ class _DailyOverviewScreenState extends State<DailyOverviewScreen> {
 
   // Mobile Card View
   Widget _buildMobileCardView() {
+    // Check if we need to load more when content fits on screen
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients && mounted) {
+        final position = _scrollController.position;
+        if (position.maxScrollExtent <= 0 && 
+            position.viewportDimension > 0 &&
+            _hasMore && 
+            !_isLoading && 
+            !_isLoadingMore &&
+            _attendances.isNotEmpty) {
+          _loadMoreAttendance();
+        }
+      }
+    });
+
     return ListView.builder(
       controller: _scrollController,
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
-      itemCount: _filteredAttendances.length + (_hasMore ? 1 : 0),
+      itemCount: _filteredAttendances.length + (_hasMore && (_isLoading || _isLoadingMore) ? 1 : 0),
       itemBuilder: (context, index) {
         if (index >= _filteredAttendances.length) {
           return const Center(

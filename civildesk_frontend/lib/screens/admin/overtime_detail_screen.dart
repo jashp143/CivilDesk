@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../models/overtime.dart';
 import '../../core/providers/overtime_provider.dart';
+import '../../widgets/toast.dart';
 
 class OvertimeDetailScreen extends StatefulWidget {
   final Overtime overtime;
@@ -88,22 +89,13 @@ class _OvertimeDetailScreenState extends State<OvertimeDetailScreen> {
 
     if (mounted) {
       if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Overtime ${status == OvertimeStatus.APPROVED ? 'approved' : 'rejected'} successfully',
-            ),
-            backgroundColor: status == OvertimeStatus.APPROVED ? Colors.green : Colors.red,
-          ),
+        Toast.success(
+          context,
+          'Overtime ${status == OvertimeStatus.APPROVED ? 'approved' : 'rejected'} successfully',
         );
         Navigator.pop(context, true); // Return true to refresh parent screen
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(provider.error ?? 'Failed to review overtime'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        Toast.error(context, provider.error ?? 'Failed to review overtime');
       }
     }
   }

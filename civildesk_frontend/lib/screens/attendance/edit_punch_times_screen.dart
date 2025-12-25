@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../core/services/attendance_service.dart';
 import '../../models/attendance.dart';
+import '../../widgets/toast.dart';
 
 class EditPunchTimesDialog extends StatefulWidget {
   final Attendance attendance;
@@ -211,7 +212,7 @@ class _EditPunchTimesDialogState extends State<EditPunchTimesDialog>
               _animationController.reset();
               _animationController.forward();
 
-              _showSuccessSnackBar('${_getPunchTypeName(punchType)} updated successfully');
+              Toast.success(context, '${_getPunchTypeName(punchType)} updated successfully');
             } catch (e) {
               // If parsing fails, just update the time
               setState(() {
@@ -251,8 +252,7 @@ class _EditPunchTimesDialogState extends State<EditPunchTimesDialog>
             });
           }
         } else {
-          _showErrorSnackBar(
-              response['message'] ?? 'Failed to update punch time');
+          Toast.error(context, response['message'] ?? 'Failed to update punch time');
         }
       }
     } catch (e) {
@@ -260,7 +260,7 @@ class _EditPunchTimesDialogState extends State<EditPunchTimesDialog>
         setState(() {
           _error = e.toString();
         });
-        _showErrorSnackBar('Error: $e');
+        Toast.error(context, 'Error: $e');
       }
     } finally {
       if (mounted) {
@@ -272,41 +272,6 @@ class _EditPunchTimesDialogState extends State<EditPunchTimesDialog>
     }
   }
 
-  void _showSuccessSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.check_circle, color: Colors.white),
-            const SizedBox(width: 12),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: Colors.green,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-
-  void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.error_outline, color: Colors.white),
-            const SizedBox(width: 12),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: Colors.red,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        duration: const Duration(seconds: 3),
-      ),
-    );
-  }
 
   String _getPunchTypeName(String punchType) {
     switch (punchType) {

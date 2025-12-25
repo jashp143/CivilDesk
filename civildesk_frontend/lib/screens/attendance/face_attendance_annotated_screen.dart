@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import '../../core/services/face_recognition_service.dart';
 import '../../models/face_recognition.dart';
+import '../../widgets/toast.dart';
 
 class FaceAttendanceAnnotatedScreen extends StatefulWidget {
   const FaceAttendanceAnnotatedScreen({super.key});
@@ -50,12 +51,7 @@ class _FaceAttendanceAnnotatedScreenState extends State<FaceAttendanceAnnotatedS
     } catch (e) {
       debugPrint('Error initializing camera: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error initializing camera: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        Toast.error(context, 'Error initializing camera: $e');
       }
     }
   }
@@ -171,14 +167,10 @@ class _FaceAttendanceAnnotatedScreenState extends State<FaceAttendanceAnnotatedS
           }
           debugPrint('${'🎯'*40}\n');
           
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Attendance marked for ${face.displayName} - ${_getPunchTypeName(punchType)}'
-              ),
-              backgroundColor: Colors.green,
-              duration: const Duration(seconds: 2),
-            ),
+          Toast.success(
+            context,
+            'Attendance marked for ${face.displayName} - ${_getPunchTypeName(punchType)}',
+            duration: const Duration(seconds: 2),
           );
           
           setState(() {
@@ -187,24 +179,14 @@ class _FaceAttendanceAnnotatedScreenState extends State<FaceAttendanceAnnotatedS
         } else {
           debugPrint('\n❌ ATTENDANCE MARKING FAILED: ${response['message'] ?? 'Unknown error'}\n');
           
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(response['message'] ?? 'Failed to mark attendance'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          Toast.error(context, response['message'] ?? 'Failed to mark attendance');
         }
       }
     } catch (e) {
       debugPrint('\n❌ ERROR MARKING ATTENDANCE: $e\n');
       
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        Toast.error(context, 'Error: $e');
       }
     } finally {
       if (mounted) {

@@ -4,6 +4,7 @@ import '../../models/employee.dart';
 import '../../core/services/site_service.dart';
 import '../../core/services/employee_service.dart';
 import '../../widgets/admin_layout.dart';
+import '../../widgets/toast.dart';
 import '../../widgets/map_location_picker.dart';
 
 class SiteManagementScreen extends StatefulWidget {
@@ -1172,15 +1173,11 @@ class _SiteManagementScreenState extends State<SiteManagementScreen> {
                 await _siteService.deleteSite(site.id!);
                 _loadSites();
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Site deleted successfully')),
-                  );
+                  Toast.success(context, 'Site deleted successfully');
                 }
               } catch (e) {
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error: $e')),
-                  );
+                  Toast.error(context, 'Error: $e');
                 }
               }
             },
@@ -1286,15 +1283,14 @@ class _SiteFormDialogState extends State<SiteFormDialog> {
       widget.onSaved();
       if (mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Site ${widget.site != null ? 'updated' : 'created'} successfully')),
+        Toast.success(
+          context,
+          'Site ${widget.site != null ? 'updated' : 'created'} successfully',
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        Toast.error(context, 'Error: $e');
       }
     } finally {
       setState(() => _isLoading = false);
@@ -1834,11 +1830,9 @@ class _EmployeeAssignmentDialogState extends State<EmployeeAssignmentDialog> {
       await _loadData();
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${employee.firstName} ${employee.lastName} assigned successfully'),
-            backgroundColor: Colors.green,
-          ),
+        Toast.success(
+          context,
+          '${employee.firstName} ${employee.lastName} assigned successfully',
         );
         widget.onUpdated();
       }
@@ -1847,12 +1841,7 @@ class _EmployeeAssignmentDialogState extends State<EmployeeAssignmentDialog> {
         _error = e.toString().replaceFirst('Exception: ', '');
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to assign employee: $_error'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        Toast.error(context, 'Failed to assign employee: $_error');
       }
     } finally {
       setState(() {
@@ -1897,22 +1886,12 @@ class _EmployeeAssignmentDialogState extends State<EmployeeAssignmentDialog> {
       await _loadData();
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Employee removed successfully'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        Toast.success(context, 'Employee removed successfully');
         widget.onUpdated();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to remove employee: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        Toast.error(context, 'Failed to remove employee: ${e.toString()}');
       }
     } finally {
       setState(() {
@@ -2331,15 +2310,11 @@ class _SiteDetailDialogState extends State<SiteDetailDialog> {
                 await _siteService.deleteSite(_site!.id!);
                 if (mounted) {
                   navigator.pop(true); // Close detail dialog and return deleted=true
-                  scaffoldMessenger.showSnackBar(
-                    const SnackBar(content: Text('Site deleted successfully')),
-                  );
+                  Toast.success(context, 'Site deleted successfully');
                 }
               } catch (e) {
                 if (mounted) {
-                  scaffoldMessenger.showSnackBar(
-                    SnackBar(content: Text('Error: $e')),
-                  );
+                  Toast.error(context, 'Error: $e');
                 }
               }
             },

@@ -7,6 +7,7 @@ import '../../core/theme/app_theme.dart';
 import '../../models/employee.dart';
 import '../../widgets/admin_layout.dart';
 import '../../widgets/cached_profile_image.dart';
+import '../../widgets/toast.dart';
 import 'employee_detail_dialog.dart';
 import 'employee_registration_dialog.dart';
 import 'employee_edit_dialog.dart';
@@ -325,6 +326,63 @@ class _EmployeeListScreenState extends State<EmployeeListScreen> {
                 employeeId: employee.id!,
               ),
             );
+          },
+          onEditComplete: () async {
+            // Save the exact scroll position before refreshing
+            double? savedScrollPosition;
+            if (_scrollController.hasClients) {
+              savedScrollPosition = _scrollController.position.pixels;
+            }
+            
+            // Save which page we're currently on
+            final savedCurrentPage = provider.currentPage;
+            
+            // Load the data
+            await provider.loadEmployees(refresh: true);
+            
+            // Calculate how many pages we need to load
+            const double rowHeight = 65.0;
+            const int pageSize = 15;
+            final double itemsPerPageHeight = pageSize * rowHeight;
+            
+            final int estimatedPage = savedScrollPosition != null && savedScrollPosition > 0
+                ? (savedScrollPosition / itemsPerPageHeight).floor()
+                : 0;
+            
+            final int targetPage = estimatedPage > savedCurrentPage ? estimatedPage : savedCurrentPage;
+            
+            // Load additional pages if needed
+            if (targetPage > 0 && provider.hasMore && mounted) {
+              for (int page = 1; page <= targetPage && provider.hasMore && mounted; page++) {
+                await provider.loadMoreEmployees();
+                if (!provider.hasMore) break;
+              }
+            }
+            
+            // Restore scroll position after data is loaded
+            if (savedScrollPosition != null && _scrollController.hasClients && mounted) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                Future.delayed(const Duration(milliseconds: 300), () {
+                  if (mounted && _scrollController.hasClients) {
+                    final maxScroll = _scrollController.position.maxScrollExtent.toDouble();
+                    final targetPosition = savedScrollPosition! > maxScroll 
+                        ? maxScroll 
+                        : (savedScrollPosition < 0 ? 0.0 : savedScrollPosition);
+                    _scrollController.jumpTo(targetPosition);
+                    
+                    // Fine-tune after another delay
+                    Future.delayed(const Duration(milliseconds: 100), () {
+                      if (mounted && _scrollController.hasClients) {
+                        final currentPos = _scrollController.position.pixels;
+                        if ((currentPos - targetPosition).abs() > 5) {
+                          _scrollController.jumpTo(targetPosition);
+                        }
+                      }
+                    });
+                  }
+                });
+              });
+            }
           },
         );
       },
@@ -777,18 +835,85 @@ class _EmployeeListScreenState extends State<EmployeeListScreen> {
   }
 
   Future<void> _handleEdit(BuildContext context, Employee employee) async {
+    // Save the exact scroll position before editing
+    double? savedScrollPosition;
+    if (_scrollController.hasClients) {
+      savedScrollPosition = _scrollController.position.pixels;
+    }
+    
+    // Save which page we're currently on
+    final provider = context.read<EmployeeProvider>();
+    final savedCurrentPage = provider.currentPage;
+    
     final result = await showDialog(
       context: context,
       builder: (context) => EmployeeEditDialog(employee: employee),
     );
     
     if (result == true && context.mounted) {
-      final provider = context.read<EmployeeProvider>();
-      provider.loadEmployees(refresh: true);
+      // Load the data
+      await provider.loadEmployees(refresh: true);
+      
+      // Calculate how many pages we need to load to cover the saved scroll position
+      // Each page has 15 items, each row is ~65px (mobile) or ~60px (desktop table)
+      const double rowHeight = 65.0;
+      const int pageSize = 15;
+      final double itemsPerPageHeight = pageSize * rowHeight;
+      
+      // Estimate which page the scroll position corresponds to
+      final int estimatedPage = savedScrollPosition != null && savedScrollPosition > 0
+          ? (savedScrollPosition / itemsPerPageHeight).floor()
+          : 0;
+      
+      // Load pages up to the estimated page (or saved page, whichever is higher)
+      final int targetPage = estimatedPage > savedCurrentPage ? estimatedPage : savedCurrentPage;
+      
+      // Load additional pages if needed
+      if (targetPage > 0 && provider.hasMore && mounted) {
+        for (int page = 1; page <= targetPage && provider.hasMore && mounted; page++) {
+          await provider.loadMoreEmployees();
+          if (!provider.hasMore) break;
+        }
+      }
+      
+      // Now restore the scroll position
+      if (mounted && savedScrollPosition != null && _scrollController.hasClients) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Future.delayed(const Duration(milliseconds: 300), () {
+            if (mounted && _scrollController.hasClients) {
+              final maxScroll = _scrollController.position.maxScrollExtent.toDouble();
+              final targetPosition = savedScrollPosition! > maxScroll 
+                  ? maxScroll 
+                  : (savedScrollPosition < 0 ? 0.0 : savedScrollPosition);
+              _scrollController.jumpTo(targetPosition);
+              
+              // Fine-tune after another delay
+              Future.delayed(const Duration(milliseconds: 100), () {
+                if (mounted && _scrollController.hasClients) {
+                  final currentPos = _scrollController.position.pixels;
+                  if ((currentPos - targetPosition).abs() > 5) {
+                    _scrollController.jumpTo(targetPosition);
+                  }
+                }
+              });
+            }
+          });
+        });
+      }
     }
   }
 
   Future<void> _handleDelete(BuildContext context, Employee employee) async {
+    // Save the exact scroll position before deleting
+    double? savedScrollPosition;
+    if (_scrollController.hasClients) {
+      savedScrollPosition = _scrollController.position.pixels;
+    }
+    
+    // Save which page we're currently on
+    final provider = context.read<EmployeeProvider>();
+    final savedCurrentPage = provider.currentPage;
+    
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -814,8 +939,6 @@ class _EmployeeListScreenState extends State<EmployeeListScreen> {
     );
 
     if (confirmed == true && context.mounted) {
-      final provider = context.read<EmployeeProvider>();
-      
       // Show loading indicator
       showDialog(
         context: context,
@@ -836,26 +959,65 @@ class _EmployeeListScreenState extends State<EmployeeListScreen> {
         if (context.mounted) {
           Navigator.of(context).pop(); // Close loading dialog
           
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                success
-                    ? 'Employee deleted successfully'
-                    : 'Failed to delete employee: ${provider.error ?? "Unknown error"}',
-              ),
-              backgroundColor: success ? AppTheme.statusApproved : Theme.of(context).colorScheme.error,
-            ),
-          );
+          if (success) {
+            Toast.success(context, 'Employee deleted successfully');
+          } else {
+            Toast.error(context, 'Failed to delete employee: ${provider.error ?? "Unknown error"}');
+          }
+          
+          // Reload employees and restore scroll position
+          if (success) {
+            await provider.loadEmployees(refresh: true);
+            
+            // Calculate how many pages we need to load
+            const double rowHeight = 65.0;
+            const int pageSize = 15;
+            final double itemsPerPageHeight = pageSize * rowHeight;
+            
+            final int estimatedPage = savedScrollPosition != null && savedScrollPosition > 0
+                ? (savedScrollPosition / itemsPerPageHeight).floor()
+                : 0;
+            
+            final int targetPage = estimatedPage > savedCurrentPage ? estimatedPage : savedCurrentPage;
+            
+            // Load additional pages if needed
+            if (targetPage > 0 && provider.hasMore && mounted) {
+              for (int page = 1; page <= targetPage && provider.hasMore && mounted; page++) {
+                await provider.loadMoreEmployees();
+                if (!provider.hasMore) break;
+              }
+            }
+            
+            // Restore scroll position after data is loaded
+            if (mounted && savedScrollPosition != null && _scrollController.hasClients) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                Future.delayed(const Duration(milliseconds: 300), () {
+                  if (mounted && _scrollController.hasClients) {
+                    final maxScroll = _scrollController.position.maxScrollExtent.toDouble();
+                    final targetPosition = savedScrollPosition! > maxScroll 
+                        ? maxScroll 
+                        : (savedScrollPosition < 0 ? 0.0 : savedScrollPosition);
+                    _scrollController.jumpTo(targetPosition);
+                    
+                    // Fine-tune after another delay
+                    Future.delayed(const Duration(milliseconds: 100), () {
+                      if (mounted && _scrollController.hasClients) {
+                        final currentPos = _scrollController.position.pixels;
+                        if ((currentPos - targetPosition).abs() > 5) {
+                          _scrollController.jumpTo(targetPosition);
+                        }
+                      }
+                    });
+                  }
+                });
+              });
+            }
+          }
         }
       } catch (e) {
         if (context.mounted) {
           Navigator.of(context).pop(); // Close loading dialog
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error deleting employee: $e'),
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
-          );
+          Toast.error(context, 'Error deleting employee: $e');
         }
       }
     }
@@ -865,10 +1027,12 @@ class _EmployeeListScreenState extends State<EmployeeListScreen> {
 class _EmployeeListItem extends StatelessWidget {
   final Employee employee;
   final VoidCallback onTap;
+  final Future<void> Function()? onEditComplete;
 
   const _EmployeeListItem({
     required this.employee,
     required this.onTap,
+    this.onEditComplete,
   });
 
   Future<void> _handleDelete(BuildContext context) async {
@@ -919,26 +1083,16 @@ class _EmployeeListItem extends StatelessWidget {
         if (context.mounted) {
           Navigator.of(context).pop(); // Close loading dialog
           
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                success
-                    ? 'Employee deleted successfully'
-                    : 'Failed to delete employee: ${provider.error ?? "Unknown error"}',
-              ),
-              backgroundColor: success ? AppTheme.statusApproved : Theme.of(context).colorScheme.error,
-            ),
-          );
+          if (success) {
+            Toast.success(context, 'Employee deleted successfully');
+          } else {
+            Toast.error(context, 'Failed to delete employee: ${provider.error ?? "Unknown error"}');
+          }
         }
       } catch (e) {
         if (context.mounted) {
           Navigator.of(context).pop(); // Close loading dialog
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error deleting employee: $e'),
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
-          );
+          Toast.error(context, 'Error deleting employee: $e');
         }
       }
     }
@@ -951,7 +1105,13 @@ class _EmployeeListItem extends StatelessWidget {
     );
     
     if (result == true && context.mounted) {
-      context.read<EmployeeProvider>().loadEmployees(refresh: true);
+      // Call the callback to handle scroll preservation
+      if (onEditComplete != null) {
+        await onEditComplete!();
+      } else {
+        // Fallback if callback is not provided
+        context.read<EmployeeProvider>().loadEmployees(refresh: true);
+      }
     }
   }
 
@@ -1076,13 +1236,13 @@ class _EmployeeListItem extends StatelessWidget {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    onSelected: (value) {
-                      if (value == 'edit') {
-                        _handleEdit(context);
-                      } else if (value == 'delete') {
-                        _handleDelete(context);
-                      }
-                    },
+                          onSelected: (value) async {
+                            if (value == 'edit') {
+                              await _handleEdit(context);
+                            } else if (value == 'delete') {
+                              await _handleDelete(context);
+                            }
+                          },
                     itemBuilder: (BuildContext context) => [
                       PopupMenuItem<String>(
                         value: 'edit',

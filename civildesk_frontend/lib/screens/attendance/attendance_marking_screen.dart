@@ -5,6 +5,7 @@ import 'package:camera/camera.dart';
 import '../../core/services/attendance_service.dart';
 import '../../core/services/face_recognition_service.dart';
 import '../../models/face_recognition.dart';
+import '../../widgets/toast.dart';
 
 class AttendanceMarkingScreen extends StatefulWidget {
   const AttendanceMarkingScreen({super.key});
@@ -123,29 +124,14 @@ class _AttendanceMarkingScreenState extends State<AttendanceMarkingScreen> {
       
       if (mounted) {
         if (response['success'] == true) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Attendance marked for ${face.employeeId}'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          Toast.success(context, 'Attendance marked for ${face.employeeId}');
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(response['message'] ?? 'Failed to mark attendance'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          Toast.error(context, response['message'] ?? 'Failed to mark attendance');
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        Toast.error(context, 'Error: $e');
       }
     } finally {
       if (mounted) {

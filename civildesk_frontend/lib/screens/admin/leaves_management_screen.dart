@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../widgets/admin_layout.dart';
+import '../../widgets/toast.dart';
 import '../../core/constants/app_routes.dart';
 import '../../core/providers/leave_provider.dart';
 import '../../models/leave.dart';
@@ -257,22 +258,13 @@ class _LeavesManagementScreenState extends State<LeavesManagementScreen> {
     
     if (mounted) {
       if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Leave ${status == LeaveStatus.APPROVED ? 'approved' : 'rejected'} successfully',
-            ),
-            backgroundColor: status == LeaveStatus.APPROVED ? Colors.green : Colors.red,
-          ),
+        Toast.success(
+          context,
+          'Leave ${status == LeaveStatus.APPROVED ? 'approved' : 'rejected'} successfully',
         );
         _refreshLeaves();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(provider.error ?? 'Failed to review leave'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        Toast.error(context, provider.error ?? 'Failed to review leave');
       }
     }
   }

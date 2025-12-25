@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../widgets/admin_layout.dart';
+import '../../widgets/toast.dart';
 import '../../core/constants/app_routes.dart';
 import '../../core/providers/task_provider.dart';
 import '../../models/task.dart';
@@ -138,9 +139,7 @@ class _TasksManagementScreenState extends State<TasksManagementScreen> {
 
   void _editTask(Task task) async {
     if (task.status != TaskStatus.pending) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Only pending tasks can be edited')),
-      );
+      Toast.warning(context, 'Only pending tasks can be edited');
       return;
     }
 
@@ -155,9 +154,7 @@ class _TasksManagementScreenState extends State<TasksManagementScreen> {
 
   void _deleteTask(Task task) {
     if (task.status != TaskStatus.pending) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Only pending tasks can be deleted')),
-      );
+      Toast.warning(context, 'Only pending tasks can be deleted');
       return;
     }
 
@@ -182,15 +179,9 @@ class _TasksManagementScreenState extends State<TasksManagementScreen> {
               final success = await provider.deleteTask(task.id);
               if (mounted) {
                 if (success) {
-                  scaffoldMessenger.showSnackBar(
-                    const SnackBar(content: Text('Task deleted successfully')),
-                  );
+                  Toast.success(context, 'Task deleted successfully');
                 } else {
-                  scaffoldMessenger.showSnackBar(
-                    SnackBar(
-                      content: Text(provider.error ?? 'Failed to delete task'),
-                    ),
-                  );
+                  Toast.error(context, provider.error ?? 'Failed to delete task');
                 }
               }
             },

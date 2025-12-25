@@ -5,6 +5,7 @@ import '../../core/constants/app_routes.dart';
 import '../../core/providers/holiday_provider.dart';
 import '../../models/holiday.dart';
 import '../../widgets/admin_layout.dart';
+import '../../widgets/toast.dart';
 
 class HolidayManagementScreen extends StatefulWidget {
   const HolidayManagementScreen({super.key});
@@ -267,23 +268,14 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen> {
                   if (context.mounted) {
                     if (success) {
                       Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            newHoliday.id == null
-                                ? 'Holiday created successfully! Normalized attendance marked for all employees.'
-                                : 'Holiday updated successfully!',
-                          ),
-                          backgroundColor: Colors.green,
-                        ),
+                      Toast.success(
+                        context,
+                        newHoliday.id == null
+                            ? 'Holiday created successfully! Normalized attendance marked for all employees.'
+                            : 'Holiday updated successfully!',
                       );
                     } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(provider.error ?? 'Operation failed'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
+                      Toast.error(context, provider.error ?? 'Operation failed');
                     }
                   }
                 }
@@ -326,19 +318,9 @@ class _HolidayManagementScreenState extends State<HolidayManagementScreen> {
 
               if (context.mounted) {
                 if (success) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Holiday deleted successfully!'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
+                  Toast.success(context, 'Holiday deleted successfully!');
                 } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(provider.error ?? 'Failed to delete holiday'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
+                  Toast.error(context, provider.error ?? 'Failed to delete holiday');
                 }
               }
             },

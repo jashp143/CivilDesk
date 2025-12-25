@@ -7,6 +7,7 @@ import '../../core/services/salary_service.dart';
 import '../../models/employee.dart';
 import '../../models/salary_slip.dart';
 import '../../widgets/admin_layout.dart';
+import '../../widgets/toast.dart';
 import 'salary_slip_detail_screen.dart';
 
 class SalaryCalculationScreen extends StatefulWidget {
@@ -71,9 +72,7 @@ class _SalaryCalculationScreenState extends State<SalaryCalculationScreen> {
     }
 
     if (_selectedEmployee == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select an employee')),
-      );
+      Toast.warning(context, 'Please select an employee');
       return;
     }
 
@@ -127,12 +126,7 @@ class _SalaryCalculationScreenState extends State<SalaryCalculationScreen> {
         _errorMessage = e.toString().replaceAll('Exception: ', '');
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_errorMessage ?? 'Failed to calculate salary'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        Toast.error(context, _errorMessage ?? 'Failed to calculate salary');
       }
     } finally {
       if (mounted) {

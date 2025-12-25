@@ -43,6 +43,9 @@ public class GpsAttendanceService {
     @Autowired
     private GeofenceService geofenceService;
 
+    @Autowired
+    private AttendanceCalculationService calculationService;
+
     /**
      * Mark GPS-based attendance
      */
@@ -356,7 +359,10 @@ public class GpsAttendanceService {
 
         // Recalculate working hours if needed (when both check-in and check-out are available)
         if (shouldRecalculate && attendance.getCheckInTime() != null && attendance.getCheckOutTime() != null) {
-            calculateWorkingHours(attendance);
+            AttendanceCalculationService.CalculationResult result = 
+                calculationService.calculateAttendance(attendance);
+            attendance.setWorkingHours(result.getWorkingHours());
+            attendance.setOvertimeHours(result.getOvertimeHours());
         }
 
         // Update site info on attendance record
@@ -366,34 +372,5 @@ public class GpsAttendanceService {
         }
     }
 
-    private void calculateWorkingHours(Attendance attendance) {
-        if (attendance.getCheckInTime() == null || attendance.getCheckOutTime() == null) {
-            return;
-        }
-
-        LocalDateTime checkIn = attendance.getCheckInTime();
-        LocalDateTime checkOut = attendance.getCheckOutTime();
-
-        // Calculate total hours
-        double totalMinutes = java.time.Duration.between(checkIn, checkOut).toMinutes();
-
-        // Subtract lunch break if recorded
-        if (attendance.getLunchOutTime() != null && attendance.getLunchInTime() != null) {
-            double lunchMinutes = java.time.Duration.between(
-                    attendance.getLunchOutTime(), attendance.getLunchInTime()).toMinutes();
-            totalMinutes -= lunchMinutes;
-        }
-
-        double totalHours = totalMinutes / 60.0;
-
-        // Cap working hours at 8, rest is overtime
-        if (totalHours > 8) {
-            attendance.setWorkingHours(8.0);
-            attendance.setOvertimeHours(totalHours - 8.0);
-        } else {
-            attendance.setWorkingHours(totalHours);
-            attendance.setOvertimeHours(0.0);
-        }
-    }
 }
 

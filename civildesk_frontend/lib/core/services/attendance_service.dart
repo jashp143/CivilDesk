@@ -122,6 +122,22 @@ class AttendanceService {
     }
   }
 
+  /// Get daily attendance summary (total present/absent counts)
+  Future<Map<String, dynamic>> getDailyAttendanceSummary({String? date}) async {
+    try {
+      final response = await _apiService.get(
+        '${AppConstants.attendanceEndpoint}/daily/summary',
+        queryParameters: {
+          if (date != null) 'date': date,
+        },
+      );
+
+      return response.data;
+    } catch (e) {
+      throw Exception('Error retrieving daily attendance summary: $e');
+    }
+  }
+
   /// Update punch time (admin function)
   /// If attendanceId is null, will create attendance record using employeeId and date
   Future<Map<String, dynamic>> updatePunchTime({

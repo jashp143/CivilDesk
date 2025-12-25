@@ -5,6 +5,7 @@ import '../../core/providers/employee_provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/employee.dart';
 import '../../core/utils/validators.dart';
+import '../../widgets/toast.dart';
 
 class EmployeeEditDialog extends StatefulWidget {
   final Employee employee;
@@ -349,17 +350,10 @@ class _EmployeeEditDialogState extends State<EmployeeEditDialog>
 
     if (mounted) {
       if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Employee updated successfully')),
-        );
+        Toast.success(context, 'Employee updated successfully');
         Navigator.of(context).pop(true);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${provider.error ?? "Failed to update employee"}'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
+        Toast.error(context, 'Error: ${provider.error ?? "Failed to update employee"}');
       }
     }
   }

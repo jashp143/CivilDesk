@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import '../../core/constants/app_routes.dart';
 import '../../core/providers/theme_provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../widgets/admin_layout.dart';
+import '../../core/services/attendance_service.dart';
+import '../../models/attendance.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -28,6 +31,159 @@ class _QuickActionData {
 }
 
 class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
+  final AttendanceService _attendanceService = AttendanceService();
+  List<Attendance> _todayAttendances = [];
+  bool _isLoadingAttendance = false;
+  String? _attendanceError;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTodayAttendance();
+  }
+
+  Future<void> _loadTodayAttendance() async {
+    setState(() {
+      _isLoadingAttendance = true;
+      _attendanceError = null;
+    });
+
+    try {
+      final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      final response = await _attendanceService.getDailyAttendance(
+        date: today,
+        page: 0,
+        size: 1000, // Get all employees for today
+      );
+
+      debugPrint('=== Attendance Response ===');
+      debugPrint('Response keys: ${response.keys}');
+      debugPrint('Success: ${response['success']}');
+      
+      if (response['success'] == true && response['data'] != null) {
+        final data = response['data'];
+        debugPrint('Data type: ${data.runtimeType}');
+        
+        List<Attendance> attendances = [];
+        
+        // Handle paginated response structure
+        if (data is Map<String, dynamic>) {
+          debugPrint('Data keys: ${data.keys}');
+          
+          // Check for 'content' key (Spring Data Page format)
+          // Structure: { content: [...], page: {...} }
+          if (data.containsKey('content')) {
+            final List<dynamic> attendanceList = data['content'] as List<dynamic>;
+            debugPrint('Found content list with ${attendanceList.length} items');
+            
+            if (attendanceList.isNotEmpty) {
+              debugPrint('First item: ${attendanceList[0]}');
+            }
+            
+            attendances = attendanceList
+                .map((json) {
+                  try {
+                    final attendance = Attendance.fromJson(json as Map<String, dynamic>);
+                    debugPrint('Parsed: ${attendance.employeeName} - ${attendance.status}');
+                    return attendance;
+                  } catch (e, stackTrace) {
+                    debugPrint('Error parsing attendance: $e');
+                    debugPrint('Stack trace: $stackTrace');
+                    debugPrint('JSON: $json');
+                    return null;
+                  }
+                })
+                .whereType<Attendance>()
+                .toList();
+          } else if (data is List) {
+            debugPrint('Data is a list with ${data.length} items');
+            final List<dynamic> attendanceList = data as List<dynamic>;
+            attendances = attendanceList
+                .map((json) {
+                  try {
+                    return Attendance.fromJson(json as Map<String, dynamic>);
+                  } catch (e) {
+                    debugPrint('Error parsing attendance: $e');
+                    debugPrint('JSON: $json');
+                    return null;
+                  }
+                })
+                .whereType<Attendance>()
+                .toList();
+          } else {
+            debugPrint('Data is Map but no content key found. Available keys: ${data.keys}');
+          }
+        } else if (data is List) {
+          debugPrint('Data is a list with ${data.length} items');
+          final List<dynamic> attendanceList = data as List<dynamic>;
+          attendances = attendanceList
+              .map((json) {
+                try {
+                  return Attendance.fromJson(json as Map<String, dynamic>);
+                } catch (e) {
+                  debugPrint('Error parsing attendance: $e');
+                  debugPrint('JSON: $json');
+                  return null;
+                }
+              })
+              .whereType<Attendance>()
+              .toList();
+        } else {
+          debugPrint('Unexpected data type: ${data.runtimeType}');
+        }
+
+        debugPrint('=== Summary ===');
+        debugPrint('Total loaded: ${attendances.length} attendance records');
+        final notMarked = attendances.where((a) => a.status == AttendanceStatus.notMarked).toList();
+        final present = attendances.where((a) => a.status == AttendanceStatus.present).toList();
+        debugPrint('Not marked: ${notMarked.length}');
+        debugPrint('Present: ${present.length}');
+        
+        if (attendances.isNotEmpty) {
+          debugPrint('Status breakdown:');
+          final statusCounts = <String, int>{};
+          for (var a in attendances) {
+            final status = a.status.name;
+            statusCounts[status] = (statusCounts[status] ?? 0) + 1;
+          }
+          statusCounts.forEach((status, count) {
+            debugPrint('  $status: $count');
+          });
+        }
+
+        setState(() {
+          _todayAttendances = attendances;
+          _isLoadingAttendance = false;
+        });
+      } else {
+        debugPrint('No data in response: $response');
+        setState(() {
+          _todayAttendances = [];
+          _isLoadingAttendance = false;
+        });
+      }
+    } catch (e, stackTrace) {
+      debugPrint('Error loading today attendance: $e');
+      debugPrint('Stack trace: $stackTrace');
+      setState(() {
+        _attendanceError = e.toString();
+        _isLoadingAttendance = false;
+      });
+    }
+  }
+
+  List<Attendance> get _notMarkedEmployees {
+    return _todayAttendances
+        .where((a) => a.status == AttendanceStatus.notMarked)
+        .toList();
+  }
+
+  List<Attendance> get _presentEmployees {
+    return _todayAttendances
+        .where((a) => a.status == AttendanceStatus.present)
+        .toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     return AdminLayout(
@@ -50,7 +206,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       ],
       child: RefreshIndicator(
         onRefresh: () async {
-          // Refresh functionality can be added here when needed
+          await _loadTodayAttendance();
         },
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -69,10 +225,551 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         _buildWelcomeSection(context),
         SizedBox(height: _getSpacing(context) * 2),
         
+        // Today's Attendance Overview Section
+        _buildTodayAttendanceSection(context),
+        SizedBox(height: _getSpacing(context) * 2),
+        
         // Quick Actions Section
         _buildQuickActionsSection(context),
       ],
     );
+  }
+
+  Widget _buildTodayAttendanceSection(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final isMobile = _isMobile(context);
+    final isTablet = _isTablet(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        isMobile
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primary.withValues(alpha: isDark ? 0.25 : 0.12),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          Icons.today_rounded,
+                          size: 16,
+                          color: theme.colorScheme.primary,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          "Today's Attendance",
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            fontSize: _getTitleFontSize(context),
+                          ),
+                        ),
+                      ),
+                      if (_isLoadingAttendance)
+                        const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      else
+                        IconButton(
+                          icon: const Icon(Icons.refresh_rounded, size: 20),
+                          onPressed: _loadTodayAttendance,
+                          tooltip: 'Refresh attendance',
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                    ],
+                  ),
+                ],
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: EdgeInsets.all(isTablet ? 7 : 8),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primary.withValues(alpha: isDark ? 0.25 : 0.12),
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: isDark
+                              ? [
+                                  BoxShadow(
+                                    color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ]
+                              : null,
+                        ),
+                        child: Icon(
+                          Icons.today_rounded,
+                          size: isTablet ? 18 : 20,
+                          color: theme.colorScheme.primary,
+                        ),
+                      ),
+                      SizedBox(width: isTablet ? 10 : 12),
+                      Text(
+                        "Today's Attendance Overview",
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          fontSize: _getTitleFontSize(context),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (_isLoadingAttendance)
+                    SizedBox(
+                      width: isTablet ? 20 : 24,
+                      height: isTablet ? 20 : 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
+                      ),
+                    )
+                  else
+                    IconButton(
+                      icon: Icon(
+                        Icons.refresh_rounded,
+                        size: isTablet ? 22 : 24,
+                      ),
+                      onPressed: _loadTodayAttendance,
+                      tooltip: 'Refresh attendance',
+                      color: theme.colorScheme.primary,
+                    ),
+                ],
+              ),
+        SizedBox(height: _getSpacing(context)),
+        if (_attendanceError != null)
+          Container(
+            padding: const EdgeInsets.all(12),
+            margin: EdgeInsets.only(bottom: _getSpacing(context)),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.errorContainer,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.error_outline, color: theme.colorScheme.error),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Error loading attendance: $_attendanceError',
+                    style: TextStyle(color: theme.colorScheme.onErrorContainer),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        if (_isLoadingAttendance && _todayAttendances.isEmpty)
+          Container(
+            padding: EdgeInsets.all(_getSpacing(context) * 2),
+            alignment: Alignment.center,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 16),
+                Text(
+                  'Loading today\'s attendance...',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                  ),
+                ),
+              ],
+            ),
+          )
+        else
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Debug info (can be removed in production)
+              if (_todayAttendances.isEmpty && !_isLoadingAttendance)
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  margin: EdgeInsets.only(bottom: _getSpacing(context)),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: theme.colorScheme.outline.withValues(alpha: 0.2),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        size: 20,
+                        color: theme.colorScheme.primary,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'No attendance data found for today. Check console for details.',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              _buildResponsiveAttendanceCards(context, isDark),
+            ],
+          ),
+      ],
+    );
+  }
+
+  Widget _buildResponsiveAttendanceCards(BuildContext context, bool isDark) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = _isMobile(context);
+    final isTablet = _isTablet(context);
+    
+    // For mobile: stack vertically
+    // For tablet: 2 columns if width > 700, otherwise stack
+    // For desktop: always side by side
+    if (isMobile || (isTablet && screenWidth < 700)) {
+      return Column(
+        children: [
+          _buildAttendanceCard(
+            context,
+            title: 'Not Marked',
+            count: _notMarkedEmployees.length,
+            employees: _notMarkedEmployees,
+            icon: Icons.pending_actions_rounded,
+            color: const Color(0xFFF59E0B),
+            isDark: isDark,
+          ),
+          SizedBox(height: _getSpacing(context)),
+          _buildAttendanceCard(
+            context,
+            title: 'Present',
+            count: _presentEmployees.length,
+            employees: _presentEmployees,
+            icon: Icons.check_circle_rounded,
+            color: const Color(0xFF10B981),
+            isDark: isDark,
+          ),
+        ],
+      );
+    } else {
+      // Tablet and Desktop: side by side
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: _buildAttendanceCard(
+              context,
+              title: 'Not Marked',
+              count: _notMarkedEmployees.length,
+              employees: _notMarkedEmployees,
+              icon: Icons.pending_actions_rounded,
+              color: const Color(0xFFF59E0B),
+              isDark: isDark,
+            ),
+          ),
+          SizedBox(width: _getSpacing(context)),
+          Expanded(
+            child: _buildAttendanceCard(
+              context,
+              title: 'Present',
+              count: _presentEmployees.length,
+              employees: _presentEmployees,
+              icon: Icons.check_circle_rounded,
+              color: const Color(0xFF10B981),
+              isDark: isDark,
+            ),
+          ),
+        ],
+      );
+    }
+  }
+
+  Widget _buildAttendanceCard(
+    BuildContext context, {
+    required String title,
+    required int count,
+    required List<Attendance> employees,
+    required IconData icon,
+    required Color color,
+    required bool isDark,
+  }) {
+    final theme = Theme.of(context);
+    final isMobile = _isMobile(context);
+    final isTablet = _isTablet(context);
+    final screenHeight = MediaQuery.of(context).size.height;
+    
+    // Responsive max height based on device type
+    double maxHeight;
+    if (isMobile) {
+      maxHeight = screenHeight * 0.4; // 40% of screen height on mobile
+    } else if (isTablet) {
+      maxHeight = screenHeight * 0.45; // 45% of screen height on tablet
+    } else {
+      maxHeight = 500.0; // Fixed height for desktop
+    }
+
+    return Card(
+      elevation: 0,
+      margin: EdgeInsets.zero,
+      color: isDark ? Colors.black : Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(isMobile ? 12 : 16),
+        side: BorderSide(
+          color: isDark ? Colors.white : Colors.black,
+          width: 1.5,
+        ),
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(isMobile ? 12 : 16),
+          color: isDark ? Colors.black : Colors.white,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: EdgeInsets.all(isMobile ? 16 : 20),
+              child: Row(
+                children: [
+                  Icon(
+                    icon,
+                    color: isDark ? Colors.white : Colors.black,
+                    size: isMobile ? 24 : 28,
+                  ),
+                  SizedBox(width: isMobile ? 12 : 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: isMobile ? 18 : 20,
+                            color: isDark ? Colors.white : Colors.black,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '$count ${count == 1 ? 'employee' : 'employees'}',
+                          style: TextStyle(
+                            color: isDark ? Colors.white70 : Colors.black87,
+                            fontSize: isMobile ? 13 : 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Divider(
+              height: 1,
+              thickness: 1,
+              color: isDark ? Colors.white38 : Colors.black26,
+            ),
+            SizedBox(
+              height: maxHeight,
+                  child: employees.isEmpty
+                  ? Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(_getSpacing(context) * 3),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.inbox_rounded,
+                              size: isMobile ? 48 : 56,
+                              color: isDark ? Colors.white38 : Colors.black38,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No employees',
+                              style: TextStyle(
+                                color: isDark ? Colors.white70 : Colors.black87,
+                                fontSize: isMobile ? 14 : 16,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  : Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.only(
+                          bottomLeft: Radius.circular(isMobile ? 14 : 16),
+                          bottomRight: Radius.circular(isMobile ? 14 : 16),
+                        ),
+                      ),
+                      child: employees.isEmpty
+                          ? const SizedBox.shrink()
+                          : ListView.separated(
+                              padding: EdgeInsets.symmetric(vertical: isMobile ? 8 : 12),
+                              itemCount: employees.length,
+                              separatorBuilder: (context, index) => const SizedBox(height: 8),
+                              itemBuilder: (context, index) {
+                                final attendance = employees[index];
+                                return _buildEmployeeListItem(context, attendance, color, isDark);
+                              },
+                            ),
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmployeeListItem(
+    BuildContext context,
+    Attendance attendance,
+    Color color,
+    bool isDark,
+  ) {
+    final theme = Theme.of(context);
+    final isMobile = _isMobile(context);
+    final isTablet = _isTablet(context);
+
+      return Container(
+        margin: EdgeInsets.symmetric(
+          horizontal: isMobile ? 8 : 12,
+          vertical: 4,
+        ),
+        decoration: BoxDecoration(
+          color: isDark ? Colors.black : Colors.white,
+          borderRadius: BorderRadius.circular(isMobile ? 8 : 10),
+          border: Border.all(
+            color: isDark ? Colors.white38 : Colors.black26,
+            width: 1,
+          ),
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () {
+              // Could navigate to employee details or attendance details
+            },
+            borderRadius: BorderRadius.circular(isMobile ? 8 : 10),
+            splashColor: isDark ? Colors.white.withValues(alpha: 0.12) : Colors.black.withValues(alpha: 0.12),
+            highlightColor: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08),
+            child: Padding(
+              padding: EdgeInsets.all(isMobile ? 12 : 14),
+              child: Row(
+                children: [
+                  Container(
+                    width: isMobile ? 40 : (isTablet ? 44 : 48),
+                    height: isMobile ? 40 : (isTablet ? 44 : 48),
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white12 : Colors.black12,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: isDark ? Colors.white38 : Colors.black38,
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Center(
+                      child: Text(
+                        attendance.employeeName.isNotEmpty
+                            ? attendance.employeeName[0].toUpperCase()
+                            : '?',
+                        style: TextStyle(
+                          color: isDark ? Colors.white : Colors.black,
+                          fontWeight: FontWeight.bold,
+                          fontSize: isMobile ? 16 : (isTablet ? 18 : 20),
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: isMobile ? 12 : 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          attendance.employeeName,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: isMobile ? 14 : (isTablet ? 15 : 16),
+                            color: isDark ? Colors.white : Colors.black,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 6),
+                        Wrap(
+                          spacing: 10,
+                          runSpacing: 6,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.badge_rounded,
+                                  size: 12,
+                                  color: isDark ? Colors.white.withValues(alpha: 0.7) : Colors.black.withValues(alpha: 0.7),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  attendance.employeeId,
+                                  style: TextStyle(
+                                    color: isDark ? Colors.white.withValues(alpha: 0.7) : Colors.black.withValues(alpha: 0.7),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (attendance.checkInTime != null)
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.access_time_rounded,
+                                    size: 12,
+                                    color: isDark ? Colors.white.withValues(alpha: 0.7) : Colors.black.withValues(alpha: 0.7),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    attendance.formattedCheckInTime,
+                                    style: TextStyle(
+                                      color: isDark ? Colors.white.withValues(alpha: 0.7) : Colors.black.withValues(alpha: 0.7),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: isDark ? Colors.white38 : Colors.black38,
+                    size: 20,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
   }
 
   Widget _buildWelcomeSection(BuildContext context) {

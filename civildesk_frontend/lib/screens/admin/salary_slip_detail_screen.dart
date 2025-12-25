@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../models/salary_slip.dart';
 import '../../core/services/salary_service.dart';
+import '../../widgets/toast.dart';
 
 class SalarySlipDetailScreen extends StatelessWidget {
   final SalarySlip salarySlip;
@@ -36,19 +37,12 @@ class SalarySlipDetailScreen extends StatelessWidget {
       try {
         await _salaryService.finalizeSalarySlip(salarySlip.id!);
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Salary slip finalized successfully')),
-          );
+          Toast.success(context, 'Salary slip finalized successfully');
           Navigator.pop(context, true);
         }
       } catch (e) {
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to finalize: ${e.toString()}'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          Toast.error(context, 'Failed to finalize: ${e.toString()}');
         }
       }
     }
@@ -253,7 +247,7 @@ class SalarySlipDetailScreen extends StatelessWidget {
                     _EarningRow('Other Incentive', salarySlip.otherIncentive, currencyFormat),
                     _EarningRow('EPF Employer', salarySlip.epfEmployerEarnings, currencyFormat),
                     const Divider(height: 32),
-                    _TotalRow('Total Earnings', salarySlip.totalEarnings, currencyFormat, Colors.green),
+                    _TotalRow('Total Earnings', salarySlip.totalEarnings, currencyFormat, colorScheme),
                   ],
                 ),
               ),
@@ -307,7 +301,7 @@ class SalarySlipDetailScreen extends StatelessWidget {
                     _DeductionRow('Fuel Advance Recovery', salarySlip.fuelAdvanceRecovery, currencyFormat),
                     _DeductionRow('Other Deductions', salarySlip.otherDeductions, currencyFormat),
                     const Divider(height: 32),
-                    _TotalRow('Total Deductions', salarySlip.totalDeductions, currencyFormat, Colors.red),
+                    _TotalRow('Total Deductions', salarySlip.totalDeductions, currencyFormat, colorScheme, isDeduction: true),
                   ],
                 ),
               ),
@@ -315,9 +309,19 @@ class SalarySlipDetailScreen extends StatelessWidget {
             const SizedBox(height: 16),
 
             // Net Salary Card
-            Card(
-              elevation: 4,
-              color: colorScheme.primaryContainer,
+            Container(
+              decoration: BoxDecoration(
+                color: colorScheme.brightness == Brightness.dark 
+                    ? Colors.black 
+                    : Colors.white,
+                border: Border.all(
+                  color: colorScheme.brightness == Brightness.dark 
+                      ? Colors.white 
+                      : Colors.black,
+                  width: 1,
+                ),
+                borderRadius: BorderRadius.circular(12),
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(24.0),
                 child: Row(
@@ -327,13 +331,18 @@ class SalarySlipDetailScreen extends StatelessWidget {
                       'Net Salary',
                       style: theme.textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.bold,
+                        color: colorScheme.brightness == Brightness.dark 
+                            ? Colors.white 
+                            : Colors.black,
                       ),
                     ),
                     Text(
                       '₹${currencyFormat.format(salarySlip.netSalary ?? 0)}',
                       style: theme.textTheme.headlineMedium?.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: colorScheme.primary,
+                        color: colorScheme.brightness == Brightness.dark 
+                            ? Colors.white 
+                            : Colors.black,
                       ),
                     ),
                   ],
@@ -477,18 +486,20 @@ class _DeductionRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (amount == null || amount == 0) return const SizedBox.shrink();
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: Theme.of(context).textTheme.bodyMedium),
+          Text(label, style: theme.textTheme.bodyMedium),
           Text(
             '₹${format.format(amount!)}',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w500,
-                  color: Colors.red,
-                ),
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w500,
+              color: colorScheme.error,
+            ),
           ),
         ],
       ),
@@ -500,12 +511,27 @@ class _TotalRow extends StatelessWidget {
   final String label;
   final double? amount;
   final NumberFormat format;
-  final Color color;
+  final ColorScheme colorScheme;
+  final bool isDeduction;
 
-  const _TotalRow(this.label, this.amount, this.format, this.color);
+  const _TotalRow(this.label, this.amount, this.format, this.colorScheme, {this.isDeduction = false});
+
+  // Get theme-adaptive success color (green) for earnings
+  Color _getSuccessColor(ColorScheme scheme) {
+    return scheme.brightness == Brightness.dark
+        ? const Color(0xFF4CAF50) // Green for dark theme
+        : const Color(0xFF2E7D32); // Darker green for light theme
+  }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final currentColorScheme = theme.colorScheme;
+    // Use theme-adaptive colors: error for deductions, success green for earnings
+    final amountColor = isDeduction 
+        ? currentColorScheme.error 
+        : _getSuccessColor(currentColorScheme);
+    
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
@@ -513,16 +539,17 @@ class _TotalRow extends StatelessWidget {
         children: [
           Text(
             label,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: currentColorScheme.onSurface,
+            ),
           ),
           Text(
             '₹${format.format(amount ?? 0)}',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: color,
-                ),
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: amountColor,
+            ),
           ),
         ],
       ),

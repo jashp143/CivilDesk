@@ -7,6 +7,7 @@ import '../../core/theme/app_theme.dart';
 import '../../models/employee.dart';
 import '../../widgets/admin_layout.dart';
 import '../../widgets/cached_profile_image.dart';
+import '../../widgets/toast.dart';
 import '../attendance/face_registration_screen.dart';
 
 class EmployeeDetailScreen extends StatefulWidget {
@@ -70,12 +71,7 @@ class _EmployeeDetailScreenState extends State<EmployeeDetailScreen>
                   ),
                 ).then((success) {
                   if (success == true && navigatorContext.mounted) {
-                    ScaffoldMessenger.of(navigatorContext).showSnackBar(
-                      SnackBar(
-                        content: const Text('Face registered successfully!'),
-                        backgroundColor: AppTheme.statusApproved,
-                      ),
-                    );
+                    Toast.success(navigatorContext, 'Face registered successfully!');
                   }
                 });
               },
@@ -174,12 +170,7 @@ class _EmployeeDetailScreenState extends State<EmployeeDetailScreen>
                   ),
                 ).then((success) {
                   if (success == true && navigatorContext.mounted) {
-                    ScaffoldMessenger.of(navigatorContext).showSnackBar(
-                      SnackBar(
-                        content: const Text('Face registered successfully!'),
-                        backgroundColor: AppTheme.statusApproved,
-                      ),
-                    );
+                    Toast.success(navigatorContext, 'Face registered successfully!');
                   }
                 });
               },
@@ -468,9 +459,7 @@ class _EmployeeDetailScreenState extends State<EmployeeDetailScreen>
         onTap: url != null
             ? () {
                 // TODO: Open document viewer
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Opening $label...')),
-                );
+                Toast.info(context, 'Opening $label...');
               }
             : null,
       ),

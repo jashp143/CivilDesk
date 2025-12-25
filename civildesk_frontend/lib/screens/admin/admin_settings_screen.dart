@@ -5,6 +5,7 @@ import '../../core/constants/app_routes.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/providers/theme_provider.dart';
 import '../../widgets/admin_layout.dart';
+import '../../widgets/toast.dart';
 import '../../widgets/cached_profile_image.dart';
 
 class AdminSettingsScreen extends StatefulWidget {
@@ -883,11 +884,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen>
                   'Privacy Policy',
                   'View privacy policy',
                   () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Privacy Policy coming soon'),
-                      ),
-                    );
+                    Toast.info(context, 'Privacy Policy coming soon');
                   },
                 ),
                 Divider(
@@ -906,11 +903,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen>
                   'Terms & Conditions',
                   'View terms and conditions',
                   () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Terms & Conditions coming soon'),
-                      ),
-                    );
+                    Toast.info(context, 'Terms & Conditions coming soon');
                   },
                 ),
               ],

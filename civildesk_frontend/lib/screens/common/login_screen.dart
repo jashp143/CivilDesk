@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/constants/app_routes.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/utils/validators.dart';
+import '../../widgets/toast.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -69,12 +70,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         default:
           route = AppRoutes.login;
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: const Text('Access denied. This app is for administrators only.'),
-                backgroundColor: Theme.of(context).colorScheme.error,
-              ),
-            );
+            Toast.error(context, 'Access denied. This app is for administrators only.');
           }
           return;
       }
@@ -82,12 +78,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       Navigator.of(context).pushReplacementNamed(route);
     } else if (mounted) {
       final errorMessage = authProvider.lastError ?? 'Login failed. Please check your credentials.';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(errorMessage),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
+      Toast.error(context, errorMessage);
     }
   }
 

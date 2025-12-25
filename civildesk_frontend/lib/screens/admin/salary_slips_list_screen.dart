@@ -4,6 +4,7 @@ import '../../core/services/salary_service.dart';
 import '../../models/salary_slip.dart';
 import '../../models/page_response.dart';
 import '../../widgets/admin_layout.dart';
+import '../../widgets/toast.dart';
 import '../../core/constants/app_routes.dart';
 import 'salary_slip_detail_screen.dart';
 import 'salary_calculation_screen.dart';
@@ -176,19 +177,12 @@ class _SalarySlipsListScreenState extends State<SalarySlipsListScreen> {
     try {
       await _salaryService.deleteSalarySlip(slip.id!);
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Salary slip deleted successfully')),
-        );
+        Toast.success(context, 'Salary slip deleted successfully');
         _loadSalarySlips(refresh: true);
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to delete: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        Toast.error(context, 'Failed to delete: ${e.toString()}');
       }
     }
   }
