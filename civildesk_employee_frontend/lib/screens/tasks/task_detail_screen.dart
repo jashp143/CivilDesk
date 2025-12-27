@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../core/providers/task_provider.dart';
 import '../../models/task.dart';
 import '../../widgets/cached_profile_image.dart';
+import '../../widgets/toast.dart';
 
 class TaskDetailScreen extends StatefulWidget {
   final Task task;
@@ -15,6 +16,122 @@ class TaskDetailScreen extends StatefulWidget {
 
   @override
   State<TaskDetailScreen> createState() => _TaskDetailScreenState();
+}
+
+class _ReviewDialog extends StatefulWidget {
+  final TaskStatus status;
+  final int taskId;
+  final TextEditingController reviewNoteController;
+  final VoidCallback onSuccess;
+  final ValueChanged<String> onError;
+
+  const _ReviewDialog({
+    required this.status,
+    required this.taskId,
+    required this.reviewNoteController,
+    required this.onSuccess,
+    required this.onError,
+  });
+
+  @override
+  State<_ReviewDialog> createState() => _ReviewDialogState();
+}
+
+class _ReviewDialogState extends State<_ReviewDialog> {
+  bool _isReviewing = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(
+        widget.status == TaskStatus.approved ? 'Approve Task' : 'Reject Task',
+      ),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              widget.status == TaskStatus.approved
+                  ? 'Are you sure you want to approve this task?'
+                  : 'Are you sure you want to reject this task?',
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Note (Optional)',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: widget.reviewNoteController,
+              enabled: !_isReviewing,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                hintText: 'Enter a note...',
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isReviewing
+              ? null
+              : () {
+                  widget.reviewNoteController.clear();
+                  Navigator.pop(context);
+                },
+          child: const Text('CANCEL'),
+        ),
+        ElevatedButton(
+          onPressed: _isReviewing
+              ? null
+              : () async {
+                  final note = widget.reviewNoteController.text.trim();
+                  
+                  setState(() {
+                    _isReviewing = true;
+                  });
+
+                  final provider = Provider.of<TaskProvider>(context, listen: false);
+                  final success = await provider.reviewTask(
+                    widget.taskId,
+                    widget.status,
+                    note.isEmpty ? null : note,
+                  );
+
+                  if (!mounted) return;
+
+                  widget.reviewNoteController.clear();
+
+                  if (success) {
+                    widget.onSuccess();
+                  } else {
+                    widget.onError(provider.error ?? 'Failed to review task');
+                  }
+                },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: widget.status == TaskStatus.approved
+                ? Colors.green
+                : Colors.red,
+          ),
+          child: _isReviewing
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                )
+              : Text(
+                  widget.status == TaskStatus.approved ? 'APPROVE' : 'REJECT',
+                ),
+        ),
+      ],
+    );
+  }
 }
 
 class _TaskDetailScreenState extends State<TaskDetailScreen> {
@@ -29,95 +146,30 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   void _showReviewDialog(TaskStatus status) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          status == TaskStatus.approved ? 'Approve Task' : 'Reject Task',
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                status == TaskStatus.approved
-                    ? 'Are you sure you want to approve this task?'
-                    : 'Are you sure you want to reject this task?',
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Note (Optional)',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _reviewNoteController,
-                maxLines: 3,
-                decoration: const InputDecoration(
-                  border: OutlineInputBorder(),
-                  hintText: 'Enter a note...',
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              _reviewNoteController.clear();
-              Navigator.pop(context);
-            },
-            child: const Text('CANCEL'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final note = _reviewNoteController.text.trim();
-              _reviewNoteController.clear();
-              Navigator.pop(context);
-
-              final provider = Provider.of<TaskProvider>(context, listen: false);
-              final success = await provider.reviewTask(
-                widget.task.id,
-                status,
-                note.isEmpty ? null : note,
-              );
-
-              if (!mounted) return;
-              if (success) {
-                if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      status == TaskStatus.approved
-                          ? 'Task approved successfully'
-                          : 'Task rejected successfully',
-                    ),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-                if (!mounted) return;
+      barrierDismissible: false,
+      builder: (dialogContext) => _ReviewDialog(
+        status: status,
+        taskId: widget.task.id,
+        reviewNoteController: _reviewNoteController,
+        onSuccess: () {
+          Navigator.pop(dialogContext);
+          if (mounted) {
+            Toast.success(context, status == TaskStatus.approved
+                ? 'Task approved successfully'
+                : 'Task rejected successfully');
+            Future.delayed(const Duration(milliseconds: 500), () {
+              if (mounted) {
                 Navigator.pop(context, true);
-              } else {
-                if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      provider.error ?? 'Failed to review task',
-                    ),
-                    backgroundColor: Colors.red,
-                  ),
-                );
               }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: status == TaskStatus.approved
-                  ? Colors.green
-                  : Colors.red,
-            ),
-            child: Text(
-              status == TaskStatus.approved ? 'APPROVE' : 'REJECT',
-            ),
-          ),
-        ],
+            });
+          }
+        },
+        onError: (error) {
+          Navigator.pop(dialogContext);
+          if (mounted) {
+            Toast.error(context, error);
+          }
+        },
       ),
     );
   }
@@ -223,13 +275,15 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               color: Colors.indigo,
             ),
             const SizedBox(height: 16),
-            // Assigned By
-            _buildDetailSection(
-              icon: Icons.person,
-              title: 'Assigned By',
-              content: '${task.assignedBy.name} (${task.assignedBy.role})',
-              color: Colors.orange,
-            ),
+            // Assigned By (only show if role is ADMIN or HR_MANAGER)
+            if (task.assignedBy.role.toUpperCase() == 'ADMIN' || 
+                task.assignedBy.role.toUpperCase() == 'HR_MANAGER')
+              _buildDetailSection(
+                icon: Icons.person,
+                title: 'Assigned By',
+                content: '${task.assignedBy.name} (${task.assignedBy.role})',
+                color: Colors.orange,
+              ),
             const SizedBox(height: 16),
             // Assigned Employees
             if (task.assignedEmployees.isNotEmpty)
@@ -318,7 +372,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       ),
                       if (task.reviewNote != null && task.reviewNote!.isNotEmpty) ...[
                         const SizedBox(height: 8),
-                        _buildDetailRow('Note', task.reviewNote!),
+                        _buildDetailRow('Your Comment', task.reviewNote!),
                       ],
                     ],
                   ),

@@ -5,6 +5,9 @@ import '../../widgets/admin_layout.dart';
 import '../../widgets/toast.dart';
 import '../../core/constants/app_routes.dart';
 import '../../core/providers/overtime_provider.dart';
+import '../../core/services/employee_service.dart';
+import '../../core/services/whatsapp_service.dart';
+import '../../core/utils/message_builder.dart';
 import '../../models/overtime.dart';
 import 'overtime_detail_screen.dart';
 
@@ -235,8 +238,91 @@ class _OvertimeManagementScreenState extends State<OvertimeManagementScreen> {
           'Overtime ${status == OvertimeStatus.APPROVED ? 'approved' : 'rejected'} successfully',
         );
         _refreshOvertimes();
+        
+        // Show WhatsApp option dialog
+        _showWhatsAppOption(overtime, status, note);
       } else {
         Toast.error(context, provider.error ?? 'Failed to review overtime');
+      }
+    }
+  }
+
+  Future<void> _showWhatsAppOption(Overtime overtime, OvertimeStatus status, String? note) async {
+    final shouldSend = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.message, color: const Color(0xFF25D366)),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: Text(
+                'Send WhatsApp Notification',
+                style: TextStyle(fontSize: 18),
+              ),
+            ),
+          ],
+        ),
+        content: const Text(
+          'Would you like to send a WhatsApp notification to the employee?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('SKIP'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pop(context, true),
+            icon: const Icon(Icons.message, color: Colors.white, size: 18),
+            label: const Text('SEND'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF25D366),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
+          ),
+        ],
+        actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      ),
+    );
+
+    if (shouldSend == true && mounted) {
+      await _sendOvertimeWhatsApp(overtime, status, note);
+    }
+  }
+
+  Future<void> _sendOvertimeWhatsApp(Overtime overtime, OvertimeStatus status, String? note) async {
+    try {
+      // Fetch employee to get phone number
+      final employeeService = EmployeeService();
+      final employee = await employeeService.getEmployeeById(overtime.employeeId);
+      
+      if (employee.phoneNumber.isEmpty) {
+        if (mounted) {
+          Toast.warning(context, 'Employee phone number not available');
+        }
+        return;
+      }
+
+      // Build message
+      final message = MessageBuilder.buildOvertimeMessage(
+        overtime: overtime,
+        status: status,
+        adminNote: note,
+      );
+
+      // Launch WhatsApp
+      final launched = await WhatsAppService.launchWhatsApp(
+        phoneNumber: employee.phoneNumber,
+        message: message,
+      );
+
+      if (!launched && mounted) {
+        Toast.warning(context, 'Could not launch WhatsApp. Please check if WhatsApp is installed.');
+      }
+    } catch (e) {
+      if (mounted) {
+        Toast.error(context, 'Failed to send WhatsApp message: $e');
       }
     }
   }
@@ -401,7 +487,7 @@ class _OvertimeManagementScreenState extends State<OvertimeManagementScreen> {
                           },
                           child: ListView.builder(
                             controller: _scrollController,
-                            padding: const EdgeInsets.all(16),
+                            padding: const EdgeInsets.all(8),
                             itemCount: provider.overtimes.length + (provider.hasMore ? 1 : 0),
                             itemBuilder: (context, index) {
                               if (index == provider.overtimes.length) {
@@ -412,7 +498,7 @@ class _OvertimeManagementScreenState extends State<OvertimeManagementScreen> {
                               }
                               final overtime = provider.overtimes[index];
                               return Padding(
-                                padding: const EdgeInsets.only(bottom: 16),
+                                padding: const EdgeInsets.only(bottom: 8),
                                 child: _buildOvertimeCard(overtime),
                               );
                             },
@@ -452,10 +538,15 @@ class _OvertimeManagementScreenState extends State<OvertimeManagementScreen> {
         break;
     }
 
+    final borderColor = Theme.of(context).brightness == Brightness.dark
+        ? Colors.white.withOpacity(0.3)
+        : Colors.black.withOpacity(0.2);
+    
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: borderColor, width: 1),
       ),
       child: InkWell(
         onTap: () => _viewOvertimeDetails(overtime),
@@ -694,6 +785,16 @@ class _OvertimeManagementScreenState extends State<OvertimeManagementScreen> {
                         ),
                       ),
                     ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      onPressed: () => _sendOvertimeWhatsAppDirect(overtime),
+                      icon: const Icon(Icons.message),
+                      color: const Color(0xFF25D366),
+                      tooltip: 'Send WhatsApp',
+                      style: IconButton.styleFrom(
+                        backgroundColor: const Color(0xFF25D366).withValues(alpha: 0.1),
+                      ),
+                    ),
                   ],
                 ],
               ),
@@ -910,10 +1011,14 @@ class _OvertimeManagementScreenState extends State<OvertimeManagementScreen> {
     final rowColor = isEven
         ? Colors.transparent
         : Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.2);
+    final borderColor = Theme.of(context).brightness == Brightness.dark
+        ? Colors.white.withOpacity(0.3)
+        : Colors.black.withOpacity(0.2);
 
     return TableRow(
       decoration: BoxDecoration(
         color: rowColor,
+        border: Border.all(color: borderColor, width: 1),
       ),
       children: [
         // Employee Info Cell
@@ -1159,22 +1264,84 @@ class _OvertimeManagementScreenState extends State<OvertimeManagementScreen> {
         ],
       );
     } else {
-      return MouseRegion(
-        cursor: SystemMouseCursors.click,
-        child: OutlinedButton.icon(
-          onPressed: () => _viewOvertimeDetails(overtime),
-          icon: const Icon(Icons.visibility, size: 16),
-          label: const Text('View Details'),
-          style: OutlinedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            minimumSize: const Size(0, 40),
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: OutlinedButton.icon(
+              onPressed: () => _viewOvertimeDetails(overtime),
+              icon: const Icon(Icons.visibility, size: 16),
+              label: const Text('View Details'),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                minimumSize: const Size(0, 40),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
             ),
           ),
-        ),
+          const SizedBox(width: 8),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: (value) {
+              if (value == 'whatsapp') {
+                _sendOvertimeWhatsAppDirect(overtime);
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'whatsapp',
+                child: Row(
+                  children: [
+                    Icon(Icons.message, color: Color(0xFF25D366), size: 20),
+                    SizedBox(width: 8),
+                    Text('Send WhatsApp'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
       );
+    }
+  }
+
+  Future<void> _sendOvertimeWhatsAppDirect(Overtime overtime) async {
+    try {
+      // Fetch employee to get phone number
+      final employeeService = EmployeeService();
+      final employee = await employeeService.getEmployeeById(overtime.employeeId);
+      
+      if (employee.phoneNumber.isEmpty) {
+        if (mounted) {
+          Toast.warning(context, 'Employee phone number not available');
+        }
+        return;
+      }
+
+      // Build message based on current status
+      final message = MessageBuilder.buildOvertimeMessage(
+        overtime: overtime,
+        status: overtime.status,
+        adminNote: overtime.reviewNote,
+      );
+
+      // Launch WhatsApp
+      final launched = await WhatsAppService.launchWhatsApp(
+        phoneNumber: employee.phoneNumber,
+        message: message,
+      );
+
+      if (!launched && mounted) {
+        Toast.warning(context, 'Could not launch WhatsApp. Please check if WhatsApp is installed.');
+      }
+    } catch (e) {
+      if (mounted) {
+        Toast.error(context, 'Failed to send WhatsApp message: $e');
+      }
     }
   }
 }

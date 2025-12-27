@@ -220,6 +220,20 @@ class _AdminLayoutState extends State<AdminLayout> {
         },
       ),
       SidebarItem(
+        title: 'Broadcasts',
+        icon: Icons.campaign_rounded,
+        route: AppRoutes.adminBroadcasts,
+        onTap: () {
+          if (widget.currentRoute != AppRoutes.adminBroadcasts) {
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              AppRoutes.adminBroadcasts,
+              (route) => false,
+            );
+          }
+        },
+      ),
+      SidebarItem(
         title: 'Settings',
         icon: Icons.settings_rounded,
         route: AppRoutes.adminSettings,

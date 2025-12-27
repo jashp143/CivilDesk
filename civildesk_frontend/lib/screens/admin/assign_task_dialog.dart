@@ -3,6 +3,9 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../core/providers/task_provider.dart';
 import '../../core/services/employee_service.dart';
+import '../../core/services/task_service.dart';
+import '../../core/services/whatsapp_service.dart';
+import '../../core/utils/message_builder.dart';
 import '../../models/task.dart';
 import '../../models/employee.dart';
 import '../../widgets/toast.dart';
@@ -19,6 +22,7 @@ class AssignTaskDialog extends StatefulWidget {
 class _AssignTaskDialogState extends State<AssignTaskDialog> {
   final _formKey = GlobalKey<FormState>();
   final EmployeeService _employeeService = EmployeeService();
+  final TaskService _taskService = TaskService();
 
   List<Employee> _allEmployees = [];
   List<int> _selectedEmployeeIds = [];
@@ -27,6 +31,9 @@ class _AssignTaskDialogState extends State<AssignTaskDialog> {
   String _location = '';
   String _description = '';
   String _modeOfTravel = '';
+  String _siteName = '';
+  String _siteContactPersonName = '';
+  String _siteContactPhone = '';
   bool _isLoading = false;
   bool _loadingEmployees = true;
 
@@ -41,6 +48,9 @@ class _AssignTaskDialogState extends State<AssignTaskDialog> {
       _location = task.location;
       _description = task.description;
       _modeOfTravel = task.modeOfTravelDisplay;
+      _siteName = task.siteName ?? '';
+      _siteContactPersonName = task.siteContactPersonName ?? '';
+      _siteContactPhone = task.siteContactPhone ?? '';
       _selectedEmployeeIds = task.assignedEmployees.map((e) => e.id).toList();
     }
   }
@@ -129,15 +139,28 @@ class _AssignTaskDialogState extends State<AssignTaskDialog> {
       location: _location,
       description: _description,
       modeOfTravel: _modeOfTravel,
+      siteName: _siteName.isEmpty ? null : _siteName,
+      siteContactPersonName: _siteContactPersonName.isEmpty ? null : _siteContactPersonName,
+      siteContactPhone: _siteContactPhone.isEmpty ? null : _siteContactPhone,
     );
 
     final provider = Provider.of<TaskProvider>(context, listen: false);
+    Task? createdTask;
     bool success;
 
-    if (widget.existingTask != null) {
-      success = await provider.updateTask(widget.existingTask!.id, request);
-    } else {
-      success = await provider.assignTask(request);
+    try {
+      if (widget.existingTask != null) {
+        createdTask = await _taskService.updateTask(widget.existingTask!.id, request);
+        success = true;
+      } else {
+        createdTask = await _taskService.assignTask(request);
+        success = true;
+      }
+      
+      // Refresh provider
+      await provider.refreshTasks();
+    } catch (e) {
+      success = false;
     }
 
     setState(() {
@@ -145,7 +168,7 @@ class _AssignTaskDialogState extends State<AssignTaskDialog> {
     });
 
     if (mounted) {
-      if (success) {
+      if (success && createdTask != null) {
         Navigator.pop(context, true);
         Toast.success(
           context,
@@ -153,10 +176,15 @@ class _AssignTaskDialogState extends State<AssignTaskDialog> {
               ? 'Task updated successfully'
               : 'Task assigned successfully',
         );
+        
+        // Show WhatsApp option for new task assignments
+        if (widget.existingTask == null) {
+          _showWhatsAppOptionForTask(createdTask!);
+        }
       } else {
         Toast.error(
           context,
-          provider.error ?? 'Failed to ${widget.existingTask != null ? 'update' : 'assign'} task',
+          'Failed to ${widget.existingTask != null ? 'update' : 'assign'} task',
         );
       }
     }
@@ -177,7 +205,7 @@ class _AssignTaskDialogState extends State<AssignTaskDialog> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primary,
+                  color: Theme.of(context).colorScheme.surface,
                   borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(8),
                     topRight: Radius.circular(8),
@@ -188,15 +216,15 @@ class _AssignTaskDialogState extends State<AssignTaskDialog> {
                     Expanded(
                       child: Text(
                         widget.existingTask != null ? 'Edit Task' : 'Assign Task',
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurface,
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.close, color: Colors.white),
+                      icon: Icon(Icons.close, color: Theme.of(context).colorScheme.onSurface),
                       onPressed: () => Navigator.pop(context),
                     ),
                   ],
@@ -321,6 +349,43 @@ class _AssignTaskDialogState extends State<AssignTaskDialog> {
                         onChanged: (value) => _modeOfTravel = value,
                       ),
                       const SizedBox(height: 16),
+                      // Site Name (Optional)
+                      TextFormField(
+                        initialValue: _siteName,
+                        decoration: const InputDecoration(
+                          labelText: 'Site Name (Optional)',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.business),
+                        ),
+                        onSaved: (value) => _siteName = value ?? '',
+                        onChanged: (value) => _siteName = value,
+                      ),
+                      const SizedBox(height: 16),
+                      // Site Contact Person Name (Optional)
+                      TextFormField(
+                        initialValue: _siteContactPersonName,
+                        decoration: const InputDecoration(
+                          labelText: 'Site Contact Person Name (Optional)',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.person),
+                        ),
+                        onSaved: (value) => _siteContactPersonName = value ?? '',
+                        onChanged: (value) => _siteContactPersonName = value,
+                      ),
+                      const SizedBox(height: 16),
+                      // Site Contact Phone (Optional)
+                      TextFormField(
+                        initialValue: _siteContactPhone,
+                        decoration: const InputDecoration(
+                          labelText: 'Phone Number (Site person) (Optional)',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.phone),
+                        ),
+                        keyboardType: TextInputType.phone,
+                        onSaved: (value) => _siteContactPhone = value ?? '',
+                        onChanged: (value) => _siteContactPhone = value,
+                      ),
+                      const SizedBox(height: 16),
                       // Description
                       TextFormField(
                         initialValue: _description,
@@ -377,5 +442,103 @@ class _AssignTaskDialogState extends State<AssignTaskDialog> {
         ),
       ),
     );
+  }
+
+  Future<void> _showWhatsAppOptionForTask(Task task) async {
+    final shouldSend = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.message, color: const Color(0xFF25D366)),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: Text(
+                'Send WhatsApp Notifications',
+                style: TextStyle(fontSize: 18),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'Would you like to send WhatsApp notifications to ${task.assignedEmployees.length} assigned employee(s)?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('SKIP'),
+          ),
+          Flexible(
+            child: ElevatedButton.icon(
+              onPressed: () => Navigator.pop(context, true),
+              icon: const Icon(Icons.message, color: Colors.white, size: 18),
+              label: const Text('SEND TO ALL'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF25D366),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
+            ),
+          ),
+        ],
+        actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      ),
+    );
+
+    if (shouldSend == true && mounted) {
+      await _sendTaskWhatsAppToEmployees(task);
+    }
+  }
+
+  Future<void> _sendTaskWhatsAppToEmployees(Task task) async {
+    int successCount = 0;
+    int failCount = 0;
+
+    for (final assignedEmployee in task.assignedEmployees) {
+      try {
+        // Fetch employee to get phone number
+        final employee = await _employeeService.getEmployeeById(assignedEmployee.id);
+        
+        if (employee.phoneNumber.isEmpty) {
+          failCount++;
+          continue;
+        }
+
+        // Build message
+        final message = MessageBuilder.buildTaskAssignmentMessage(
+          task: task,
+          employeeName: assignedEmployee.name,
+        );
+
+        // Launch WhatsApp
+        final launched = await WhatsAppService.launchWhatsApp(
+          phoneNumber: employee.phoneNumber,
+          message: message,
+        );
+
+        if (launched) {
+          successCount++;
+          // Add a small delay between messages to avoid overwhelming the system
+          await Future.delayed(const Duration(milliseconds: 500));
+        } else {
+          failCount++;
+        }
+      } catch (e) {
+        failCount++;
+      }
+    }
+
+    if (mounted) {
+      if (successCount > 0 && failCount == 0) {
+        Toast.success(context, 'WhatsApp notifications sent to all employees');
+      } else if (successCount > 0 && failCount > 0) {
+        Toast.warning(
+          context,
+          'Sent to $successCount employee(s). Failed to send to $failCount employee(s).',
+        );
+      } else {
+        Toast.error(context, 'Failed to send WhatsApp notifications');
+      }
+    }
   }
 }

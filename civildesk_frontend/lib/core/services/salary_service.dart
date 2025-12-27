@@ -216,8 +216,30 @@ class SalaryService {
   String _handleError(DioException error) {
     if (error.response != null) {
       final data = error.response?.data;
-      if (data is Map<String, dynamic> && data['message'] != null) {
-        return data['message'] as String;
+      if (data is Map<String, dynamic>) {
+        // Try to extract message from ApiResponse structure
+        if (data['message'] != null) {
+          String message = data['message'] as String;
+          // Clean up common error prefixes
+          message = message.replaceAll('Exception: ', '');
+          message = message.replaceAll('Error: ', '');
+          return message;
+        }
+        // Try error field if message is not available
+        if (data['error'] != null) {
+          return data['error'] as String;
+        }
+      }
+      // Fallback to status code message
+      final statusCode = error.response?.statusCode;
+      if (statusCode == 400) {
+        return 'Invalid request. Please check your input and try again.';
+      } else if (statusCode == 404) {
+        return 'Resource not found.';
+      } else if (statusCode == 409) {
+        return 'Conflict: This operation cannot be completed due to existing data.';
+      } else if (statusCode == 500) {
+        return 'Server error. Please try again later.';
       }
       return 'Error: ${error.response?.statusCode}';
     } else if (error.type == DioExceptionType.connectionTimeout ||

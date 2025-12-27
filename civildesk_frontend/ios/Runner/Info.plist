@@ -45,5 +45,13 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- WhatsApp URL Schemes for iOS -->
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>whatsapp</string>
+		<string>whatsapp-api</string>
+		<string>https</string>
+		<string>http</string>
+	</array>
 </dict>
 </plist>

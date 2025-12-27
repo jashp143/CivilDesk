@@ -5,7 +5,11 @@ import 'package:url_launcher/url_launcher.dart';
 import 'dart:io';
 import '../../models/expense.dart';
 import '../../core/providers/expense_provider.dart';
+import '../../core/services/employee_service.dart';
+import '../../core/services/whatsapp_service.dart';
+import '../../core/utils/message_builder.dart';
 import '../../widgets/toast.dart';
+import '../../widgets/detail_screen_components.dart';
 
 class ExpenseDetailScreen extends StatefulWidget {
   final Expense expense;
@@ -89,9 +93,93 @@ class _ExpenseDetailScreenState extends State<ExpenseDetailScreen> {
           context,
           'Expense ${status == ExpenseStatus.APPROVED ? 'approved' : 'rejected'} successfully',
         );
+        
+        // Show WhatsApp option dialog
+        _showWhatsAppOption(status, note);
+        
         Navigator.pop(context, true); // Return true to refresh parent screen
       } else {
         Toast.error(context, provider.error ?? 'Failed to review expense');
+      }
+    }
+  }
+
+  Future<void> _showWhatsAppOption(ExpenseStatus status, String? note) async {
+    final shouldSend = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.message, color: const Color(0xFF25D366)),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: Text(
+                'Send WhatsApp Notification',
+                style: TextStyle(fontSize: 18),
+              ),
+            ),
+          ],
+        ),
+        content: const Text(
+          'Would you like to send a WhatsApp notification to the employee?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('SKIP'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pop(context, true),
+            icon: const Icon(Icons.message, color: Colors.white, size: 18),
+            label: const Text('SEND'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF25D366),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
+          ),
+        ],
+        actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      ),
+    );
+
+    if (shouldSend == true && mounted) {
+      await _sendExpenseWhatsApp(status, note);
+    }
+  }
+
+  Future<void> _sendExpenseWhatsApp(ExpenseStatus status, String? note) async {
+    try {
+      // Fetch employee to get phone number
+      final employeeService = EmployeeService();
+      final employee = await employeeService.getEmployeeById(widget.expense.employeeId);
+      
+      if (employee.phoneNumber.isEmpty) {
+        if (mounted) {
+          Toast.warning(context, 'Employee phone number not available');
+        }
+        return;
+      }
+
+      // Build message
+      final message = MessageBuilder.buildExpenseMessage(
+        expense: widget.expense,
+        status: status,
+        adminNote: note,
+      );
+
+      // Launch WhatsApp
+      final launched = await WhatsAppService.launchWhatsApp(
+        phoneNumber: employee.phoneNumber,
+        message: message,
+      );
+
+      if (!launched && mounted) {
+        Toast.warning(context, 'Could not launch WhatsApp. Please check if WhatsApp is installed.');
+      }
+    } catch (e) {
+      if (mounted) {
+        Toast.error(context, 'Failed to send WhatsApp message: $e');
       }
     }
   }
@@ -157,241 +245,263 @@ class _ExpenseDetailScreenState extends State<ExpenseDetailScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Expense Details'),
+        title: Text(
+          'Expense Details',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
+        ),
         elevation: 0,
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: Center(
+              child: DetailScreenComponents.buildStatusBadge(
+                context: context,
+                status: widget.expense.statusDisplay,
+                color: statusColor,
+                icon: statusIcon,
+                isCompact: true,
+              ),
+            ),
+          ),
+        ],
       ),
       body: Stack(
         children: [
           SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Status Badge
-                Center(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: statusColor.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(statusIcon, color: statusColor, size: 24),
-                        const SizedBox(width: 8),
-                        Text(
-                          widget.expense.statusDisplay,
-                          style: TextStyle(
-                            color: statusColor,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                // Employee Information Card
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Employee Information',
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                        ),
-                        const SizedBox(height: 16),
-                        _buildInfoRow('Name', widget.expense.employeeName),
-                        _buildInfoRow('Employee ID', widget.expense.employeeIdStr),
-                        _buildInfoRow('Email', widget.expense.employeeEmail),
-                        if (widget.expense.department != null)
-                          _buildInfoRow('Department', widget.expense.department!),
-                        if (widget.expense.designation != null)
-                          _buildInfoRow('Designation', widget.expense.designation!),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                // Expense Information Card
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Expense Information',
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                        ),
-                        const SizedBox(height: 16),
-                        _buildInfoRow('Date', DateFormat('dd MMM yyyy').format(widget.expense.expenseDate)),
-                        _buildInfoRow('Category', widget.expense.categoryDisplay),
-                        _buildInfoRow('Amount', '₹${widget.expense.amount.toStringAsFixed(2)}'),
-                        const SizedBox(height: 12),
-                        Text(
-                          'Description',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          widget.expense.description,
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                // Receipts Section
-                if (widget.expense.receiptUrls != null && widget.expense.receiptUrls!.isNotEmpty) ...[
-                  const SizedBox(height: 16),
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Receipts (${widget.expense.receiptUrls!.length})',
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                          ),
-                          const SizedBox(height: 16),
-                          ...widget.expense.receiptUrls!.asMap().entries.map((entry) {
-                            final index = entry.key;
-                            final receiptUrl = entry.value;
-                            return Card(
-                              margin: const EdgeInsets.only(bottom: 8),
-                              child: ListTile(
-                                leading: const Icon(Icons.receipt, color: Colors.blue),
-                                title: Text('Receipt ${index + 1}'),
-                                subtitle: Text(
-                                  receiptUrl,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                trailing: const Icon(Icons.open_in_new),
-                                onTap: () => _openReceipt(receiptUrl),
-                              ),
-                            );
-                          }),
-                        ],
+            child: DetailScreenComponents.buildResponsiveContainer(
+              context: context,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 8),
+                  // Employee Information
+                  DetailScreenComponents.buildSectionCard(
+                    context: context,
+                    title: 'Employee Information',
+                    icon: Icons.person,
+                    accentColor: Colors.blue,
+                    children: [
+                      DetailScreenComponents.buildDetailRow(
+                        context: context,
+                        label: 'Name',
+                        value: widget.expense.employeeName,
+                        icon: Icons.person,
+                        isHighlighted: true,
                       ),
-                    ),
-                  ),
-                ],
-                // Review Information
-                if (widget.expense.reviewedBy != null) ...[
-                  const SizedBox(height: 16),
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Review Information',
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                          ),
-                          const SizedBox(height: 16),
-                          _buildInfoRow('Reviewed By', widget.expense.reviewedBy!.name),
-                          _buildInfoRow('Role', widget.expense.reviewedBy!.role),
-                          _buildInfoRow('Email', widget.expense.reviewedBy!.email),
-                          if (widget.expense.reviewedAt != null)
-                            _buildInfoRow(
-                              'Reviewed At',
-                              DateFormat('dd MMM yyyy, hh:mm a').format(widget.expense.reviewedAt!),
-                            ),
-                          if (widget.expense.reviewNote != null && widget.expense.reviewNote!.isNotEmpty) ...[
-                            const SizedBox(height: 12),
-                            Text(
-                              'Note',
-                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              widget.expense.reviewNote!,
-                              style: Theme.of(context).textTheme.bodyMedium,
-                            ),
-                          ],
-                        ],
+                      DetailScreenComponents.buildDetailRow(
+                        context: context,
+                        label: 'Employee ID',
+                        value: widget.expense.employeeIdStr,
+                        icon: Icons.badge,
                       ),
-                    ),
+                      DetailScreenComponents.buildDetailRow(
+                        context: context,
+                        label: 'Email',
+                        value: widget.expense.employeeEmail,
+                        icon: Icons.email,
+                      ),
+                      if (widget.expense.department != null)
+                        DetailScreenComponents.buildDetailRow(
+                          context: context,
+                          label: 'Department',
+                          value: widget.expense.department!,
+                          icon: Icons.business,
+                        ),
+                      if (widget.expense.designation != null)
+                        DetailScreenComponents.buildDetailRow(
+                          context: context,
+                          label: 'Designation',
+                          value: widget.expense.designation!,
+                          icon: Icons.work,
+                        ),
+                    ],
                   ),
+                  const SizedBox(height: 16),
+                  // Expense Information
+                  DetailScreenComponents.buildSectionCard(
+                    context: context,
+                    title: 'Expense Information',
+                    icon: Icons.receipt_long,
+                    accentColor: Colors.purple,
+                    children: [
+                      DetailScreenComponents.buildDetailRow(
+                        context: context,
+                        label: 'Date',
+                        value: DateFormat('dd MMM yyyy').format(widget.expense.expenseDate),
+                        icon: Icons.calendar_today,
+                      ),
+                      DetailScreenComponents.buildDetailRow(
+                        context: context,
+                        label: 'Category',
+                        value: widget.expense.categoryDisplay,
+                        icon: Icons.category,
+                      ),
+                      DetailScreenComponents.buildDetailRow(
+                        context: context,
+                        label: 'Amount',
+                        value: '₹${widget.expense.amount.toStringAsFixed(2)}',
+                        icon: Icons.currency_rupee,
+                        isHighlighted: true,
+                      ),
+                      const SizedBox(height: 8),
+                      DetailScreenComponents.buildTextContent(
+                        context: context,
+                        text: widget.expense.description,
+                        icon: Icons.description,
+                        accentColor: Colors.purple,
+                      ),
+                    ],
+                  ),
+                  // Receipts Section
+                  if (widget.expense.receiptUrls != null && widget.expense.receiptUrls!.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    DetailScreenComponents.buildSectionCard(
+                      context: context,
+                      title: 'Receipts (${widget.expense.receiptUrls!.length})',
+                      icon: Icons.receipt,
+                      accentColor: Colors.blue,
+                      children: widget.expense.receiptUrls!.asMap().entries.map((entry) {
+                        final index = entry.key;
+                        final receiptUrl = entry.value;
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.1),
+                            ),
+                          ),
+                          child: ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: Icon(
+                              Icons.receipt,
+                              color: Colors.blue.shade700,
+                            ),
+                            title: Text(
+                              'Receipt ${index + 1}',
+                              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            subtitle: Text(
+                              receiptUrl,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                            trailing: Icon(
+                              Icons.open_in_new,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                            onTap: () => _openReceipt(receiptUrl),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                  // Review Information
+                  if (widget.expense.reviewedBy != null) ...[
+                    const SizedBox(height: 16),
+                    DetailScreenComponents.buildSectionCard(
+                      context: context,
+                      title: 'Review Information',
+                      icon: Icons.rate_review,
+                      accentColor: widget.expense.status == ExpenseStatus.APPROVED
+                          ? Colors.green
+                          : Colors.red,
+                      children: [
+                        DetailScreenComponents.buildDetailRow(
+                          context: context,
+                          label: 'Reviewed By',
+                          value: widget.expense.reviewedBy!.name,
+                          icon: Icons.person,
+                          isHighlighted: true,
+                        ),
+                        DetailScreenComponents.buildDetailRow(
+                          context: context,
+                          label: 'Role',
+                          value: widget.expense.reviewedBy!.role,
+                          icon: Icons.badge,
+                        ),
+                        DetailScreenComponents.buildDetailRow(
+                          context: context,
+                          label: 'Email',
+                          value: widget.expense.reviewedBy!.email,
+                          icon: Icons.email,
+                        ),
+                        if (widget.expense.reviewedAt != null)
+                          DetailScreenComponents.buildDetailRow(
+                            context: context,
+                            label: 'Reviewed At',
+                            value: DateFormat('dd MMM yyyy, hh:mm a').format(widget.expense.reviewedAt!),
+                            icon: Icons.access_time,
+                          ),
+                        if (widget.expense.reviewNote != null && widget.expense.reviewNote!.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          DetailScreenComponents.buildTextContent(
+                            context: context,
+                            text: widget.expense.reviewNote!,
+                            icon: Icons.note,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                  if (widget.expense.status == ExpenseStatus.PENDING)
+                    const SizedBox(height: 100),
                 ],
-                const SizedBox(height: 100), // Space for bottom buttons
-              ],
+              ),
             ),
           ),
-          // Action Buttons (only for pending expenses)
+          // Action Buttons
           if (widget.expense.status == ExpenseStatus.PENDING)
             Positioned(
               bottom: 0,
               left: 0,
               right: 0,
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
-                      blurRadius: 4,
-                      offset: const Offset(0, -2),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: _isSubmitting
-                            ? null
-                            : () => _showReviewDialog(ExpenseStatus.REJECTED),
-                        icon: const Icon(Icons.close),
-                        label: const Text('REJECT'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                        ),
+              child: DetailScreenComponents.buildActionButtons(
+                context: context,
+                buttons: [
+                  ElevatedButton.icon(
+                    onPressed: _isSubmitting
+                        ? null
+                        : () => _showReviewDialog(ExpenseStatus.REJECTED),
+                    icon: const Icon(Icons.close, size: 20),
+                    label: const Text('REJECT'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red.shade600,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: _isSubmitting
-                            ? null
-                            : () => _showReviewDialog(ExpenseStatus.APPROVED),
-                        icon: const Icon(Icons.check),
-                        label: const Text('APPROVE'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                        ),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: _isSubmitting
+                        ? null
+                        : () => _showReviewDialog(ExpenseStatus.APPROVED),
+                    icon: const Icon(Icons.check, size: 20),
+                    label: const Text('APPROVE'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green.shade600,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           if (_isSubmitting)
             Container(
-              color: Colors.black.withValues(alpha: 0.3),
+              color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.3),
               child: const Center(
                 child: CircularProgressIndicator(),
               ),

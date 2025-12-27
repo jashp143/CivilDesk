@@ -9,9 +9,7 @@ import lombok.NoArgsConstructor;
 import java.time.YearMonth;
 
 @Entity
-@Table(name = "salary_slips", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"employee_id", "year", "month"})
-})
+@Table(name = "salary_slips")
 @Data
 @EqualsAndHashCode(callSuper = true)
 @NoArgsConstructor

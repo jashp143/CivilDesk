@@ -102,3 +102,7 @@ test-*.sh
 check-*.sh
 local-*.sh
 
+# Firebase
+firebase-service-account.json
+google-services.json
+GoogleService-Info.plist

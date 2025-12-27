@@ -5,8 +5,13 @@ import '../../widgets/admin_layout.dart';
 import '../../widgets/toast.dart';
 import '../../core/constants/app_routes.dart';
 import '../../core/providers/task_provider.dart';
+import '../../core/services/employee_service.dart';
+import '../../core/services/whatsapp_service.dart';
+import '../../core/utils/message_builder.dart';
 import '../../models/task.dart';
 import 'assign_task_dialog.dart';
+import 'assign_task_screen.dart';
+import 'task_detail_screen.dart';
 
 class TasksManagementScreen extends StatefulWidget {
   const TasksManagementScreen({super.key});
@@ -128,12 +133,28 @@ class _TasksManagementScreenState extends State<TasksManagementScreen> {
   }
 
   void _showAssignTaskDialog() async {
+    final isMobile = _isMobile(context);
+    
+    if (isMobile) {
+      // Navigate to full screen on mobile
+      final result = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const AssignTaskScreen(),
+        ),
+      );
+      if (result == true) {
+        _refreshTasks();
+      }
+    } else {
+      // Show dialog on tablet/desktop
     final result = await showDialog(
       context: context,
       builder: (context) => const AssignTaskDialog(),
     );
     if (result == true) {
       _refreshTasks();
+      }
     }
   }
 
@@ -143,12 +164,28 @@ class _TasksManagementScreenState extends State<TasksManagementScreen> {
       return;
     }
 
+    final isMobile = _isMobile(context);
+    
+    if (isMobile) {
+      // Navigate to full screen on mobile
+      final result = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => AssignTaskScreen(existingTask: task),
+        ),
+      );
+      if (result == true) {
+        _refreshTasks();
+      }
+    } else {
+      // Show dialog on tablet/desktop
     final result = await showDialog(
       context: context,
       builder: (context) => AssignTaskDialog(existingTask: task),
     );
     if (result == true) {
       _refreshTasks();
+      }
     }
   }
 
@@ -175,11 +212,11 @@ class _TasksManagementScreenState extends State<TasksManagementScreen> {
                 context,
                 listen: false,
               );
-              final scaffoldMessenger = ScaffoldMessenger.of(context);
               final success = await provider.deleteTask(task.id);
-              if (mounted) {
+              if (mounted && context.mounted) {
                 if (success) {
                   Toast.success(context, 'Task deleted successfully');
+                  _refreshTasks();
                 } else {
                   Toast.error(context, provider.error ?? 'Failed to delete task');
                 }
@@ -362,7 +399,7 @@ class _TasksManagementScreenState extends State<TasksManagementScreen> {
                               },
                               child: ListView.builder(
                                 controller: _scrollController,
-                                padding: const EdgeInsets.all(16),
+                                padding: const EdgeInsets.all(8),
                                 itemCount:
                                     tasks.length + (provider.hasMore ? 1 : 0),
                                 itemBuilder: (context, index) {
@@ -376,7 +413,7 @@ class _TasksManagementScreenState extends State<TasksManagementScreen> {
                                   }
                                   final task = tasks[index];
                                   return Padding(
-                                    padding: const EdgeInsets.only(bottom: 16),
+                                    padding: const EdgeInsets.only(bottom: 8),
                                     child: _buildTaskCard(task),
                                   );
                                 },
@@ -428,9 +465,16 @@ class _TasksManagementScreenState extends State<TasksManagementScreen> {
         break;
     }
 
+    final borderColor = Theme.of(context).brightness == Brightness.dark
+        ? Colors.white.withOpacity(0.3)
+        : Colors.black.withOpacity(0.2);
+    
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: borderColor, width: 1),
+      ),
       child: InkWell(
         onTap: () => _showTaskDetails(task),
         borderRadius: BorderRadius.circular(12),
@@ -628,6 +672,16 @@ class _TasksManagementScreenState extends State<TasksManagementScreen> {
                         ),
                       ),
                     ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      onPressed: () => _sendTaskWhatsAppToAll(task),
+                      icon: const Icon(Icons.message),
+                      color: const Color(0xFF25D366),
+                      tooltip: 'Send WhatsApp to All',
+                      style: IconButton.styleFrom(
+                        backgroundColor: const Color(0xFF25D366).withValues(alpha: 0.1),
+                      ),
+                    ),
                   ] else ...[
                     Expanded(
                       child: OutlinedButton.icon(
@@ -643,6 +697,16 @@ class _TasksManagementScreenState extends State<TasksManagementScreen> {
                         ),
                       ),
                     ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      onPressed: () => _sendTaskWhatsAppToAll(task),
+                      icon: const Icon(Icons.message),
+                      color: const Color(0xFF25D366),
+                      tooltip: 'Send WhatsApp to All',
+                      style: IconButton.styleFrom(
+                        backgroundColor: const Color(0xFF25D366).withValues(alpha: 0.1),
+                      ),
+                    ),
                   ],
                 ],
               ),
@@ -653,79 +717,16 @@ class _TasksManagementScreenState extends State<TasksManagementScreen> {
     );
   }
 
-  void _showTaskDetails(Task task) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Task Details'),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildDetailRow('Status', task.statusDisplay),
-              _buildDetailRow('Location', task.location),
-              _buildDetailRow(
-                'Date Range',
-                '${DateFormat('dd MMM yyyy').format(task.startDate)} - ${DateFormat('dd MMM yyyy').format(task.endDate)}',
-              ),
-              _buildDetailRow('Mode of Travel', task.modeOfTravelDisplay),
-              _buildDetailRow('Description', task.description),
-              _buildDetailRow(
-                'Assigned By',
-                '${task.assignedBy.name} (${task.assignedBy.role})',
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Assigned Employees:',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 4),
-              ...task.assignedEmployees.map((emp) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Text('• ${emp.name} (${emp.employeeId})'),
-                );
-              }),
-              if (task.reviewedAt != null) ...[
-                const SizedBox(height: 8),
-                _buildDetailRow(
-                  'Reviewed At',
-                  DateFormat('dd MMM yyyy, hh:mm a').format(task.reviewedAt!),
-                ),
-                if (task.reviewNote != null && task.reviewNote!.isNotEmpty)
-                  _buildDetailRow('Review Note', task.reviewNote!),
-              ],
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('CLOSE'),
-          ),
-        ],
+  void _showTaskDetails(Task task) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => TaskDetailScreen(task: task),
       ),
     );
-  }
-
-  Widget _buildDetailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 120,
-            child: Text(
-              '$label:',
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-          ),
-          Expanded(child: Text(value)),
-        ],
-      ),
-    );
+    if (result == true) {
+      _refreshTasks();
+    }
   }
 
   Widget _buildTasksTable(List<Task> tasks, TaskProvider provider) {
@@ -917,9 +918,15 @@ class _TasksManagementScreenState extends State<TasksManagementScreen> {
     final rowColor = isEven
         ? Colors.transparent
         : Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.2);
+    final borderColor = Theme.of(context).brightness == Brightness.dark
+        ? Colors.white.withOpacity(0.3)
+        : Colors.black.withOpacity(0.2);
 
     return TableRow(
-      decoration: BoxDecoration(color: rowColor),
+      decoration: BoxDecoration(
+        color: rowColor,
+        border: Border.all(color: borderColor, width: 1),
+      ),
       children: [
         // Status Cell
         TableCell(
@@ -1176,25 +1183,130 @@ class _TasksManagementScreenState extends State<TasksManagementScreen> {
               ),
             ),
           ),
+          const SizedBox(width: 4),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: (value) {
+              if (value == 'whatsapp') {
+                _sendTaskWhatsAppToAll(task);
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'whatsapp',
+                child: Row(
+                  children: [
+                    Icon(Icons.message, color: Color(0xFF25D366), size: 20),
+                    SizedBox(width: 8),
+                    Text('Send WhatsApp to All'),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ],
       );
     } else {
-      return MouseRegion(
-        cursor: SystemMouseCursors.click,
-        child: OutlinedButton.icon(
-          onPressed: () => _showTaskDetails(task),
-          icon: const Icon(Icons.visibility, size: 16),
-          label: const Text('View Details'),
-          style: OutlinedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            minimumSize: const Size(0, 40),
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: OutlinedButton.icon(
+              onPressed: () => _showTaskDetails(task),
+              icon: const Icon(Icons.visibility, size: 16),
+              label: const Text('View Details'),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                minimumSize: const Size(0, 40),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
             ),
           ),
-        ),
+          const SizedBox(width: 8),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: (value) {
+              if (value == 'whatsapp') {
+                _sendTaskWhatsAppToAll(task);
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'whatsapp',
+                child: Row(
+                  children: [
+                    Icon(Icons.message, color: Color(0xFF25D366), size: 20),
+                    SizedBox(width: 8),
+                    Text('Send WhatsApp to All'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
       );
+    }
+  }
+
+  Future<void> _sendTaskWhatsAppToAll(Task task) async {
+    if (task.assignedEmployees.isEmpty) {
+      Toast.warning(context, 'No employees assigned to this task');
+      return;
+    }
+
+    int successCount = 0;
+    int failCount = 0;
+
+    for (final assignedEmployee in task.assignedEmployees) {
+      try {
+        // Fetch employee to get phone number
+        final employeeService = EmployeeService();
+        final employee = await employeeService.getEmployeeById(assignedEmployee.id);
+        
+        if (employee.phoneNumber.isEmpty) {
+          failCount++;
+          continue;
+        }
+
+        // Build message
+        final message = MessageBuilder.buildTaskAssignmentMessage(
+          task: task,
+          employeeName: assignedEmployee.name,
+        );
+
+        // Launch WhatsApp
+        final launched = await WhatsAppService.launchWhatsApp(
+          phoneNumber: employee.phoneNumber,
+          message: message,
+        );
+
+        if (launched) {
+          successCount++;
+          // Add a small delay between messages to avoid overwhelming the system
+          await Future.delayed(const Duration(milliseconds: 500));
+        } else {
+          failCount++;
+        }
+      } catch (e) {
+        failCount++;
+      }
+    }
+
+    if (mounted) {
+      if (successCount > 0 && failCount == 0) {
+        Toast.success(context, 'WhatsApp notifications sent to all employees');
+      } else if (successCount > 0 && failCount > 0) {
+        Toast.warning(
+          context,
+          'Sent to $successCount employee(s). Failed to send to $failCount employee(s).',
+        );
+      } else {
+        Toast.error(context, 'Failed to send WhatsApp notifications');
+      }
     }
   }
 }

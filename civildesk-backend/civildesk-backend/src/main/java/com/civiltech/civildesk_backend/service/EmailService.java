@@ -118,6 +118,30 @@ public class EmailService {
         );
     }
 
+    /**
+     * Send password reset OTP email to user
+     */
+    public void sendPasswordResetOtpEmail(String toEmail, String firstName, String otp) {
+        if (!emailEnabled || mailSender == null) {
+            logger.warn("Email sending is disabled or not configured. Password reset OTP for {}: {}", toEmail, otp);
+            return;
+        }
+
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(fromEmail);
+            message.setTo(toEmail);
+            message.setSubject("Password Reset - Civildesk");
+            message.setText(buildPasswordResetOtpEmailBody(firstName, otp));
+
+            mailSender.send(message);
+            logger.info("Password reset OTP email sent successfully to: {}", toEmail);
+        } catch (Exception e) {
+            logger.error("Failed to send password reset OTP email to: {}", toEmail, e);
+            throw new RuntimeException("Failed to send email. Please try again later.", e);
+        }
+    }
+
     private String buildEmployeeRegistrationEmailBody(String firstName, String email, String password) {
         return String.format(
             "Hello %s,\n\n" +
@@ -129,6 +153,19 @@ public class EmailService {
             "Best regards,\n" +
             "Civildesk Team",
             firstName, email, password
+        );
+    }
+
+    private String buildPasswordResetOtpEmailBody(String firstName, String otp) {
+        return String.format(
+            "Hello %s,\n\n" +
+            "You have requested to reset your password for your Civildesk account.\n\n" +
+            "Your password reset code is: %s\n\n" +
+            "This code will expire in 10 minutes.\n\n" +
+            "If you didn't request this password reset, please ignore this email and your password will remain unchanged.\n\n" +
+            "Best regards,\n" +
+            "Civildesk Team",
+            firstName, otp
         );
     }
 }

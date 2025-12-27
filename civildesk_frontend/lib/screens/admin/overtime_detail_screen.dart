@@ -3,7 +3,11 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../models/overtime.dart';
 import '../../core/providers/overtime_provider.dart';
+import '../../core/services/employee_service.dart';
+import '../../core/services/whatsapp_service.dart';
+import '../../core/utils/message_builder.dart';
 import '../../widgets/toast.dart';
+import '../../widgets/detail_screen_components.dart';
 
 class OvertimeDetailScreen extends StatefulWidget {
   final Overtime overtime;
@@ -93,9 +97,93 @@ class _OvertimeDetailScreenState extends State<OvertimeDetailScreen> {
           context,
           'Overtime ${status == OvertimeStatus.APPROVED ? 'approved' : 'rejected'} successfully',
         );
+        
+        // Show WhatsApp option dialog
+        _showWhatsAppOption(status, note);
+        
         Navigator.pop(context, true); // Return true to refresh parent screen
       } else {
         Toast.error(context, provider.error ?? 'Failed to review overtime');
+      }
+    }
+  }
+
+  Future<void> _showWhatsAppOption(OvertimeStatus status, String? note) async {
+    final shouldSend = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.message, color: const Color(0xFF25D366)),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: Text(
+                'Send WhatsApp Notification',
+                style: TextStyle(fontSize: 18),
+              ),
+            ),
+          ],
+        ),
+        content: const Text(
+          'Would you like to send a WhatsApp notification to the employee?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('SKIP'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pop(context, true),
+            icon: const Icon(Icons.message, color: Colors.white, size: 18),
+            label: const Text('SEND'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF25D366),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
+          ),
+        ],
+        actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      ),
+    );
+
+    if (shouldSend == true && mounted) {
+      await _sendOvertimeWhatsApp(status, note);
+    }
+  }
+
+  Future<void> _sendOvertimeWhatsApp(OvertimeStatus status, String? note) async {
+    try {
+      // Fetch employee to get phone number
+      final employeeService = EmployeeService();
+      final employee = await employeeService.getEmployeeById(widget.overtime.employeeId);
+      
+      if (employee.phoneNumber.isEmpty) {
+        if (mounted) {
+          Toast.warning(context, 'Employee phone number not available');
+        }
+        return;
+      }
+
+      // Build message
+      final message = MessageBuilder.buildOvertimeMessage(
+        overtime: widget.overtime,
+        status: status,
+        adminNote: note,
+      );
+
+      // Launch WhatsApp
+      final launched = await WhatsAppService.launchWhatsApp(
+        phoneNumber: employee.phoneNumber,
+        message: message,
+      );
+
+      if (!launched && mounted) {
+        Toast.warning(context, 'Could not launch WhatsApp. Please check if WhatsApp is installed.');
+      }
+    } catch (e) {
+      if (mounted) {
+        Toast.error(context, 'Failed to send WhatsApp message: $e');
       }
     }
   }
@@ -150,174 +238,213 @@ class _OvertimeDetailScreenState extends State<OvertimeDetailScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Overtime Details'),
+        title: Text(
+          'Overtime Details',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        elevation: 0,
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: Center(
+              child: DetailScreenComponents.buildStatusBadge(
+                context: context,
+                status: overtime.statusDisplay,
+                color: statusColor,
+                icon: statusIcon,
+                isCompact: true,
+              ),
+            ),
+          ),
+        ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Status Card
-            Card(
-              color: statusColor.withValues(alpha: 0.1),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    Icon(statusIcon, color: statusColor, size: 32),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Status',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            overtime.statusDisplay,
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: statusColor,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            // Employee Information
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Employee Information',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                    ),
-                    const Divider(),
-                    _buildDetailRow('Name', overtime.employeeName),
-                    _buildDetailRow('Employee ID', overtime.employeeIdStr),
-                    if (overtime.designation != null)
-                      _buildDetailRow('Designation', overtime.designation!),
-                    if (overtime.department != null)
-                      _buildDetailRow('Department', overtime.department!),
-                    _buildDetailRow('Email', overtime.employeeEmail),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            // Overtime Details
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Overtime Details',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                    ),
-                    const Divider(),
-                    _buildDetailRow(
-                      'Date',
-                      DateFormat('dd MMMM yyyy (EEEE)').format(overtime.date),
-                    ),
-                    _buildDetailRow('Start Time', overtime.startTime),
-                    _buildDetailRow('End Time', overtime.endTime),
-                    _buildDetailRow('Reason', overtime.reason),
-                  ],
-                ),
-              ),
-            ),
-            // Review Information
-            if (overtime.reviewedBy != null) ...[
-              const SizedBox(height: 16),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            child: DetailScreenComponents.buildResponsiveContainer(
+              context: context,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 8),
+                  // Employee Information
+                  DetailScreenComponents.buildSectionCard(
+                    context: context,
+                    title: 'Employee Information',
+                    icon: Icons.person,
+                    accentColor: Colors.blue,
                     children: [
-                      Text(
-                        'Review Information',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+                      DetailScreenComponents.buildDetailRow(
+                        context: context,
+                        label: 'Name',
+                        value: overtime.employeeName,
+                        icon: Icons.person,
+                        isHighlighted: true,
                       ),
-                      const Divider(),
-                      _buildDetailRow('Reviewed By', overtime.reviewedBy!.name),
-                      _buildDetailRow('Role', overtime.reviewedBy!.role),
-                      if (overtime.reviewedAt != null)
-                        _buildDetailRow(
-                          'Reviewed At',
-                          DateFormat('dd MMM yyyy, hh:mm a').format(overtime.reviewedAt!),
+                      DetailScreenComponents.buildDetailRow(
+                        context: context,
+                        label: 'Employee ID',
+                        value: overtime.employeeIdStr,
+                        icon: Icons.badge,
+                      ),
+                      if (overtime.designation != null)
+                        DetailScreenComponents.buildDetailRow(
+                          context: context,
+                          label: 'Designation',
+                          value: overtime.designation!,
+                          icon: Icons.work,
                         ),
-                      if (overtime.reviewNote != null && overtime.reviewNote!.isNotEmpty)
-                        _buildDetailRow('Note', overtime.reviewNote!),
+                      if (overtime.department != null)
+                        DetailScreenComponents.buildDetailRow(
+                          context: context,
+                          label: 'Department',
+                          value: overtime.department!,
+                          icon: Icons.business,
+                        ),
+                      DetailScreenComponents.buildDetailRow(
+                        context: context,
+                        label: 'Email',
+                        value: overtime.employeeEmail,
+                        icon: Icons.email,
+                      ),
                     ],
                   ),
-                ),
+                  const SizedBox(height: 16),
+                  // Overtime Details
+                  DetailScreenComponents.buildSectionCard(
+                    context: context,
+                    title: 'Overtime Details',
+                    icon: Icons.access_time,
+                    accentColor: Colors.purple,
+                    children: [
+                      DetailScreenComponents.buildDetailRow(
+                        context: context,
+                        label: 'Date',
+                        value: DateFormat('dd MMMM yyyy (EEEE)').format(overtime.date),
+                        icon: Icons.calendar_today,
+                        isHighlighted: true,
+                      ),
+                      DetailScreenComponents.buildDetailRow(
+                        context: context,
+                        label: 'Start Time',
+                        value: overtime.startTime,
+                        icon: Icons.play_arrow,
+                      ),
+                      DetailScreenComponents.buildDetailRow(
+                        context: context,
+                        label: 'End Time',
+                        value: overtime.endTime,
+                        icon: Icons.stop,
+                      ),
+                      const SizedBox(height: 8),
+                      DetailScreenComponents.buildTextContent(
+                        context: context,
+                        text: overtime.reason,
+                        icon: Icons.description,
+                        accentColor: Colors.purple,
+                      ),
+                    ],
+                  ),
+                  // Review Information
+                  if (overtime.reviewedBy != null) ...[
+                    const SizedBox(height: 16),
+                    DetailScreenComponents.buildSectionCard(
+                      context: context,
+                      title: 'Review Information',
+                      icon: Icons.rate_review,
+                      accentColor: overtime.status == OvertimeStatus.APPROVED
+                          ? Colors.green
+                          : Colors.red,
+                      children: [
+                        DetailScreenComponents.buildDetailRow(
+                          context: context,
+                          label: 'Reviewed By',
+                          value: overtime.reviewedBy!.name,
+                          icon: Icons.person,
+                          isHighlighted: true,
+                        ),
+                        DetailScreenComponents.buildDetailRow(
+                          context: context,
+                          label: 'Role',
+                          value: overtime.reviewedBy!.role,
+                          icon: Icons.badge,
+                        ),
+                        if (overtime.reviewedAt != null)
+                          DetailScreenComponents.buildDetailRow(
+                            context: context,
+                            label: 'Reviewed At',
+                            value: DateFormat('dd MMM yyyy, hh:mm a').format(overtime.reviewedAt!),
+                            icon: Icons.access_time,
+                          ),
+                        if (overtime.reviewNote != null && overtime.reviewNote!.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          DetailScreenComponents.buildTextContent(
+                            context: context,
+                            text: overtime.reviewNote!,
+                            icon: Icons.note,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                  if (overtime.status == OvertimeStatus.PENDING)
+                    const SizedBox(height: 100),
+                ],
               ),
-            ],
-            // Action Buttons
-            if (overtime.status == OvertimeStatus.PENDING) ...[
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: _isSubmitting
-                          ? null
-                          : () => _showReviewDialog(OvertimeStatus.APPROVED),
-                      icon: const Icon(Icons.check_circle),
-                      label: const Text('Approve'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
+            ),
+          ),
+          // Action Buttons
+          if (overtime.status == OvertimeStatus.PENDING)
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: DetailScreenComponents.buildActionButtons(
+                context: context,
+                buttons: [
+                  ElevatedButton.icon(
+                    onPressed: _isSubmitting
+                        ? null
+                        : () => _showReviewDialog(OvertimeStatus.REJECTED),
+                    icon: const Icon(Icons.close, size: 20),
+                    label: const Text('REJECT'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red.shade600,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: _isSubmitting
-                          ? null
-                          : () => _showReviewDialog(OvertimeStatus.REJECTED),
-                      icon: const Icon(Icons.cancel),
-                      label: const Text('Reject'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
+                  ElevatedButton.icon(
+                    onPressed: _isSubmitting
+                        ? null
+                        : () => _showReviewDialog(OvertimeStatus.APPROVED),
+                    icon: const Icon(Icons.check, size: 20),
+                    label: const Text('APPROVE'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green.shade600,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
                   ),
                 ],
               ),
-              if (_isSubmitting)
-                const Padding(
-                  padding: EdgeInsets.only(top: 16),
-                  child: Center(child: CircularProgressIndicator()),
-                ),
-            ],
-            const SizedBox(height: 24),
-          ],
-        ),
+            ),
+          if (_isSubmitting)
+            Container(
+              color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.3),
+              child: const Center(
+                child: CircularProgressIndicator(),
+              ),
+            ),
+        ],
       ),
     );
   }

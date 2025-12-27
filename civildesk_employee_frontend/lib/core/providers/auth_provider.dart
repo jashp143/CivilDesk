@@ -235,5 +235,148 @@ class AuthProvider extends ChangeNotifier {
       return true;
     }
   }
+
+  Future<bool> changePassword(String currentPassword, String newPassword, String confirmPassword) async {
+    _lastError = null;
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final response = await _apiService.post(
+        AppConstants.changePasswordEndpoint,
+        data: {
+          'currentPassword': currentPassword,
+          'newPassword': newPassword,
+          'confirmPassword': confirmPassword,
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = response.data;
+        if (responseData['success'] == true) {
+          notifyListeners();
+          return true;
+        }
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Change password error: $e');
+      if (e is DioException) {
+        final response = e.response;
+        if (response != null && response.data != null) {
+          final errorData = response.data;
+          if (errorData is Map<String, dynamic>) {
+            _lastError = errorData['message'] as String? ?? 'Failed to change password. Please try again.';
+          } else {
+            _lastError = 'Failed to change password. Please try again.';
+          }
+        } else {
+          _lastError = 'Network error. Please check your connection.';
+        }
+      } else {
+        _lastError = e.toString().replaceFirst('Exception: ', '');
+      }
+      notifyListeners();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> forgotPassword(String email) async {
+    _lastError = null;
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final response = await _apiService.post(
+        AppConstants.forgotPasswordEndpoint,
+        data: {
+          'email': email,
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = response.data;
+        if (responseData['success'] == true) {
+          notifyListeners();
+          return true;
+        }
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Forgot password error: $e');
+      if (e is DioException) {
+        final response = e.response;
+        if (response != null && response.data != null) {
+          final errorData = response.data;
+          if (errorData is Map<String, dynamic>) {
+            _lastError = errorData['message'] as String? ?? 'Failed to send password reset OTP. Please try again.';
+          } else {
+            _lastError = 'Failed to send password reset OTP. Please try again.';
+          }
+        } else {
+          _lastError = 'Network error. Please check your connection.';
+        }
+      } else {
+        _lastError = e.toString().replaceFirst('Exception: ', '');
+      }
+      notifyListeners();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> resetPassword(String email, String otp, String newPassword, String confirmPassword) async {
+    _lastError = null;
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final response = await _apiService.post(
+        AppConstants.resetPasswordEndpoint,
+        data: {
+          'email': email,
+          'otp': otp,
+          'newPassword': newPassword,
+          'confirmPassword': confirmPassword,
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = response.data;
+        if (responseData['success'] == true) {
+          notifyListeners();
+          return true;
+        }
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Reset password error: $e');
+      if (e is DioException) {
+        final response = e.response;
+        if (response != null && response.data != null) {
+          final errorData = response.data;
+          if (errorData is Map<String, dynamic>) {
+            _lastError = errorData['message'] as String? ?? 'Failed to reset password. Please try again.';
+          } else {
+            _lastError = 'Failed to reset password. Please try again.';
+          }
+        } else {
+          _lastError = 'Network error. Please check your connection.';
+        }
+      } else {
+        _lastError = e.toString().replaceFirst('Exception: ', '');
+      }
+      notifyListeners();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
 }
 

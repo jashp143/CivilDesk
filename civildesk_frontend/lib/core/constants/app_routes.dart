@@ -21,8 +21,10 @@ class AppRoutes {
   static const String adminOvertime = '/admin/overtime';
   static const String adminExpenses = '/admin/expenses';
   static const String adminTasks = '/admin/tasks';
+  static const String adminBroadcasts = '/admin/broadcasts';
   static const String adminReports = '/admin/reports';
   static const String adminSettings = '/admin/settings';
+  static const String notifications = '/notifications';
   
   // Site & GPS Attendance Routes
   static const String siteManagement = '/admin/sites';
@@ -43,6 +45,7 @@ class AppRoutes {
   static const String employeeAttendance = '/employee/attendance';
   static const String employeeLeave = '/employee/leave';
   static const String employeeSalary = '/employee/salary';
+  static const String employeeBroadcasts = '/employee/broadcasts';
   static const String employeeAttendanceCheckIn = '/employee/attendance/check-in';
 
   // Attendance routes

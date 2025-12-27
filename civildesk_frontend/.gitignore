@@ -48,3 +48,8 @@ app.*.map.json
 .env
 .env.local
 .env.*.local
+
+# Firebase
+firebase-service-account.json
+google-services.json
+GoogleService-Info.plist

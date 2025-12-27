@@ -11,7 +11,10 @@ import com.civiltech.civildesk_backend.model.Expense;
 import com.civiltech.civildesk_backend.model.User;
 import com.civiltech.civildesk_backend.repository.EmployeeRepository;
 import com.civiltech.civildesk_backend.repository.ExpenseRepository;
+import com.civiltech.civildesk_backend.repository.UserRepository;
 import com.civiltech.civildesk_backend.security.SecurityUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -32,11 +35,19 @@ import java.util.stream.Collectors;
 @Transactional
 public class ExpenseService {
 
+    private static final Logger logger = LoggerFactory.getLogger(ExpenseService.class);
+
     @Autowired
     private ExpenseRepository expenseRepository;
 
     @Autowired
     private EmployeeRepository employeeRepository;
+
+    @Autowired
+    private NotificationService notificationService;
+
+    @Autowired
+    private UserRepository userRepository;
 
     // Apply for expense
     @CacheEvict(value = "expenses", allEntries = true)
@@ -69,7 +80,29 @@ public class ExpenseService {
 
         expense = expenseRepository.save(expense);
 
-        return convertToResponse(expense);
+        ExpenseResponse response = convertToResponse(expense);
+        
+        // Send notification to all admins and HR managers
+        try {
+            List<User.Role> adminRoles = Arrays.asList(User.Role.ADMIN, User.Role.HR_MANAGER);
+            List<User> adminUsers = userRepository.findByRoleInAndDeletedFalseAndIsActiveTrue(adminRoles);
+            
+            String employeeName = employee.getFirstName() + " " + employee.getLastName();
+            String amount = String.format("%.2f", expense.getAmount());
+            
+            for (User adminUser : adminUsers) {
+                notificationService.notifyNewExpenseRequest(
+                        adminUser.getId(),
+                        expense.getId(),
+                        employeeName,
+                        amount
+                );
+            }
+        } catch (Exception e) {
+            logger.error("Failed to send expense request notification to admins", e);
+        }
+        
+        return response;
     }
 
     // Update expense (only if status is PENDING)
@@ -82,6 +115,11 @@ public class ExpenseService {
         
         Expense expense = expenseRepository.findById(expenseId)
                 .orElseThrow(() -> new ResourceNotFoundException("Expense not found with id: " + expenseId));
+
+        // Check if expense is deleted
+        if (expense.getDeleted()) {
+            throw new ResourceNotFoundException("Expense not found with id: " + expenseId);
+        }
 
         // Check if expense belongs to current user
         if (!expense.getEmployee().getUser().getId().equals(currentUser.getId())) {
@@ -127,6 +165,11 @@ public class ExpenseService {
         
         Expense expense = expenseRepository.findById(expenseId)
                 .orElseThrow(() -> new ResourceNotFoundException("Expense not found with id: " + expenseId));
+
+        // Check if expense is deleted
+        if (expense.getDeleted()) {
+            throw new ResourceNotFoundException("Expense not found with id: " + expenseId);
+        }
 
         // Check if expense belongs to current user
         if (!expense.getEmployee().getUser().getId().equals(currentUser.getId())) {
@@ -271,6 +314,11 @@ public class ExpenseService {
         Expense expense = expenseRepository.findById(expenseId)
                 .orElseThrow(() -> new ResourceNotFoundException("Expense not found with id: " + expenseId));
 
+        // Check if expense is deleted
+        if (expense.getDeleted()) {
+            throw new ResourceNotFoundException("Expense not found with id: " + expenseId);
+        }
+
         // Check authorization
         boolean isOwnExpense = expense.getEmployee().getUser().getId().equals(currentUser.getId());
         boolean isAdminOrHR = currentUser.getRole() == User.Role.ADMIN || 
@@ -299,6 +347,11 @@ public class ExpenseService {
         Expense expense = expenseRepository.findById(expenseId)
                 .orElseThrow(() -> new ResourceNotFoundException("Expense not found with id: " + expenseId));
 
+        // Check if expense is deleted
+        if (expense.getDeleted()) {
+            throw new ResourceNotFoundException("Expense not found with id: " + expenseId);
+        }
+
         // Check if expense is in PENDING status
         if (expense.getStatus() != Expense.ExpenseStatus.PENDING) {
             throw new BadRequestException("Can only review expenses in PENDING status");
@@ -317,6 +370,27 @@ public class ExpenseService {
         expense.setReviewNote(request.getReviewNote());
 
         expense = expenseRepository.save(expense);
+
+        // Send notification to employee
+        if (expense.getEmployee() != null && expense.getEmployee().getUser() != null 
+                && expense.getEmployee().getUser().getId() != null) {
+            try {
+                if (request.getStatus() == Expense.ExpenseStatus.APPROVED) {
+                    notificationService.notifyExpenseApproved(
+                            expense.getEmployee().getUser().getId(),
+                            expense.getId()
+                    );
+                } else if (request.getStatus() == Expense.ExpenseStatus.REJECTED) {
+                    notificationService.notifyExpenseRejected(
+                            expense.getEmployee().getUser().getId(),
+                            expense.getId(),
+                            request.getReviewNote()
+                    );
+                }
+            } catch (Exception e) {
+                logger.error("Failed to send expense status notification", e);
+            }
+        }
 
         return convertToResponse(expense);
     }

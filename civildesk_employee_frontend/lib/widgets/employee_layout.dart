@@ -9,6 +9,7 @@ class EmployeeLayout extends StatefulWidget {
   final List<Widget>? actions;
   final String currentRoute;
   final Widget? floatingActionButton;
+  final Widget? leading;
 
   const EmployeeLayout({
     super.key,
@@ -17,6 +18,7 @@ class EmployeeLayout extends StatefulWidget {
     this.actions,
     required this.currentRoute,
     this.floatingActionButton,
+    this.leading,
   });
 
   @override
@@ -135,6 +137,21 @@ class _EmployeeLayoutState extends State<EmployeeLayout> {
         },
       ),
       DrawerItem(
+        title: 'Responsibilities',
+        icon: Icons.assignment_ind_outlined,
+        route: AppRoutes.responsibilities,
+        onTap: () {
+          Navigator.pop(context);
+          if (widget.currentRoute != AppRoutes.responsibilities) {
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              AppRoutes.responsibilities,
+              (route) => false,
+            );
+          }
+        },
+      ),
+      DrawerItem(
         title: 'Tasks',
         icon: Icons.task_alt_outlined,
         route: AppRoutes.tasks,
@@ -144,6 +161,21 @@ class _EmployeeLayoutState extends State<EmployeeLayout> {
             Navigator.pushNamedAndRemoveUntil(
               context,
               AppRoutes.tasks,
+              (route) => false,
+            );
+          }
+        },
+      ),
+      DrawerItem(
+        title: 'Broadcasts',
+        icon: Icons.campaign_outlined,
+        route: AppRoutes.broadcasts,
+        onTap: () {
+          Navigator.pop(context);
+          if (widget.currentRoute != AppRoutes.broadcasts) {
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              AppRoutes.broadcasts,
               (route) => false,
             );
           }
@@ -454,6 +486,8 @@ class _EmployeeLayoutState extends State<EmployeeLayout> {
     return Scaffold(
       key: _scaffoldKey,
       appBar: AppBar(
+        leading: widget.leading,
+        automaticallyImplyLeading: widget.leading == null,
         title: widget.title,
         actions: widget.actions,
       ),

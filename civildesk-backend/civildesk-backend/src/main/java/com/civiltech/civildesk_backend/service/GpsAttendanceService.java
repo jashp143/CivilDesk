@@ -175,7 +175,7 @@ public class GpsAttendanceService {
         // Update attendance record based on punch type
         updateAttendanceFromPunch(attendance, request.getPunchType(), log.getPunchTime(), site);
         // Attendance is guaranteed to be non-null from orElseGet(), Spring Data JPA save() always returns non-null
-        @SuppressWarnings({"null", "unused"})
+        @SuppressWarnings("unused")
         Attendance savedAttendance = attendanceRepository.save(attendance);
 
         return GpsAttendanceResponse.fromEntity(log);

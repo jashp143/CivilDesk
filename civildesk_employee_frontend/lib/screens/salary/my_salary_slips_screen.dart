@@ -4,6 +4,7 @@ import '../../core/constants/app_routes.dart';
 import '../../core/providers/salary_slip_provider.dart';
 import '../../models/salary_slip.dart';
 import '../../widgets/employee_layout.dart';
+import '../../widgets/toast.dart';
 
 class MySalarySlipsScreen extends StatefulWidget {
   const MySalarySlipsScreen({super.key});
@@ -503,12 +504,7 @@ class _MySalarySlipsScreenState extends State<MySalarySlipsScreen> {
 
   void _downloadSalarySlip(SalarySlip slip) {
     // TODO: Implement PDF download functionality
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Download functionality will be implemented soon'),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    Toast.info(context, 'Download functionality will be implemented soon', duration: const Duration(seconds: 2));
   }
 
   void _showFilterDialog() {

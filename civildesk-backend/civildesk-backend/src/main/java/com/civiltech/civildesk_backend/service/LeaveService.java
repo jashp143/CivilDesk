@@ -11,7 +11,10 @@ import com.civiltech.civildesk_backend.model.Leave;
 import com.civiltech.civildesk_backend.model.User;
 import com.civiltech.civildesk_backend.repository.EmployeeRepository;
 import com.civiltech.civildesk_backend.repository.LeaveRepository;
+import com.civiltech.civildesk_backend.repository.UserRepository;
 import com.civiltech.civildesk_backend.security.SecurityUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -35,11 +38,19 @@ import java.util.stream.Collectors;
 @Transactional
 public class LeaveService {
 
+    private static final Logger logger = LoggerFactory.getLogger(LeaveService.class);
+
     @Autowired
     private LeaveRepository leaveRepository;
 
     @Autowired
     private EmployeeRepository employeeRepository;
+
+    @Autowired
+    private NotificationService notificationService;
+
+    @Autowired
+    private UserRepository userRepository;
 
     // Apply for leave
     @CacheEvict(value = "leaves", allEntries = true)
@@ -83,6 +94,10 @@ public class LeaveService {
 
         // Convert handover employee IDs list to comma-separated string
         if (request.getHandoverEmployeeIds() != null && !request.getHandoverEmployeeIds().isEmpty()) {
+            // Validate handover employees and check for conflicts
+            validateHandoverEmployees(request.getHandoverEmployeeIds(), 
+                                    request.getStartDate(), request.getEndDate(), employee.getId());
+            
             String handoverIds = request.getHandoverEmployeeIds().stream()
                     .map(String::valueOf)
                     .collect(Collectors.joining(","));
@@ -95,7 +110,33 @@ public class LeaveService {
 
         leave = leaveRepository.save(leave);
 
-        return convertToResponse(leave);
+        LeaveResponse response = convertToResponse(leave);
+        
+        // Check for conflicts in handover employees
+        if (request.getHandoverEmployeeIds() != null && !request.getHandoverEmployeeIds().isEmpty()) {
+            checkHandoverConflicts(response, request.getHandoverEmployeeIds(), 
+                                 request.getStartDate(), request.getEndDate());
+        }
+        
+        // Send notification to all admins and HR managers
+        try {
+            List<User.Role> adminRoles = Arrays.asList(User.Role.ADMIN, User.Role.HR_MANAGER);
+            List<User> adminUsers = userRepository.findByRoleInAndDeletedFalseAndIsActiveTrue(adminRoles);
+            
+            String employeeName = employee.getFirstName() + " " + employee.getLastName();
+            
+            for (User adminUser : adminUsers) {
+                notificationService.notifyNewLeaveRequest(
+                        adminUser.getId(),
+                        leave.getId(),
+                        employeeName
+                );
+            }
+        } catch (Exception e) {
+            logger.error("Failed to send leave request notification to admins", e);
+        }
+        
+        return response;
     }
 
     // Update leave (only if status is PENDING)
@@ -108,6 +149,11 @@ public class LeaveService {
         
         Leave leave = leaveRepository.findById(leaveId)
                 .orElseThrow(() -> new ResourceNotFoundException("Leave not found with id: " + leaveId));
+
+        // Check if leave is deleted
+        if (leave.getDeleted()) {
+            throw new ResourceNotFoundException("Leave not found with id: " + leaveId);
+        }
 
         // Check if leave belongs to current user
         if (!leave.getEmployee().getUser().getId().equals(currentUser.getId())) {
@@ -149,6 +195,10 @@ public class LeaveService {
 
         // Convert handover employee IDs list to comma-separated string
         if (request.getHandoverEmployeeIds() != null && !request.getHandoverEmployeeIds().isEmpty()) {
+            // Validate handover employees and check for conflicts
+            validateHandoverEmployees(request.getHandoverEmployeeIds(), 
+                                    request.getStartDate(), request.getEndDate(), leave.getEmployee().getId());
+            
             String handoverIds = request.getHandoverEmployeeIds().stream()
                     .map(String::valueOf)
                     .collect(Collectors.joining(","));
@@ -163,7 +213,15 @@ public class LeaveService {
 
         leave = leaveRepository.save(leave);
 
-        return convertToResponse(leave);
+        LeaveResponse response = convertToResponse(leave);
+        
+        // Check for conflicts in handover employees
+        if (request.getHandoverEmployeeIds() != null && !request.getHandoverEmployeeIds().isEmpty()) {
+            checkHandoverConflicts(response, request.getHandoverEmployeeIds(), 
+                                 request.getStartDate(), request.getEndDate());
+        }
+        
+        return response;
     }
 
     // Delete leave (only if status is PENDING)
@@ -176,6 +234,11 @@ public class LeaveService {
         
         Leave leave = leaveRepository.findById(leaveId)
                 .orElseThrow(() -> new ResourceNotFoundException("Leave not found with id: " + leaveId));
+
+        // Check if leave is deleted
+        if (leave.getDeleted()) {
+            throw new ResourceNotFoundException("Leave not found with id: " + leaveId);
+        }
 
         // Check if leave belongs to current user
         if (!leave.getEmployee().getUser().getId().equals(currentUser.getId())) {
@@ -217,16 +280,80 @@ public class LeaveService {
         Employee employee = employeeRepository.findByUserIdAndDeletedFalse(currentUser.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found for current user"));
 
-        List<Leave> leaves = leaveRepository.findLeavesWithHandoverResponsibility(String.valueOf(employee.getId()));
+        String employeeIdStr = String.valueOf(employee.getId());
+        List<Leave> leaves = leaveRepository.findLeavesWithHandoverResponsibility(employeeIdStr);
         
-        // Filter only approved leaves
+        // Filter approved and pending leaves (exclude rejected and cancelled)
         leaves = leaves.stream()
-                .filter(leave -> leave.getStatus() == Leave.LeaveStatus.APPROVED)
+                .filter(leave -> leave.getStatus() == Leave.LeaveStatus.APPROVED || 
+                               leave.getStatus() == Leave.LeaveStatus.PENDING)
                 .collect(Collectors.toList());
 
-        return leaves.stream()
+        // Convert to response and add conflict information
+        List<LeaveResponse> responses = leaves.stream()
                 .map(this::convertToResponse)
                 .collect(Collectors.toList());
+        
+        // Check for conflicts for each responsibility (check if assigned employee has overlapping leaves)
+        for (LeaveResponse response : responses) {
+            checkAndSetConflicts(response, employee.getId());
+        }
+
+        return responses;
+    }
+    
+    // Check for conflicts when assigning responsibilities
+    private void checkAndSetConflicts(LeaveResponse response, Long assignedEmployeeId) {
+        List<LeaveResponse.ConflictInfo> conflicts = new ArrayList<>();
+        
+        // Check if assigned employee has overlapping leaves
+        List<Leave> employeeLeaves = leaveRepository.findLeavesByEmployeeAndDateRange(
+            assignedEmployeeId,
+            response.getStartDate(),
+            response.getEndDate()
+        );
+        
+        // Filter only approved or pending leaves (exclude rejected/cancelled)
+        employeeLeaves = employeeLeaves.stream()
+                .filter(leave -> leave.getStatus() == Leave.LeaveStatus.APPROVED || 
+                               leave.getStatus() == Leave.LeaveStatus.PENDING)
+                .filter(leave -> !leave.getId().equals(response.getId())) // Exclude the current leave
+                .collect(Collectors.toList());
+        
+        for (Leave conflictingLeave : employeeLeaves) {
+            LeaveResponse.ConflictInfo conflict = new LeaveResponse.ConflictInfo();
+            conflict.setEmployeeId(conflictingLeave.getEmployee().getId());
+            conflict.setEmployeeName(conflictingLeave.getEmployee().getFirstName() + " " + 
+                                   conflictingLeave.getEmployee().getLastName());
+            conflict.setEmployeeId_str(conflictingLeave.getEmployee().getEmployeeId());
+            conflict.setLeaveStartDate(conflictingLeave.getStartDate());
+            conflict.setLeaveEndDate(conflictingLeave.getEndDate());
+            conflict.setLeaveType(conflictingLeave.getLeaveType().getDisplayName());
+            conflict.setConflictType(determineConflictType(
+                response.getStartDate(), response.getEndDate(),
+                conflictingLeave.getStartDate(), conflictingLeave.getEndDate()
+            ));
+            conflicts.add(conflict);
+        }
+        
+        response.setConflicts(conflicts);
+        response.setHasConflicts(!conflicts.isEmpty());
+    }
+    
+    // Determine the type of conflict
+    private String determineConflictType(LocalDate leave1Start, LocalDate leave1End,
+                                        LocalDate leave2Start, LocalDate leave2End) {
+        if (leave1Start.equals(leave2Start) && leave1End.equals(leave2End)) {
+            return "EXACT_OVERLAP";
+        } else if (leave1Start.isBefore(leave2Start) && leave1End.isAfter(leave2End)) {
+            return "COMPLETE_OVERLAP";
+        } else if (leave2Start.isBefore(leave1Start) && leave2End.isAfter(leave1End)) {
+            return "COMPLETE_OVERLAP";
+        } else if ((leave1Start.isBefore(leave2End) || leave1Start.equals(leave2End)) &&
+                   (leave1End.isAfter(leave2Start) || leave1End.equals(leave2Start))) {
+            return "PARTIAL_OVERLAP";
+        }
+        return "NO_OVERLAP";
     }
 
     // Get all leaves (Admin/HR only)
@@ -341,6 +468,11 @@ public class LeaveService {
         Leave leave = leaveRepository.findById(leaveId)
                 .orElseThrow(() -> new ResourceNotFoundException("Leave not found with id: " + leaveId));
 
+        // Check if leave is deleted
+        if (leave.getDeleted()) {
+            throw new ResourceNotFoundException("Leave not found with id: " + leaveId);
+        }
+
         // Check authorization
         boolean isOwnLeave = leave.getEmployee().getUser().getId().equals(currentUser.getId());
         boolean isAdminOrHR = currentUser.getRole() == User.Role.ADMIN || 
@@ -369,6 +501,11 @@ public class LeaveService {
         Leave leave = leaveRepository.findById(leaveId)
                 .orElseThrow(() -> new ResourceNotFoundException("Leave not found with id: " + leaveId));
 
+        // Check if leave is deleted
+        if (leave.getDeleted()) {
+            throw new ResourceNotFoundException("Leave not found with id: " + leaveId);
+        }
+
         // Check if leave is in PENDING status
         if (leave.getStatus() != Leave.LeaveStatus.PENDING) {
             throw new BadRequestException("Can only review leaves in PENDING status");
@@ -388,6 +525,27 @@ public class LeaveService {
 
         leave = leaveRepository.save(leave);
 
+        // Send notification to employee
+        if (leave.getEmployee() != null && leave.getEmployee().getUser() != null 
+                && leave.getEmployee().getUser().getId() != null) {
+            try {
+                if (request.getStatus() == Leave.LeaveStatus.APPROVED) {
+                    notificationService.notifyLeaveApproved(
+                            leave.getEmployee().getUser().getId(),
+                            leave.getId()
+                    );
+                } else if (request.getStatus() == Leave.LeaveStatus.REJECTED) {
+                    notificationService.notifyLeaveRejected(
+                            leave.getEmployee().getUser().getId(),
+                            leave.getId(),
+                            request.getReviewNote()
+                    );
+                }
+            } catch (Exception e) {
+                logger.error("Failed to send leave status notification", e);
+            }
+        }
+
         return convertToResponse(leave);
     }
 
@@ -400,6 +558,67 @@ public class LeaveService {
         if (endDate.isBefore(startDate)) {
             throw new BadRequestException("End date cannot be before start date");
         }
+    }
+    
+    // Validate handover employees exist and are active
+    private void validateHandoverEmployees(List<Long> handoverEmployeeIds, 
+                                          LocalDate startDate, LocalDate endDate, 
+                                          Long currentEmployeeId) {
+        for (Long empId : handoverEmployeeIds) {
+            if (empId.equals(currentEmployeeId)) {
+                throw new BadRequestException("Cannot assign responsibilities to yourself");
+            }
+            
+            Employee emp = employeeRepository.findById(empId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + empId));
+            
+            if (emp.getDeleted() != null && emp.getDeleted()) {
+                throw new BadRequestException("Cannot assign responsibilities to deleted employee: " + emp.getEmployeeId());
+            }
+            
+            if (emp.getEmploymentStatus() != Employee.EmploymentStatus.ACTIVE) {
+                throw new BadRequestException("Cannot assign responsibilities to inactive employee: " + emp.getEmployeeId());
+            }
+        }
+    }
+    
+    // Check for conflicts in handover employees
+    private void checkHandoverConflicts(LeaveResponse response, List<Long> handoverEmployeeIds,
+                                       LocalDate leaveStartDate, LocalDate leaveEndDate) {
+        List<LeaveResponse.ConflictInfo> conflicts = new ArrayList<>();
+        
+        for (Long handoverEmpId : handoverEmployeeIds) {
+            // Check if handover employee has overlapping leaves
+            List<Leave> employeeLeaves = leaveRepository.findLeavesByEmployeeAndDateRange(
+                handoverEmpId, leaveStartDate, leaveEndDate
+            );
+            
+            // Filter only approved or pending leaves
+            employeeLeaves = employeeLeaves.stream()
+                    .filter(leave -> leave.getStatus() == Leave.LeaveStatus.APPROVED || 
+                                   leave.getStatus() == Leave.LeaveStatus.PENDING)
+                    .filter(leave -> !leave.getId().equals(response.getId())) // Exclude current leave
+                    .collect(Collectors.toList());
+            
+            for (Leave conflictingLeave : employeeLeaves) {
+                LeaveResponse.ConflictInfo conflict = new LeaveResponse.ConflictInfo();
+                conflict.setEmployeeId(conflictingLeave.getEmployee().getId());
+                conflict.setEmployeeName(conflictingLeave.getEmployee().getFirstName() + " " + 
+                                       conflictingLeave.getEmployee().getLastName());
+                conflict.setEmployeeId_str(conflictingLeave.getEmployee().getEmployeeId());
+                conflict.setLeaveStartDate(conflictingLeave.getStartDate());
+                conflict.setLeaveEndDate(conflictingLeave.getEndDate());
+                conflict.setLeaveType(conflictingLeave.getLeaveType().getDisplayName());
+                conflict.setConflictType(determineConflictType(
+                    leaveStartDate, leaveEndDate,
+                    conflictingLeave.getStartDate(), conflictingLeave.getEndDate()
+                ));
+                conflicts.add(conflict);
+            }
+        }
+        
+        response.setConflicts(conflicts);
+        response.setHasConflicts(!conflicts.isEmpty());
     }
 
     // Helper method to calculate leave days
@@ -441,6 +660,10 @@ public class LeaveService {
         response.setTotalDays(leave.getTotalDays());
         response.setCreatedAt(leave.getCreatedAt());
         response.setUpdatedAt(leave.getUpdatedAt());
+        
+        // Initialize conflict fields
+        response.setHasConflicts(false);
+        response.setConflicts(new ArrayList<>());
 
         // Set handover employees
         if (leave.getHandoverEmployeeIds() != null && !leave.getHandoverEmployeeIds().isEmpty()) {

@@ -44,6 +44,16 @@ public class Task extends BaseEntity {
     @Column(name = "mode_of_travel", nullable = false)
     private String modeOfTravel;
 
+    // Site Information (Optional)
+    @Column(name = "site_name")
+    private String siteName;
+
+    @Column(name = "site_contact_person_name")
+    private String siteContactPersonName;
+
+    @Column(name = "site_contact_phone")
+    private String siteContactPhone;
+
     // Assigned by (Admin/HR)
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "assigned_by", nullable = false)

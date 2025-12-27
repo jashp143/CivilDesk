@@ -6,6 +6,9 @@ class Task {
   final String description;
   final String modeOfTravel;
   final String modeOfTravelDisplay;
+  final String? siteName;
+  final String? siteContactPersonName;
+  final String? siteContactPhone;
   final TaskStatus status;
   final String statusDisplay;
   final AssignedByInfo assignedBy;
@@ -23,6 +26,9 @@ class Task {
     required this.description,
     required this.modeOfTravel,
     required this.modeOfTravelDisplay,
+    this.siteName,
+    this.siteContactPersonName,
+    this.siteContactPhone,
     required this.status,
     required this.statusDisplay,
     required this.assignedBy,
@@ -42,6 +48,9 @@ class Task {
       description: json['description'],
       modeOfTravel: json['modeOfTravel'] ?? json['modeOfTravelDisplay'] ?? '',
       modeOfTravelDisplay: json['modeOfTravelDisplay'] ?? json['modeOfTravel'] ?? '',
+      siteName: json['siteName'],
+      siteContactPersonName: json['siteContactPersonName'],
+      siteContactPhone: json['siteContactPhone'],
       status: TaskStatus.values.firstWhere(
         (e) => e.toString().split('.').last.toLowerCase() == (json['status']?.toString().toLowerCase() ?? ''),
         orElse: () => TaskStatus.pending,
@@ -69,6 +78,9 @@ class Task {
       'description': description,
       'modeOfTravel': modeOfTravel,
       'modeOfTravelDisplay': modeOfTravelDisplay,
+      'siteName': siteName,
+      'siteContactPersonName': siteContactPersonName,
+      'siteContactPhone': siteContactPhone,
       'status': status.toString().split('.').last,
       'statusDisplay': statusDisplay,
       'assignedBy': assignedBy.toJson(),
@@ -160,6 +172,9 @@ class TaskRequest {
   final String location;
   final String description;
   final String modeOfTravel;
+  final String? siteName;
+  final String? siteContactPersonName;
+  final String? siteContactPhone;
 
   TaskRequest({
     required this.employeeIds,
@@ -168,6 +183,9 @@ class TaskRequest {
     required this.location,
     required this.description,
     required this.modeOfTravel,
+    this.siteName,
+    this.siteContactPersonName,
+    this.siteContactPhone,
   });
 
   Map<String, dynamic> toJson() {
@@ -178,6 +196,9 @@ class TaskRequest {
       'location': location,
       'description': description,
       'modeOfTravel': modeOfTravel,
+      'siteName': siteName,
+      'siteContactPersonName': siteContactPersonName,
+      'siteContactPhone': siteContactPhone,
     };
   }
 }

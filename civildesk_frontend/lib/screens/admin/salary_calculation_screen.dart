@@ -122,11 +122,33 @@ class _SalaryCalculationScreenState extends State<SalaryCalculationScreen> {
         });
       }
     } catch (e) {
+      // Extract user-friendly error message
+      String errorMessage = e.toString();
+      // Remove common exception prefixes
+      errorMessage = errorMessage.replaceAll('Exception: ', '');
+      errorMessage = errorMessage.replaceAll('Failed to calculate salary: ', '');
+      
+      // Show specific error messages for common scenarios
+      String displayMessage = errorMessage;
+      if (errorMessage.toLowerCase().contains('duplicate') || 
+          errorMessage.toLowerCase().contains('already exists')) {
+        displayMessage = 'A salary slip calculation already exists for this employee and period. You can create multiple draft calculations, but only one can be finalized per month.';
+      } else if (errorMessage.toLowerCase().contains('not found')) {
+        displayMessage = 'Employee or required information not found. Please verify the employee details.';
+      } else if (errorMessage.toLowerCase().contains('validation') || 
+                 errorMessage.toLowerCase().contains('invalid')) {
+        displayMessage = 'Invalid input. Please check all fields and try again.';
+      }
+      
       setState(() {
-        _errorMessage = e.toString().replaceAll('Exception: ', '');
+        _errorMessage = displayMessage;
       });
       if (mounted) {
-        Toast.error(context, _errorMessage ?? 'Failed to calculate salary');
+        Toast.error(
+          context, 
+          displayMessage.isNotEmpty ? displayMessage : 'Failed to calculate salary. Please try again.',
+          duration: const Duration(seconds: 5),
+        );
       }
     } finally {
       if (mounted) {

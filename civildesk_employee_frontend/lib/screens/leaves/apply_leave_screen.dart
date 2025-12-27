@@ -6,6 +6,7 @@ import '../../models/leave.dart';
 import '../../models/employee.dart';
 import '../../core/providers/leave_provider.dart';
 import '../../core/services/employee_service.dart';
+import '../../widgets/toast.dart';
 
 class ApplyLeaveScreen extends StatefulWidget {
   final Leave? existingLeave; // For editing existing leave
@@ -73,9 +74,7 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
     } catch (e) {
       setState(() => _loadingEmployees = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load employees: $e')),
-        );
+        Toast.error(context, 'Failed to load employees: $e');
       }
     }
   }
@@ -93,16 +92,12 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
         
         if (url != null && mounted) {
           setState(() => _medicalCertificateUrl = url);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Certificate uploaded successfully')),
-          );
+          Toast.success(context, 'Certificate uploaded successfully');
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to upload certificate: $e')),
-        );
+        Toast.error(context, 'Failed to upload certificate: $e');
       }
     }
   }
@@ -112,17 +107,13 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
 
     // Validate medical certificate for medical leave
     if (_selectedLeaveType == LeaveType.MEDICAL_LEAVE && _medicalCertificateUrl == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Medical certificate is required for medical leave')),
-      );
+      Toast.warning(context, 'Medical certificate is required for medical leave');
       return;
     }
 
     // Validate half day
     if (_isHalfDay && _halfDayPeriod == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select half day period')),
-      );
+      Toast.warning(context, 'Please select half day period');
       return;
     }
 
@@ -153,18 +144,12 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
 
     if (mounted) {
       if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(widget.existingLeave != null 
-              ? 'Leave updated successfully' 
-              : 'Leave application submitted successfully'),
-          ),
-        );
+        Toast.success(context, widget.existingLeave != null 
+          ? 'Leave updated successfully' 
+          : 'Leave application submitted successfully');
         Navigator.pop(context, true);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(leaveProvider.error ?? 'Failed to submit leave')),
-        );
+        Toast.error(context, leaveProvider.error ?? 'Failed to submit leave');
       }
     }
   }
@@ -584,6 +569,33 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
             ),
           ),
         ),
+        if (_selectedEmployeeIds.isNotEmpty && _startDate != null && _endDate != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, size: 16, color: Colors.blue.shade700),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Note: Conflicts will be checked automatically. Check "My Responsibilities" screen after approval to view any conflicts.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.blue.shade700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
       ],
     );
   }

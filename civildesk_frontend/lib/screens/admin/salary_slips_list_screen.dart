@@ -149,6 +149,16 @@ class _SalarySlipsListScreenState extends State<SalarySlipsListScreen> {
   Future<void> _deleteSalarySlip(SalarySlip slip) async {
     if (slip.id == null) return;
 
+    // Check if slip can be deleted (only DRAFT slips can be deleted)
+    if (slip.status != 'DRAFT') {
+      Toast.warning(
+        context,
+        'Only DRAFT salary slips can be deleted. Current status: ${slip.status}',
+        duration: const Duration(seconds: 4),
+      );
+      return;
+    }
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -182,7 +192,32 @@ class _SalarySlipsListScreenState extends State<SalarySlipsListScreen> {
       }
     } catch (e) {
       if (context.mounted) {
-        Toast.error(context, 'Failed to delete: ${e.toString()}');
+        // Extract user-friendly error message
+        String errorMessage = e.toString();
+        errorMessage = errorMessage.replaceAll('Exception: ', '');
+        errorMessage = errorMessage.replaceAll('Failed to delete salary slip: ', '');
+        
+        // Show specific error messages
+        if (errorMessage.toLowerCase().contains('only draft') || 
+            errorMessage.toLowerCase().contains('cannot be deleted')) {
+          Toast.error(
+            context,
+            'Only DRAFT salary slips can be deleted. This slip cannot be deleted.',
+            duration: const Duration(seconds: 4),
+          );
+        } else if (errorMessage.toLowerCase().contains('not found')) {
+          Toast.error(
+            context,
+            'Salary slip not found. It may have already been deleted.',
+            duration: const Duration(seconds: 4),
+          );
+        } else {
+          Toast.error(
+            context,
+            errorMessage.isNotEmpty ? errorMessage : 'Failed to delete salary slip. Please try again.',
+            duration: const Duration(seconds: 5),
+          );
+        }
       }
     }
   }

@@ -1,10 +1,12 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide DateUtils;
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../core/constants/app_routes.dart';
 import '../../widgets/employee_layout.dart';
 import '../../core/providers/expense_provider.dart';
 import '../../models/expense.dart';
+import '../../core/utils/date_utils.dart';
+import '../../widgets/toast.dart';
 import 'apply_expense_screen.dart';
 
 class ExpensesScreen extends StatefulWidget {
@@ -63,11 +65,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
 
   void _editExpense(Expense expense) async {
     if (expense.status != ExpenseStatus.PENDING) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Only pending expenses can be edited'),
-        ),
-      );
+      Toast.warning(context, 'Only pending expenses can be edited');
       return;
     }
 
@@ -84,11 +82,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
 
   void _deleteExpense(Expense expense) {
     if (expense.status != ExpenseStatus.PENDING) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Only pending expenses can be deleted'),
-        ),
-      );
+      Toast.warning(context, 'Only pending expenses can be deleted');
       return;
     }
 
@@ -107,19 +101,12 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
               Navigator.pop(context);
               final provider = Provider.of<ExpenseProvider>(context, listen: false);
               final success = await provider.deleteExpense(expense.id);
-              if (!mounted) return;
+              if (!mounted || !context.mounted) return;
               
-              final messenger = ScaffoldMessenger.of(context);
               if (success) {
-                messenger.showSnackBar(
-                  const SnackBar(content: Text('Expense deleted successfully')),
-                );
+                Toast.success(context, 'Expense deleted successfully');
               } else {
-                messenger.showSnackBar(
-                  SnackBar(
-                    content: Text(provider.error ?? 'Failed to delete expense'),
-                  ),
-                );
+                Toast.error(context, provider.error ?? 'Failed to delete expense');
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
@@ -481,7 +468,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                             colorScheme,
                             Icons.send_rounded,
                             'Submitted',
-                            '${DateFormat('MMM dd, yyyy').format(expense.createdAt)} • ${DateFormat('hh:mm a').format(expense.createdAt)}',
+                            DateUtils.formatIndiaDateTime(expense.createdAt),
                             colorScheme.primaryContainer,
                             true,
                           ),
@@ -497,7 +484,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                               expense.status == ExpenseStatus.APPROVED
                                   ? 'Approved'
                                   : 'Rejected',
-                              '${DateFormat('MMM dd, yyyy').format(expense.reviewedAt!)} • ${DateFormat('hh:mm a').format(expense.reviewedAt!)}',
+                              DateUtils.formatIndiaDateTime(expense.reviewedAt!),
                               expense.status == ExpenseStatus.APPROVED
                                   ? _getStatusColor(ExpenseStatus.APPROVED, colorScheme).withValues(alpha: 0.2)
                                   : _getStatusColor(ExpenseStatus.REJECTED, colorScheme).withValues(alpha: 0.2),

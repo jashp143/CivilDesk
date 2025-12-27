@@ -18,17 +18,52 @@ class Toast {
     Duration duration = const Duration(seconds: 3),
     IconData? icon,
   }) {
+    // Check if context is still mounted
+    if (!context.mounted) {
+      return;
+    }
+
     // Hide existing toast if visible
     if (_isVisible) {
       hide();
     }
 
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final isDark = theme.brightness == Brightness.dark;
-    final isMobile = MediaQuery.of(context).size.shortestSide < 600;
-    final isTablet = MediaQuery.of(context).size.shortestSide >= 600 && 
-                     MediaQuery.of(context).size.shortestSide < 1024;
+    // Safely get theme and media query with error handling
+    ThemeData? theme;
+    ColorScheme? colorScheme;
+    bool isDark = false;
+    bool isMobile = true;
+    bool isTablet = false;
+
+    try {
+      if (context.mounted) {
+        theme = Theme.of(context);
+        colorScheme = theme.colorScheme;
+        isDark = theme.brightness == Brightness.dark;
+        final size = MediaQuery.of(context).size;
+        isMobile = size.shortestSide < 600;
+        isTablet = size.shortestSide >= 600 && size.shortestSide < 1024;
+      }
+    } catch (e) {
+      // If context is invalid, use defaults
+      isDark = false;
+      isMobile = true;
+      isTablet = false;
+      colorScheme = const ColorScheme.light();
+    }
+
+    // Get overlay - use rootOverlay to ensure we get a valid overlay
+    OverlayState? overlay;
+    try {
+      overlay = Overlay.of(context, rootOverlay: true);
+    } catch (e) {
+      // If we can't get overlay, return early
+      return;
+    }
+
+    if (overlay == null) {
+      return;
+    }
 
     // Determine colors based on type
     Color backgroundColor;
@@ -70,10 +105,10 @@ class Toast {
       case ToastType.info:
       default:
         backgroundColor = isDark
-            ? colorScheme.surfaceContainerHighest
-            : colorScheme.surface;
-        foregroundColor = colorScheme.onSurface;
-        borderColor = colorScheme.outline.withValues(alpha: 0.2);
+            ? (colorScheme?.surfaceContainerHighest ?? const Color(0xFF2C2C2C))
+            : (colorScheme?.surface ?? Colors.white);
+        foregroundColor = colorScheme?.onSurface ?? Colors.black;
+        borderColor = (colorScheme?.outline ?? Colors.grey).withValues(alpha: 0.2);
         defaultIcon = Icons.info_rounded;
         break;
     }
@@ -91,7 +126,7 @@ class Toast {
       ),
     );
 
-    Overlay.of(context).insert(_overlayEntry!);
+    overlay.insert(_overlayEntry!);
     _isVisible = true;
 
     // Auto dismiss after duration

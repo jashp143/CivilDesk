@@ -55,6 +55,13 @@ public class User extends BaseEntity {
     @Column(name = "otp_expiry")
     private LocalDateTime otpExpiry;
 
+    // FCM Token for push notifications
+    @Column(name = "fcm_token", length = 500)
+    private String fcmToken;
+
+    @Column(name = "fcm_token_updated_at")
+    private LocalDateTime fcmTokenUpdatedAt;
+
     public enum Role {
         ADMIN,
         HR_MANAGER,

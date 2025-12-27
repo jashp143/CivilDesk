@@ -13,7 +13,10 @@ import com.civiltech.civildesk_backend.model.User;
 import com.civiltech.civildesk_backend.repository.EmployeeRepository;
 import com.civiltech.civildesk_backend.repository.TaskAssignmentRepository;
 import com.civiltech.civildesk_backend.repository.TaskRepository;
+import com.civiltech.civildesk_backend.repository.UserRepository;
 import com.civiltech.civildesk_backend.security.SecurityUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -26,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -33,6 +37,8 @@ import java.util.stream.Collectors;
 @Service
 @Transactional
 public class TaskService {
+
+    private static final Logger logger = LoggerFactory.getLogger(TaskService.class);
 
     @Autowired
     private TaskRepository taskRepository;
@@ -42,6 +48,12 @@ public class TaskService {
 
     @Autowired
     private EmployeeRepository employeeRepository;
+
+    @Autowired
+    private NotificationService notificationService;
+
+    @Autowired
+    private UserRepository userRepository;
 
     // Assign task to employees (Admin/HR only)
     @CacheEvict(value = "tasks", allEntries = true)
@@ -74,6 +86,9 @@ public class TaskService {
         task.setLocation(request.getLocation());
         task.setDescription(request.getDescription());
         task.setModeOfTravel(request.getModeOfTravel());
+        task.setSiteName(request.getSiteName());
+        task.setSiteContactPersonName(request.getSiteContactPersonName());
+        task.setSiteContactPhone(request.getSiteContactPhone());
         task.setAssignedBy(currentUser);
         task.setStatus(Task.TaskStatus.PENDING);
 
@@ -85,6 +100,20 @@ public class TaskService {
             assignment.setTask(task);
             assignment.setEmployee(employee);
             taskAssignmentRepository.save(assignment);
+
+            // Send notification to assigned employee
+            if (employee.getUser() != null && employee.getUser().getId() != null) {
+                try {
+                    notificationService.notifyTaskAssigned(
+                            employee.getUser().getId(),
+                            task.getId(),
+                            task.getDescription()
+                    );
+                } catch (Exception e) {
+                    // Log error but don't fail the task assignment
+                    logger.error("Failed to send task assignment notification to employee: {}", employee.getId(), e);
+                }
+            }
         }
 
         return convertToResponse(task);
@@ -106,6 +135,11 @@ public class TaskService {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + taskId));
 
+        // Check if task is deleted
+        if (task.getDeleted()) {
+            throw new ResourceNotFoundException("Task not found with id: " + taskId);
+        }
+
         // Check if task is in PENDING status
         if (task.getStatus() != Task.TaskStatus.PENDING) {
             throw new BadRequestException("Cannot update task that is not in PENDING status");
@@ -125,6 +159,9 @@ public class TaskService {
         task.setLocation(request.getLocation());
         task.setDescription(request.getDescription());
         task.setModeOfTravel(request.getModeOfTravel());
+        task.setSiteName(request.getSiteName());
+        task.setSiteContactPersonName(request.getSiteContactPersonName());
+        task.setSiteContactPhone(request.getSiteContactPhone());
 
         // Update task assignments
         // First, soft delete existing assignments
@@ -175,6 +212,11 @@ public class TaskService {
 
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + taskId));
+
+        // Check if task is deleted
+        if (task.getDeleted()) {
+            throw new ResourceNotFoundException("Task not found with id: " + taskId);
+        }
 
         // Check if task is in PENDING status
         if (task.getStatus() != Task.TaskStatus.PENDING) {
@@ -325,6 +367,11 @@ public class TaskService {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + taskId));
 
+        // Check if task is deleted
+        if (task.getDeleted()) {
+            throw new ResourceNotFoundException("Task not found with id: " + taskId);
+        }
+
         // Check if user is authorized to view this task
         if (currentUser.getRole() == User.Role.EMPLOYEE) {
             Employee employee = employeeRepository.findByUserIdAndDeletedFalse(currentUser.getId())
@@ -361,6 +408,11 @@ public class TaskService {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + taskId));
 
+        // Check if task is deleted
+        if (task.getDeleted()) {
+            throw new ResourceNotFoundException("Task not found with id: " + taskId);
+        }
+
         // Check if task is assigned to this employee
         TaskAssignment assignment = taskAssignmentRepository
                 .findByTaskIdAndEmployeeId(taskId, employee.getId())
@@ -387,6 +439,28 @@ public class TaskService {
         task.setReviewNote(request.getReviewNote());
 
         task = taskRepository.save(task);
+
+        // Send notification to all admins and HR managers
+        try {
+            List<User.Role> adminRoles = Arrays.asList(User.Role.ADMIN, User.Role.HR_MANAGER);
+            List<User> adminUsers = userRepository.findByRoleInAndDeletedFalseAndIsActiveTrue(adminRoles);
+            
+            String employeeName = employee.getFirstName() + " " + employee.getLastName();
+            String statusDisplay = request.getStatus().getDisplayName();
+            String taskTitle = task.getDescription();
+            
+            for (User adminUser : adminUsers) {
+                notificationService.notifyTaskReviewedByEmployee(
+                        adminUser.getId(),
+                        task.getId(),
+                        taskTitle,
+                        employeeName,
+                        statusDisplay
+                );
+            }
+        } catch (Exception e) {
+            logger.error("Failed to send task status change notification to admins", e);
+        }
 
         return convertToResponse(task);
     }
@@ -416,6 +490,9 @@ public class TaskService {
         response.setDescription(task.getDescription());
         response.setModeOfTravel(task.getModeOfTravel());
         response.setModeOfTravelDisplay(task.getModeOfTravel());
+        response.setSiteName(task.getSiteName());
+        response.setSiteContactPersonName(task.getSiteContactPersonName());
+        response.setSiteContactPhone(task.getSiteContactPhone());
         response.setStatus(task.getStatus());
         response.setStatusDisplay(task.getStatus().getDisplayName());
         response.setReviewedAt(task.getReviewedAt());

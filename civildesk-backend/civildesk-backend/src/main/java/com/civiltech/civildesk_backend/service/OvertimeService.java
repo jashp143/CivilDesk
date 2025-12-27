@@ -11,7 +11,10 @@ import com.civiltech.civildesk_backend.model.Overtime;
 import com.civiltech.civildesk_backend.model.User;
 import com.civiltech.civildesk_backend.repository.EmployeeRepository;
 import com.civiltech.civildesk_backend.repository.OvertimeRepository;
+import com.civiltech.civildesk_backend.repository.UserRepository;
 import com.civiltech.civildesk_backend.security.SecurityUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -21,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -28,11 +32,19 @@ import java.util.stream.Collectors;
 @Transactional
 public class OvertimeService {
 
+    private static final Logger logger = LoggerFactory.getLogger(OvertimeService.class);
+
     @Autowired
     private OvertimeRepository overtimeRepository;
 
     @Autowired
     private EmployeeRepository employeeRepository;
+
+    @Autowired
+    private NotificationService notificationService;
+
+    @Autowired
+    private UserRepository userRepository;
 
     // Apply for overtime
     public OvertimeResponse applyOvertime(OvertimeRequest request) {
@@ -59,7 +71,27 @@ public class OvertimeService {
 
         overtime = overtimeRepository.save(overtime);
 
-        return convertToResponse(overtime);
+        OvertimeResponse response = convertToResponse(overtime);
+        
+        // Send notification to all admins and HR managers
+        try {
+            List<User.Role> adminRoles = Arrays.asList(User.Role.ADMIN, User.Role.HR_MANAGER);
+            List<User> adminUsers = userRepository.findByRoleInAndDeletedFalseAndIsActiveTrue(adminRoles);
+            
+            String employeeName = employee.getFirstName() + " " + employee.getLastName();
+            
+            for (User adminUser : adminUsers) {
+                notificationService.notifyNewOvertimeRequest(
+                        adminUser.getId(),
+                        overtime.getId(),
+                        employeeName
+                );
+            }
+        } catch (Exception e) {
+            logger.error("Failed to send overtime request notification to admins", e);
+        }
+        
+        return response;
     }
 
     // Update overtime (only if status is PENDING)
@@ -68,6 +100,11 @@ public class OvertimeService {
         
         Overtime overtime = overtimeRepository.findById(overtimeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Overtime not found with id: " + overtimeId));
+
+        // Check if overtime is deleted
+        if (overtime.getDeleted()) {
+            throw new ResourceNotFoundException("Overtime not found with id: " + overtimeId);
+        }
 
         // Check if overtime belongs to current user
         if (!overtime.getEmployee().getUser().getId().equals(currentUser.getId())) {
@@ -102,6 +139,11 @@ public class OvertimeService {
         
         Overtime overtime = overtimeRepository.findById(overtimeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Overtime not found with id: " + overtimeId));
+
+        // Check if overtime is deleted
+        if (overtime.getDeleted()) {
+            throw new ResourceNotFoundException("Overtime not found with id: " + overtimeId);
+        }
 
         // Check if overtime belongs to current user
         if (!overtime.getEmployee().getUser().getId().equals(currentUser.getId())) {
@@ -215,6 +257,11 @@ public class OvertimeService {
         Overtime overtime = overtimeRepository.findById(overtimeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Overtime not found with id: " + overtimeId));
 
+        // Check if overtime is deleted
+        if (overtime.getDeleted()) {
+            throw new ResourceNotFoundException("Overtime not found with id: " + overtimeId);
+        }
+
         // Check authorization
         boolean isOwnOvertime = overtime.getEmployee().getUser().getId().equals(currentUser.getId());
         boolean isAdminOrHR = currentUser.getRole() == User.Role.ADMIN || 
@@ -239,6 +286,11 @@ public class OvertimeService {
         Overtime overtime = overtimeRepository.findById(overtimeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Overtime not found with id: " + overtimeId));
 
+        // Check if overtime is deleted
+        if (overtime.getDeleted()) {
+            throw new ResourceNotFoundException("Overtime not found with id: " + overtimeId);
+        }
+
         // Check if overtime is in PENDING status
         if (overtime.getStatus() != Overtime.OvertimeStatus.PENDING) {
             throw new BadRequestException("Can only review overtimes in PENDING status");
@@ -257,6 +309,27 @@ public class OvertimeService {
         overtime.setReviewNote(request.getReviewNote());
 
         overtime = overtimeRepository.save(overtime);
+
+        // Send notification to employee
+        if (overtime.getEmployee() != null && overtime.getEmployee().getUser() != null 
+                && overtime.getEmployee().getUser().getId() != null) {
+            try {
+                if (request.getStatus() == Overtime.OvertimeStatus.APPROVED) {
+                    notificationService.notifyOvertimeApproved(
+                            overtime.getEmployee().getUser().getId(),
+                            overtime.getId()
+                    );
+                } else if (request.getStatus() == Overtime.OvertimeStatus.REJECTED) {
+                    notificationService.notifyOvertimeRejected(
+                            overtime.getEmployee().getUser().getId(),
+                            overtime.getId(),
+                            request.getReviewNote()
+                    );
+                }
+            } catch (Exception e) {
+                logger.error("Failed to send overtime status notification", e);
+            }
+        }
 
         return convertToResponse(overtime);
     }

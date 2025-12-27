@@ -11,10 +11,24 @@ import 'core/providers/expense_provider.dart';
 import 'core/providers/task_provider.dart';
 import 'core/providers/theme_provider.dart';
 import 'core/providers/holiday_provider.dart';
+import 'core/providers/notification_provider.dart';
+import 'core/providers/broadcast_provider.dart';
+import 'core/services/fcm_service.dart';
 import 'core/constants/app_routes.dart';
 import 'routes/app_router.dart';
+import 'package:firebase_core/firebase_core.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize Firebase
+  try {
+    await Firebase.initializeApp();
+    // Initialize FCM service (will be initialized after login)
+  } catch (e) {
+    print('Firebase initialization error: $e');
+  }
+  
   runApp(const CivildeskEmployeeApp());
 }
 
@@ -35,6 +49,8 @@ class CivildeskEmployeeApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ExpenseProvider()),
         ChangeNotifierProvider(create: (_) => TaskProvider()),
         ChangeNotifierProvider(create: (_) => HolidayProvider()),
+        ChangeNotifierProvider(create: (_) => NotificationProvider()),
+        ChangeNotifierProvider(create: (_) => BroadcastProvider()),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, _) {

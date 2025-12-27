@@ -61,4 +61,21 @@ public class LeaveResponse {
         private String email;
         private String role;
     }
+    
+    // Conflict information
+    private Boolean hasConflicts = false;
+    private List<ConflictInfo> conflicts;
+    
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ConflictInfo {
+        private Long employeeId;
+        private String employeeName;
+        private String employeeId_str;
+        private LocalDate leaveStartDate;
+        private LocalDate leaveEndDate;
+        private String leaveType;
+        private String conflictType; // EXACT_OVERLAP, COMPLETE_OVERLAP, PARTIAL_OVERLAP
+    }
 }

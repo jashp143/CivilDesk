@@ -4,6 +4,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import '../../core/constants/app_routes.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/providers/theme_provider.dart';
+import '../../core/providers/notification_provider.dart';
 import '../../widgets/admin_layout.dart';
 import '../../widgets/toast.dart';
 import '../../widgets/cached_profile_image.dart';
@@ -275,12 +276,23 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen>
         // Right column - Theme
         Expanded(
           flex: 1,
-          child: _buildThemeSection(
-            context,
-            theme,
-            colorScheme,
-            isDark,
-            themeProvider,
+          child: Column(
+            children: [
+              _buildThemeSection(
+                context,
+                theme,
+                colorScheme,
+                isDark,
+                themeProvider,
+              ),
+              SizedBox(height: spacing),
+              _buildNotificationSection(
+                context,
+                theme,
+                colorScheme,
+                isDark,
+              ),
+            ],
           ),
         ),
       ],
@@ -313,6 +325,13 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen>
           colorScheme,
           isDark,
           themeProvider,
+        ),
+        SizedBox(height: spacing),
+        _buildNotificationSection(
+          context,
+          theme,
+          colorScheme,
+          isDark,
         ),
         SizedBox(height: spacing),
         _buildAppInfoSection(
@@ -795,6 +814,78 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen>
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildNotificationSection(
+    BuildContext context,
+    ThemeData theme,
+    ColorScheme colorScheme,
+    bool isDark,
+  ) {
+    final isMobile = _isMobile(context);
+    final notificationProvider = Provider.of<NotificationProvider>(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionHeader(
+          theme,
+          colorScheme,
+          'Notifications',
+          Icons.notifications_rounded,
+        ),
+        const SizedBox(height: 12),
+        Card(
+          elevation: isDark ? 0 : 2,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(isMobile ? 16 : 20),
+            side: BorderSide(
+              color: isDark
+                  ? colorScheme.outline.withValues(alpha: 0.2)
+                  : colorScheme.outline.withValues(alpha: 0.1),
+              width: 1,
+            ),
+          ),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(isMobile ? 16 : 20),
+              gradient: isDark
+                  ? null
+                  : LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        colorScheme.surface,
+                        colorScheme.surface.withValues(alpha: 0.95),
+                      ],
+                    ),
+            ),
+            child: SwitchListTile(
+              title: const Text('Push Notifications'),
+              subtitle: const Text('Receive push notifications for important updates'),
+              secondary: Icon(
+                Icons.notifications,
+                color: notificationProvider.notificationsEnabled
+                    ? colorScheme.primary
+                    : colorScheme.onSurfaceVariant,
+              ),
+              value: notificationProvider.notificationsEnabled,
+              onChanged: (value) async {
+                await notificationProvider.toggleNotifications(value);
+                if (mounted) {
+                  Toast.success(
+                    context,
+                    value
+                        ? 'Notifications enabled'
+                        : 'Notifications disabled',
+                  );
+                }
+              },
+            ),
+          ),
+        ),
+      ],
     );
   }
 

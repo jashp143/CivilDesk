@@ -10,6 +10,8 @@ import com.civiltech.civildesk_backend.model.SalarySlip;
 import com.civiltech.civildesk_backend.repository.EmployeeRepository;
 import com.civiltech.civildesk_backend.repository.SalarySlipRepository;
 import com.civiltech.civildesk_backend.security.SecurityUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -19,11 +21,14 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 @Service
 public class SalaryService {
+
+    private static final Logger logger = LoggerFactory.getLogger(SalaryService.class);
 
     @Autowired
     private SalarySlipRepository salarySlipRepository;
@@ -34,8 +39,11 @@ public class SalaryService {
     @Autowired
     private EmployeeRepository employeeRepository;
 
+    @Autowired
+    private NotificationService notificationService;
+
     @Transactional
-    @SuppressWarnings("null") // Spring Data JPA save() always returns a non-null entity
+    // Spring Data JPA save() always returns a non-null entity
     public SalaryCalculationResponse calculateAndGenerateSlip(SalaryCalculationRequest request) {
         Long currentUserId = SecurityUtils.getCurrentUserId();
         SalarySlip salarySlip = calculationService.calculateSalary(request, currentUserId);
@@ -66,16 +74,25 @@ public class SalaryService {
         Employee employee = employeeRepository.findByEmployeeIdAndDeletedFalse(employeeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found with ID: " + employeeId));
         
-        SalarySlip salarySlip = salarySlipRepository.findByEmployeeAndYearAndMonth(employee, year, month)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        String.format("Salary slip not found for employee %s for %d/%d", employeeId, month, year)));
+        // First, try to get FINALIZED slip (only one allowed per employee per month)
+        Optional<SalarySlip> finalizedSlip = salarySlipRepository.findFinalizedByEmployeeAndPeriod(
+                employee.getId(), year, month);
         
-        if (Boolean.TRUE.equals(salarySlip.getDeleted())) {
-            throw new ResourceNotFoundException(
-                    String.format("Salary slip not found for employee %s for %d/%d", employeeId, month, year));
+        if (finalizedSlip.isPresent()) {
+            return mapToResponse(finalizedSlip.get());
         }
         
-        return mapToResponse(salarySlip);
+        // If no FINALIZED slip, get the most recent DRAFT slip
+        List<SalarySlip> draftSlips = salarySlipRepository.findDraftByEmployeeAndPeriod(
+                employee.getId(), year, month);
+        
+        if (!draftSlips.isEmpty()) {
+            // Return the most recent DRAFT slip (already ordered by createdAt DESC)
+            return mapToResponse(draftSlips.get(0));
+        }
+        
+        throw new ResourceNotFoundException(
+                String.format("Salary slip not found for employee %s for %d/%d", employeeId, month, year));
     }
 
     @Transactional(readOnly = true)
@@ -149,6 +166,7 @@ public class SalaryService {
         } else {
             salarySlips = salarySlipRepository.findAllWithEmployee();
         }
+        // Repository queries already filter deleted = false, but adding extra safety check
         return salarySlips.stream()
                 .filter(slip -> !Boolean.TRUE.equals(slip.getDeleted()))
                 .map(this::mapToResponse)
@@ -171,8 +189,49 @@ public class SalaryService {
         SalarySlip salarySlip = salarySlipRepository.findByIdWithEmployee(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Salary slip not found with ID: " + id));
         
+        // Check if already deleted
+        if (Boolean.TRUE.equals(salarySlip.getDeleted())) {
+            throw new ResourceNotFoundException("Salary slip not found with ID: " + id);
+        }
+        
+        // Check if already finalized
+        if (salarySlip.getStatus() == SalarySlip.SalarySlipStatus.FINALIZED) {
+            throw new BadRequestException("Salary slip is already finalized");
+        }
+        
+        // Check if there's already a FINALIZED slip for this employee and period
+        Optional<SalarySlip> existingFinalized = salarySlipRepository.findFinalizedByEmployeeAndPeriod(
+                salarySlip.getEmployee().getId(),
+                salarySlip.getYear(),
+                salarySlip.getMonth()
+        );
+        
+        if (existingFinalized.isPresent() && !existingFinalized.get().getId().equals(id)) {
+            throw new BadRequestException(
+                    String.format("A finalized salary slip already exists for employee %s for %s %d. " +
+                            "Only one finalized salary slip is allowed per employee per month.",
+                            salarySlip.getEmployee().getEmployeeId(),
+                            salarySlip.getPeriodString(),
+                            salarySlip.getYear())
+            );
+        }
+        
         salarySlip.setStatus(SalarySlip.SalarySlipStatus.FINALIZED);
         salarySlip = salarySlipRepository.save(salarySlip);
+
+        // Send notification to employee
+        if (salarySlip.getEmployee() != null && salarySlip.getEmployee().getUser() != null 
+                && salarySlip.getEmployee().getUser().getId() != null) {
+            try {
+                notificationService.notifyFinalizedSalarySlip(
+                        salarySlip.getEmployee().getUser().getId(),
+                        salarySlip.getId(),
+                        salarySlip.getPeriodString()
+                );
+            } catch (Exception e) {
+                logger.error("Failed to send salary slip finalized notification", e);
+            }
+        }
         
         return mapToResponse(salarySlip);
     }
@@ -226,7 +285,6 @@ public class SalaryService {
             try {
                 SalarySlip salarySlip = calculationService.calculateSalary(request, currentUserId);
                 // Spring Data JPA save() always returns a non-null entity
-                @SuppressWarnings("null")
                 SalarySlip savedSlip = salarySlipRepository.save(salarySlip);
                 salarySlips.add(savedSlip);
                 

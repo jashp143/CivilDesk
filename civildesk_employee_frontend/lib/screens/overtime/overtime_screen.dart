@@ -1,10 +1,12 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide DateUtils;
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../core/constants/app_routes.dart';
 import '../../widgets/employee_layout.dart';
 import '../../core/providers/overtime_provider.dart';
 import '../../models/overtime.dart';
+import '../../core/utils/date_utils.dart';
+import '../../widgets/toast.dart';
 import 'apply_overtime_screen.dart';
 
 class OvertimeScreen extends StatefulWidget {
@@ -63,11 +65,7 @@ class _OvertimeScreenState extends State<OvertimeScreen> {
 
   void _editOvertime(Overtime overtime) async {
     if (overtime.status != OvertimeStatus.PENDING) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Only pending overtimes can be edited'),
-        ),
-      );
+      Toast.warning(context, 'Only pending overtimes can be edited');
       return;
     }
 
@@ -84,11 +82,7 @@ class _OvertimeScreenState extends State<OvertimeScreen> {
 
   void _deleteOvertime(Overtime overtime) {
     if (overtime.status != OvertimeStatus.PENDING) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Only pending overtimes can be deleted'),
-        ),
-      );
+      Toast.warning(context, 'Only pending overtimes can be deleted');
       return;
     }
 
@@ -107,19 +101,12 @@ class _OvertimeScreenState extends State<OvertimeScreen> {
               Navigator.pop(context);
               final provider = Provider.of<OvertimeProvider>(context, listen: false);
               final success = await provider.deleteOvertime(overtime.id);
-              if (!mounted) return;
+              if (!mounted || !context.mounted) return;
               
-              final messenger = ScaffoldMessenger.of(context);
               if (success) {
-                messenger.showSnackBar(
-                  const SnackBar(content: Text('Overtime deleted successfully')),
-                );
+                Toast.success(context, 'Overtime deleted successfully');
               } else {
-                messenger.showSnackBar(
-                  SnackBar(
-                    content: Text(provider.error ?? 'Failed to delete overtime'),
-                  ),
-                );
+                Toast.error(context, provider.error ?? 'Failed to delete overtime');
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
@@ -481,7 +468,7 @@ class _OvertimeScreenState extends State<OvertimeScreen> {
                             colorScheme,
                             Icons.send_rounded,
                             'Submitted',
-                            '${DateFormat('MMM dd, yyyy').format(overtime.createdAt)} • ${DateFormat('hh:mm a').format(overtime.createdAt)}',
+                            DateUtils.formatIndiaDateTime(overtime.createdAt),
                             colorScheme.primaryContainer,
                             true,
                           ),
@@ -497,7 +484,7 @@ class _OvertimeScreenState extends State<OvertimeScreen> {
                               overtime.status == OvertimeStatus.APPROVED
                                   ? 'Approved'
                                   : 'Rejected',
-                              '${DateFormat('MMM dd, yyyy').format(overtime.reviewedAt!)} • ${DateFormat('hh:mm a').format(overtime.reviewedAt!)}',
+                              DateUtils.formatIndiaDateTime(overtime.reviewedAt!),
                               overtime.status == OvertimeStatus.APPROVED
                                   ? _getStatusColor(OvertimeStatus.APPROVED, colorScheme).withValues(alpha: 0.2)
                                   : _getStatusColor(OvertimeStatus.REJECTED, colorScheme).withValues(alpha: 0.2),

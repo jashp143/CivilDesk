@@ -23,6 +23,8 @@ class Leave {
   final Reviewer? reviewedBy;
   final DateTime? reviewedAt;
   final String? reviewNote;
+  final bool hasConflicts;
+  final List<ConflictInfo>? conflicts;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -51,6 +53,8 @@ class Leave {
     this.reviewedBy,
     this.reviewedAt,
     this.reviewNote,
+    this.hasConflicts = false,
+    this.conflicts,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -97,6 +101,12 @@ class Leave {
           ? DateTime.parse(json['reviewedAt'])
           : null,
       reviewNote: json['reviewNote'],
+      hasConflicts: json['hasConflicts'] ?? false,
+      conflicts: json['conflicts'] != null
+          ? (json['conflicts'] as List)
+              .map((e) => ConflictInfo.fromJson(e))
+              .toList()
+          : null,
       createdAt: DateTime.parse(json['createdAt']),
       updatedAt: DateTime.parse(json['updatedAt']),
     );
@@ -128,8 +138,54 @@ class Leave {
       'reviewedBy': reviewedBy?.toJson(),
       'reviewedAt': reviewedAt?.toIso8601String(),
       'reviewNote': reviewNote,
+      'hasConflicts': hasConflicts,
+      'conflicts': conflicts?.map((e) => e.toJson()).toList(),
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
+    };
+  }
+}
+
+class ConflictInfo {
+  final int employeeId;
+  final String employeeName;
+  final String employeeIdStr;
+  final DateTime leaveStartDate;
+  final DateTime leaveEndDate;
+  final String leaveType;
+  final String conflictType;
+
+  ConflictInfo({
+    required this.employeeId,
+    required this.employeeName,
+    required this.employeeIdStr,
+    required this.leaveStartDate,
+    required this.leaveEndDate,
+    required this.leaveType,
+    required this.conflictType,
+  });
+
+  factory ConflictInfo.fromJson(Map<String, dynamic> json) {
+    return ConflictInfo(
+      employeeId: json['employeeId'],
+      employeeName: json['employeeName'],
+      employeeIdStr: json['employeeId_str'],
+      leaveStartDate: DateTime.parse(json['leaveStartDate']),
+      leaveEndDate: DateTime.parse(json['leaveEndDate']),
+      leaveType: json['leaveType'],
+      conflictType: json['conflictType'],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'employeeId': employeeId,
+      'employeeName': employeeName,
+      'employeeId_str': employeeIdStr,
+      'leaveStartDate': leaveStartDate.toIso8601String().split('T')[0],
+      'leaveEndDate': leaveEndDate.toIso8601String().split('T')[0],
+      'leaveType': leaveType,
+      'conflictType': conflictType,
     };
   }
 }

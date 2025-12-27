@@ -1,10 +1,12 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide DateUtils;
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../core/constants/app_routes.dart';
 import '../../widgets/employee_layout.dart';
 import '../../core/providers/leave_provider.dart';
 import '../../models/leave.dart';
+import '../../core/utils/date_utils.dart';
+import '../../widgets/toast.dart';
 import 'apply_leave_screen.dart';
 
 class LeavesScreen extends StatefulWidget {
@@ -63,11 +65,7 @@ class _LeavesScreenState extends State<LeavesScreen> {
 
   void _editLeave(Leave leave) async {
     if (leave.status != LeaveStatus.PENDING) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Only pending leaves can be edited'),
-        ),
-      );
+      Toast.warning(context, 'Only pending leaves can be edited');
       return;
     }
 
@@ -84,11 +82,7 @@ class _LeavesScreenState extends State<LeavesScreen> {
 
   void _deleteLeave(Leave leave) {
     if (leave.status != LeaveStatus.PENDING) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Only pending leaves can be deleted'),
-        ),
-      );
+      Toast.warning(context, 'Only pending leaves can be deleted');
       return;
     }
 
@@ -107,19 +101,12 @@ class _LeavesScreenState extends State<LeavesScreen> {
               Navigator.pop(context);
               final provider = Provider.of<LeaveProvider>(context, listen: false);
               final success = await provider.deleteLeave(leave.id);
-              if (!mounted) return;
+              if (!mounted || !context.mounted) return;
               
-              final messenger = ScaffoldMessenger.of(context);
               if (success) {
-                messenger.showSnackBar(
-                  const SnackBar(content: Text('Leave deleted successfully')),
-                );
+                Toast.success(context, 'Leave deleted successfully');
               } else {
-                messenger.showSnackBar(
-                  SnackBar(
-                    content: Text(provider.error ?? 'Failed to delete leave'),
-                  ),
-                );
+                Toast.error(context, provider.error ?? 'Failed to delete leave');
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
@@ -548,7 +535,7 @@ class _LeavesScreenState extends State<LeavesScreen> {
                             colorScheme,
                             Icons.send_rounded,
                             'Submitted',
-                            '${DateFormat('MMM dd, yyyy').format(leave.createdAt)} • ${DateFormat('hh:mm a').format(leave.createdAt)}',
+                            DateUtils.formatIndiaDateTime(leave.createdAt),
                             colorScheme.primaryContainer,
                             true,
                           ),
@@ -566,7 +553,7 @@ class _LeavesScreenState extends State<LeavesScreen> {
                                   : leave.status == LeaveStatus.REJECTED
                                       ? 'Rejected'
                                       : 'Reviewed',
-                              '${DateFormat('MMM dd, yyyy').format(leave.reviewedAt!)} • ${DateFormat('hh:mm a').format(leave.reviewedAt!)}',
+                              DateUtils.formatIndiaDateTime(leave.reviewedAt!),
                               leave.status == LeaveStatus.APPROVED
                                   ? _getStatusColor(LeaveStatus.APPROVED, colorScheme).withValues(alpha: 0.2)
                                   : _getStatusColor(LeaveStatus.REJECTED, colorScheme).withValues(alpha: 0.2),

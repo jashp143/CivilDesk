@@ -5,6 +5,7 @@ import '../../core/constants/app_routes.dart';
 import '../../core/providers/theme_provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../widgets/admin_layout.dart';
+import '../../widgets/notification_bell.dart';
 import '../../core/services/attendance_service.dart';
 import '../../models/attendance.dart';
 
@@ -190,6 +191,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       currentRoute: AppRoutes.adminDashboard,
       title: const Text('Admin Dashboard'),
       actions: [
+        const NotificationBell(),
         Consumer<ThemeProvider>(
           builder: (context, themeProvider, _) {
             return IconButton(
@@ -1231,6 +1233,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               color: const Color(0xFF6366F1), // Indigo
             ),
             _QuickActionData(
+              title: 'Broadcasts',
+              icon: Icons.campaign_rounded,
+              route: AppRoutes.adminBroadcasts,
+              color: const Color(0xFFEF4444), // Red
+            ),
+            _QuickActionData(
               title: 'Settings',
               icon: Icons.settings_rounded,
               route: AppRoutes.adminSettings,
@@ -1321,6 +1329,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         icon: Icons.assignment_rounded,
         route: AppRoutes.adminTasks,
         color: const Color(0xFF6366F1),
+      ),
+      _QuickActionData(
+        title: 'Broadcasts',
+        icon: Icons.campaign_rounded,
+        route: AppRoutes.adminBroadcasts,
+        color: const Color(0xFFEF4444),
       ),
       _QuickActionData(
         title: 'Settings',

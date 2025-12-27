@@ -39,7 +39,7 @@ public interface SalarySlipRepository extends JpaRepository<SalarySlip, Long> {
     @Query("SELECT s FROM SalarySlip s JOIN FETCH s.employee WHERE s.deleted = false AND s.status = :status")
     List<SalarySlip> findByStatus(@Param("status") SalarySlip.SalarySlipStatus status);
     
-    @Query("SELECT s FROM SalarySlip s JOIN FETCH s.employee WHERE s.id = :id")
+    @Query("SELECT s FROM SalarySlip s JOIN FETCH s.employee WHERE s.id = :id AND s.deleted = false")
     Optional<SalarySlip> findByIdWithEmployee(@Param("id") Long id);
     
     @Query("SELECT DISTINCT s FROM SalarySlip s JOIN FETCH s.employee WHERE s.deleted = false")
@@ -50,5 +50,17 @@ public interface SalarySlipRepository extends JpaRepository<SalarySlip, Long> {
     
     @Query("SELECT s FROM SalarySlip s JOIN FETCH s.employee WHERE s.deleted = false AND s.year = :year AND s.month = :month ORDER BY s.year DESC, s.month DESC")
     Page<SalarySlip> findByYearAndMonthPaginated(@Param("year") Integer year, @Param("month") Integer month, Pageable pageable);
+    
+    @Query("SELECT s FROM SalarySlip s JOIN FETCH s.employee WHERE s.deleted = false AND s.employee.id = :employeeId AND s.year = :year AND s.month = :month AND s.status = 'FINALIZED'")
+    Optional<SalarySlip> findFinalizedByEmployeeAndPeriod(
+            @Param("employeeId") Long employeeId,
+            @Param("year") Integer year,
+            @Param("month") Integer month);
+    
+    @Query("SELECT s FROM SalarySlip s JOIN FETCH s.employee WHERE s.deleted = false AND s.employee.id = :employeeId AND s.year = :year AND s.month = :month AND s.status = 'DRAFT' ORDER BY s.createdAt DESC")
+    List<SalarySlip> findDraftByEmployeeAndPeriod(
+            @Param("employeeId") Long employeeId,
+            @Param("year") Integer year,
+            @Param("month") Integer month);
 }
 

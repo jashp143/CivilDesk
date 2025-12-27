@@ -37,3 +37,7 @@ backups/
 *.backup
 deploy.log
 
+# Firebase
+firebase-service-account.json
+google-services.json
+GoogleService-Info.plist

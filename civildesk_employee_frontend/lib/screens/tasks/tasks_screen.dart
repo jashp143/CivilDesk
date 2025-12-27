@@ -55,8 +55,11 @@ class _TasksScreenState extends State<TasksScreen> {
         builder: (context) => TaskDetailScreen(task: task),
       ),
     );
+    // Refresh tasks list when returning from detail screen
+    // The provider's reviewTask method updates the task locally,
+    // but we refresh to ensure consistency
     if (result == true) {
-      _refreshTasks();
+      await _refreshTasks();
     }
   }
 
@@ -578,7 +581,7 @@ class _TasksScreenState extends State<TasksScreen> {
                 ],
               ),
               
-              // Admin Comment (if exists)
+              // Your Comment (if exists)
               if (task.reviewNote != null && task.reviewNote!.isNotEmpty) ...[
                 const SizedBox(height: 12),
                 Container(
@@ -605,7 +608,7 @@ class _TasksScreenState extends State<TasksScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Admin Comment',
+                              'Your Comment',
                               style: theme.textTheme.labelSmall?.copyWith(
                                     color: colorScheme.primary,
                                     fontWeight: FontWeight.w600,
@@ -630,28 +633,30 @@ class _TasksScreenState extends State<TasksScreen> {
               
               const SizedBox(height: 12),
               
-              // Assigned By
-              Row(
-                children: [
-                  Icon(
-                    Icons.person_outline_rounded,
-                    size: 14,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      'Assigned by: ${task.assignedBy.name}',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                            fontSize: 12,
-                          ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+              // Assigned By (only show if role is ADMIN or HR_MANAGER)
+              if (task.assignedBy.role.toUpperCase() == 'ADMIN' || 
+                  task.assignedBy.role.toUpperCase() == 'HR_MANAGER')
+                Row(
+                  children: [
+                    Icon(
+                      Icons.person_outline_rounded,
+                      size: 14,
+                      color: colorScheme.onSurfaceVariant,
                     ),
-                  ),
-                ],
-              ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Assigned by: ${task.assignedBy.name}',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                              fontSize: 12,
+                            ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
               
               const SizedBox(height: 12),
               

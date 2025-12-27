@@ -5,7 +5,11 @@ import 'package:url_launcher/url_launcher.dart';
 import 'dart:io';
 import '../../models/leave.dart';
 import '../../core/providers/leave_provider.dart';
+import '../../core/services/employee_service.dart';
+import '../../core/services/whatsapp_service.dart';
+import '../../core/utils/message_builder.dart';
 import '../../widgets/toast.dart';
+import '../../widgets/detail_screen_components.dart';
 
 class LeaveDetailScreen extends StatefulWidget {
   final Leave leave;
@@ -171,9 +175,93 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
           context,
           'Leave ${status == LeaveStatus.APPROVED ? 'approved' : 'rejected'} successfully',
         );
+        
+        // Show WhatsApp option dialog
+        _showWhatsAppOption(status, note);
+        
         Navigator.pop(context, true); // Return true to refresh parent screen
       } else {
         Toast.error(context, provider.error ?? 'Failed to review leave');
+      }
+    }
+  }
+
+  Future<void> _showWhatsAppOption(LeaveStatus status, String? note) async {
+    final shouldSend = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.message, color: const Color(0xFF25D366)),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: Text(
+                'Send WhatsApp Notification',
+                style: TextStyle(fontSize: 18),
+              ),
+            ),
+          ],
+        ),
+        content: const Text(
+          'Would you like to send a WhatsApp notification to the employee?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('SKIP'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pop(context, true),
+            icon: const Icon(Icons.message, color: Colors.white, size: 18),
+            label: const Text('SEND'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF25D366),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
+          ),
+        ],
+        actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      ),
+    );
+
+    if (shouldSend == true && mounted) {
+      await _sendLeaveWhatsApp(status, note);
+    }
+  }
+
+  Future<void> _sendLeaveWhatsApp(LeaveStatus status, String? note) async {
+    try {
+      // Fetch employee to get phone number
+      final employeeService = EmployeeService();
+      final employee = await employeeService.getEmployeeById(widget.leave.employeeId);
+      
+      if (employee.phoneNumber.isEmpty) {
+        if (mounted) {
+          Toast.warning(context, 'Employee phone number not available');
+        }
+        return;
+      }
+
+      // Build message
+      final message = MessageBuilder.buildLeaveMessage(
+        leave: widget.leave,
+        status: status,
+        adminNote: note,
+      );
+
+      // Launch WhatsApp
+      final launched = await WhatsAppService.launchWhatsApp(
+        phoneNumber: employee.phoneNumber,
+        message: message,
+      );
+
+      if (!launched && mounted) {
+        Toast.warning(context, 'Could not launch WhatsApp. Please check if WhatsApp is installed.');
+      }
+    } catch (e) {
+      if (mounted) {
+        Toast.error(context, 'Failed to send WhatsApp message: $e');
       }
     }
   }
@@ -221,6 +309,7 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
     Color statusColor;
     IconData statusIcon;
 
@@ -245,83 +334,56 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Leave Details',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
         ),
         elevation: 0,
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: Center(
+              child: DetailScreenComponents.buildStatusBadge(
+                context: context,
+                status: widget.leave.statusDisplay,
+                color: statusColor,
+                icon: statusIcon,
+                isCompact: true,
+              ),
+            ),
+          ),
+        ],
       ),
       body: Stack(
         children: [
           SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
+            child: DetailScreenComponents.buildResponsiveContainer(
+              context: context,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Status Badge with improved design
-                Center(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                    decoration: BoxDecoration(
-                      color: statusColor.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(30),
-                      border: Border.all(
-                        color: statusColor.withValues(alpha: 0.4),
-                        width: 2,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: statusColor.withValues(alpha: 0.2),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: statusColor.withValues(alpha: 0.2),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(statusIcon, color: statusColor, size: 24),
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          widget.leave.statusDisplay.toUpperCase(),
-                          style: TextStyle(
-                            color: statusColor,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.2,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 32),
-                
+                  const SizedBox(height: 8),
                 // Employee Information Section
-                _buildSection(
+                  DetailScreenComponents.buildSectionCard(
+                    context: context,
                   title: 'Employee Information',
                   icon: Icons.person,
-                  color: Colors.blue,
+                    accentColor: Colors.blue,
                   children: [
                     // Employee Avatar and Name
                     Row(
                       children: [
                         Container(
-                          width: 60,
-                          height: 60,
+                            width: 56,
+                            height: 56,
                           decoration: BoxDecoration(
-                            color: Colors.blue.withValues(alpha: 0.15),
+                              color: Colors.blue.withValues(alpha: 0.12),
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color: Colors.blue.withValues(alpha: 0.3),
-                              width: 2,
+                                color: Colors.blue.withValues(alpha: 0.2),
+                                width: 1.5,
                             ),
                           ),
                           child: Center(
@@ -330,8 +392,8 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                                   ? widget.leave.employeeName[0].toUpperCase()
                                   : '?',
                               style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w700,
                                 color: Colors.blue.shade700,
                               ),
                             ),
@@ -344,17 +406,14 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                             children: [
                               Text(
                                 widget.leave.employeeName,
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                  color: Theme.of(context).colorScheme.onSurface,
+                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w700,
                                 ),
                               ),
                               const SizedBox(height: 4),
                               Text(
                                 widget.leave.employeeIdStr,
-                                style: TextStyle(
-                                  fontSize: 14,
+                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                                 ),
                               ),
@@ -364,242 +423,131 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                       ],
                     ),
                     const SizedBox(height: 20),
-                    _buildDetailRow('Email', widget.leave.employeeEmail, icon: Icons.email),
+                      DetailScreenComponents.buildDetailRow(
+                        context: context,
+                        label: 'Email',
+                        value: widget.leave.employeeEmail,
+                        icon: Icons.email,
+                      ),
                     if (widget.leave.department != null)
-                      _buildDetailRow('Department', widget.leave.department!, icon: Icons.business),
+                        DetailScreenComponents.buildDetailRow(
+                          context: context,
+                          label: 'Department',
+                          value: widget.leave.department!,
+                          icon: Icons.business,
+                        ),
                     if (widget.leave.designation != null)
-                      _buildDetailRow('Designation', widget.leave.designation!, icon: Icons.work),
+                        DetailScreenComponents.buildDetailRow(
+                          context: context,
+                          label: 'Designation',
+                          value: widget.leave.designation!,
+                          icon: Icons.work,
+                        ),
                   ],
                 ),
                 const SizedBox(height: 16),
 
                 // Leave Details Section
-                _buildSection(
+                  DetailScreenComponents.buildSectionCard(
+                    context: context,
                   title: 'Leave Details',
                   icon: Icons.event_note,
-                  color: Colors.purple,
+                    accentColor: Colors.purple,
                   children: [
                     // Leave Type Badge
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: Colors.purple.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: Colors.purple.withValues(alpha: 0.3),
-                          width: 1.5,
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.event_note, color: Colors.purple.shade700, size: 20),
-                          const SizedBox(width: 12),
-                          Text(
-                            widget.leave.leaveTypeDisplay,
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.purple.shade700,
-                            ),
-                          ),
-                        ],
-                      ),
+                      DetailScreenComponents.buildInfoChip(
+                        context: context,
+                        label: 'Type',
+                        value: widget.leave.leaveTypeDisplay,
+                        icon: Icons.event_note,
+                        color: Colors.purple,
                     ),
                     const SizedBox(height: 16),
-                    // Date Range Card
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
-                        ),
+                      // Date Range
+                      DetailScreenComponents.buildDateRange(
+                        context: context,
+                        startDate: widget.leave.startDate,
+                        endDate: widget.leave.endDate,
                       ),
-                      child: Row(
+                      const SizedBox(height: 16),
+                      // Total Days
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final isMobile = constraints.maxWidth < 400;
+                          if (isMobile) {
+                            // Stack vertically on mobile
+                            return Column(
                         children: [
-                          Icon(
-                            Icons.calendar_today,
-                            color: Theme.of(context).colorScheme.primary,
-                            size: 24,
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Start Date',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                    fontWeight: FontWeight.w500,
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: DetailScreenComponents.buildInfoChip(
+                                    context: context,
+                                    label: 'Total Days',
+                                    value: '${widget.leave.totalDays} ${widget.leave.totalDays == 1 ? 'day' : 'days'}',
+                                    icon: Icons.access_time,
                                   ),
                                 ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  DateFormat('dd MMMM yyyy').format(widget.leave.startDate),
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: Theme.of(context).colorScheme.onSurface,
+                                if (widget.leave.isHalfDay) ...[
+                                  const SizedBox(height: 12),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: DetailScreenComponents.buildInfoChip(
+                                      context: context,
+                                      label: 'Period',
+                                      value: widget.leave.halfDayPeriodDisplay ?? '',
+                                      icon: Icons.schedule,
+                                      color: Colors.orange,
                                   ),
                                 ),
                               ],
-                            ),
-                          ),
-                          Container(
-                            width: 1,
-                            height: 40,
-                            color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'End Date',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  DateFormat('dd MMMM yyyy').format(widget.leave.endDate),
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: Theme.of(context).colorScheme.onSurface,
-                                  ),
-                                ),
                               ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    // Total Days
-                    Row(
+                            );
+                          } else {
+                            // Show side-by-side on larger screens
+                            return Row(
                       children: [
                         Expanded(
-                          child: Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.access_time,
-                                  color: Theme.of(context).colorScheme.primary,
-                                  size: 24,
-                                ),
-                                const SizedBox(width: 12),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Total Days',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                      ),
-                                    ),
-                                    Text(
-                                      '${widget.leave.totalDays} ${widget.leave.totalDays == 1 ? 'day' : 'days'}',
-                                      style: TextStyle(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.bold,
-                                        color: Theme.of(context).colorScheme.onSurface,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
+                                  child: DetailScreenComponents.buildInfoChip(
+                                    context: context,
+                                    label: 'Total Days',
+                                    value: '${widget.leave.totalDays} ${widget.leave.totalDays == 1 ? 'day' : 'days'}',
+                                    icon: Icons.access_time,
                           ),
                         ),
                         if (widget.leave.isHalfDay) ...[
                           const SizedBox(width: 12),
                           Expanded(
-                            child: Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: Colors.orange.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: Colors.orange.withValues(alpha: 0.3),
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.schedule, color: Colors.orange.shade700, size: 20),
-                                  const SizedBox(width: 8),
-                                  Flexible(
-                                    child: Text(
-                                      widget.leave.halfDayPeriodDisplay ?? '',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.orange.shade700,
-                                      ),
-                                      textAlign: TextAlign.center,
+                                    child: DetailScreenComponents.buildInfoChip(
+                                      context: context,
+                                      label: 'Period',
+                                      value: widget.leave.halfDayPeriodDisplay ?? '',
+                                      icon: Icons.schedule,
+                                      color: Colors.orange,
                                     ),
                                   ),
                                 ],
-                              ),
-                            ),
-                          ),
                         ],
-                      ],
+                            );
+                          }
+                        },
                     ),
                   ],
                 ),
                 const SizedBox(height: 16),
 
                 // Contact Information Section
-                _buildSection(
+                  DetailScreenComponents.buildSectionCard(
+                    context: context,
                   title: 'Contact Information',
                   icon: Icons.phone,
-                  color: Colors.teal,
+                    accentColor: Colors.teal,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.teal.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: Colors.teal.withValues(alpha: 0.3),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: Colors.teal.withValues(alpha: 0.2),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(Icons.phone, color: Colors.teal.shade700, size: 24),
-                          ),
-                          const SizedBox(width: 16),
-                          Text(
-                            widget.leave.contactNumber,
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Theme.of(context).colorScheme.onSurface,
-                            ),
-                          ),
-                        ],
-                      ),
+                      DetailScreenComponents.buildDetailRow(
+                        context: context,
+                        label: 'Phone',
+                        value: widget.leave.contactNumber,
+                        icon: Icons.phone,
+                        isHighlighted: true,
                     ),
                   ],
                 ),
@@ -607,80 +555,45 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
 
                 // Handover Responsibilities Section
                 if (widget.leave.handoverEmployees != null &&
-                    widget.leave.handoverEmployees!.isNotEmpty)
-                  _buildSection(
+                      widget.leave.handoverEmployees!.isNotEmpty) ...[
+                    DetailScreenComponents.buildSectionCard(
+                      context: context,
                     title: 'Handover Responsibilities',
                     icon: Icons.supervisor_account,
-                    color: Colors.amber,
+                      accentColor: Colors.amber,
                     children: widget.leave.handoverEmployees!.map((emp) {
                       return _buildHandoverEmployeeCard(emp);
                     }).toList(),
                   ),
                 const SizedBox(height: 16),
+                  ],
 
                 // Reason Section
-                _buildSection(
+                  DetailScreenComponents.buildSectionCard(
+                    context: context,
                   title: 'Reason for Leave',
                   icon: Icons.description,
-                  color: Colors.indigo,
+                    accentColor: Colors.indigo,
                   children: [
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Colors.indigo.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: Colors.indigo.withValues(alpha: 0.2),
-                          width: 1.5,
-                        ),
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Icon(
-                            Icons.format_quote,
-                            color: Colors.indigo.shade300,
-                            size: 32,
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Text(
-                              widget.leave.reason,
-                              style: TextStyle(
-                                fontSize: 15,
-                                height: 1.6,
-                                color: Theme.of(context).colorScheme.onSurface,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                      DetailScreenComponents.buildTextContent(
+                        context: context,
+                        text: widget.leave.reason,
+                        icon: Icons.format_quote,
+                        accentColor: Colors.indigo,
                     ),
                   ],
                 ),
 
                 // Medical Certificate Section
                 if (widget.leave.leaveType == LeaveType.MEDICAL_LEAVE) ...[
-                  const SizedBox(height: 16),
-                  _buildSection(
+                    DetailScreenComponents.buildSectionCard(
+                      context: context,
                     title: 'Medical Certificate',
                     icon: Icons.file_present,
-                    color: Colors.red,
+                      accentColor: Colors.red,
                     children: [
                       if (widget.leave.medicalCertificateUrl != null)
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            color: Colors.red.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: Colors.red.withValues(alpha: 0.3),
-                              width: 1.5,
-                            ),
-                          ),
-                          child: Column(
+                          Column(
                             children: [
                               Icon(
                                 Icons.description,
@@ -690,92 +603,60 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                               const SizedBox(height: 12),
                               Text(
                                 'Medical Certificate Available',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Theme.of(context).colorScheme.onSurface,
+                                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                               const SizedBox(height: 16),
                               ElevatedButton.icon(
                                 onPressed: _openMedicalCertificate,
-                                icon: const Icon(Icons.download, size: 20),
-                                label: const Text(
-                                  'View Certificate',
-                                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                                ),
+                                icon: const Icon(Icons.download, size: 18),
+                                label: const Text('View Certificate'),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.red.shade600,
                                   foregroundColor: Colors.white,
                                   padding: const EdgeInsets.symmetric(
-                                    horizontal: 24,
-                                    vertical: 14,
+                                    horizontal: 20,
+                                    vertical: 12,
                                   ),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(10),
                                   ),
-                                  elevation: 2,
                                 ),
                               ),
                             ],
-                          ),
                         )
                       else
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: Colors.grey.withValues(alpha: 0.3),
-                            ),
-                          ),
-                          child: Row(
+                          Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.info_outline, color: Colors.grey.shade600),
+                              Icon(Icons.info_outline, 
+                                color: Theme.of(context).colorScheme.onSurfaceVariant),
                               const SizedBox(width: 12),
                               Text(
                                 'No certificate uploaded',
-                                style: TextStyle(
-                                  color: Colors.grey.shade600,
-                                  fontSize: 15,
+                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                                 ),
                               ),
                             ],
-                          ),
                         ),
                     ],
                   ),
+                    const SizedBox(height: 16),
                 ],
 
                 // Review Information Section
                 if (widget.leave.reviewedBy != null) ...[
-                  const SizedBox(height: 16),
-                  _buildSection(
+                    DetailScreenComponents.buildSectionCard(
+                      context: context,
                     title: 'Review Information',
                     icon: Icons.rate_review,
-                    color: widget.leave.status == LeaveStatus.APPROVED
+                      accentColor: widget.leave.status == LeaveStatus.APPROVED
                         ? Colors.green
                         : Colors.red,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: (widget.leave.status == LeaveStatus.APPROVED
-                                  ? Colors.green
-                                  : Colors.red)
-                              .withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: (widget.leave.status == LeaveStatus.APPROVED
-                                    ? Colors.green
-                                    : Colors.red)
-                                .withValues(alpha: 0.3),
-                          ),
-                        ),
-                        child: Row(
+                        Row(
                           children: [
                             Container(
                               padding: const EdgeInsets.all(10),
@@ -783,7 +664,7 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                                 color: (widget.leave.status == LeaveStatus.APPROVED
                                         ? Colors.green
                                         : Colors.red)
-                                    .withValues(alpha: 0.2),
+                                    .withValues(alpha: 0.15),
                                 shape: BoxShape.circle,
                               ),
                               child: Icon(
@@ -793,7 +674,7 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                                 color: widget.leave.status == LeaveStatus.APPROVED
                                     ? Colors.green.shade700
                                     : Colors.red.shade700,
-                                size: 24,
+                                size: 22,
                               ),
                             ),
                             const SizedBox(width: 16),
@@ -803,17 +684,14 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                                 children: [
                                   Text(
                                     widget.leave.reviewedBy!.name,
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: Theme.of(context).colorScheme.onSurface,
+                                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
                                     widget.leave.reviewedBy!.role,
-                                    style: TextStyle(
-                                      fontSize: 13,
+                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                                     ),
                                   ),
@@ -830,8 +708,7 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                                         Text(
                                           DateFormat('dd MMM yyyy, hh:mm a')
                                               .format(widget.leave.reviewedAt!),
-                                          style: TextStyle(
-                                            fontSize: 12,
+                                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                             color: Theme.of(context).colorScheme.onSurfaceVariant,
                                           ),
                                         ),
@@ -842,63 +719,26 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                               ),
                             ),
                           ],
-                        ),
                       ),
                       if (widget.leave.reviewNote != null &&
                           widget.leave.reviewNote!.isNotEmpty) ...[
                         const SizedBox(height: 16),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.note,
-                                    size: 18,
-                                    color: Theme.of(context).colorScheme.primary,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Review Note:',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14,
-                                      color: Theme.of(context).colorScheme.onSurface,
+                          DetailScreenComponents.buildTextContent(
+                            context: context,
+                            text: widget.leave.reviewNote!,
+                            icon: Icons.note,
                                     ),
-                                  ),
+                        ],
                                 ],
                               ),
-                              const SizedBox(height: 8),
-                              Text(
-                                widget.leave.reviewNote!,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  height: 1.5,
-                                  color: Theme.of(context).colorScheme.onSurface,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
+                    const SizedBox(height: 16),
                 ],
                 
                 // Add spacing for the bottom buttons
                 if (widget.leave.status == LeaveStatus.PENDING)
-                  const SizedBox(height: 80),
+                    const SizedBox(height: 100),
               ],
+              ),
             ),
           ),
 
@@ -908,82 +748,47 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
               bottom: 0,
               left: 0,
               right: 0,
-              child: Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surface,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.15),
-                      blurRadius: 20,
-                      offset: const Offset(0, -4),
-                    ),
-                  ],
-                ),
-                child: SafeArea(
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
+              child: DetailScreenComponents.buildActionButtons(
+                context: context,
+                buttons: [
+                  ElevatedButton.icon(
                           onPressed: _isSubmitting
                               ? null
                               : () => _showReviewDialog(LeaveStatus.REJECTED),
-                          icon: const Icon(Icons.close, size: 22),
-                          label: const Text(
-                            'REJECT',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1,
-                            ),
-                          ),
+                    icon: const Icon(Icons.close, size: 20),
+                    label: const Text('REJECT'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.red.shade600,
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 18),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            elevation: 2,
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: ElevatedButton.icon(
+                  ElevatedButton.icon(
                           onPressed: _isSubmitting
                               ? null
                               : () => _showReviewDialog(LeaveStatus.APPROVED),
-                          icon: const Icon(Icons.check, size: 22),
-                          label: const Text(
-                            'APPROVE',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1,
-                            ),
-                          ),
+                    icon: const Icon(Icons.check, size: 20),
+                    label: const Text('APPROVE'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.green.shade600,
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 18),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
-                            ),
-                            elevation: 2,
                           ),
                         ),
                       ),
                     ],
-                  ),
-                ),
               ),
             ),
 
           // Loading Overlay
           if (_isSubmitting)
             Container(
-              color: Colors.black.withValues(alpha: 0.3),
+              color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.3),
               child: const Center(
                 child: CircularProgressIndicator(),
               ),

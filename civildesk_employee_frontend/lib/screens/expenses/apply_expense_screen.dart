@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../models/expense.dart';
 import '../../core/providers/expense_provider.dart';
+import '../../widgets/toast.dart';
 
 class ApplyExpenseScreen extends StatefulWidget {
   final Expense? existingExpense; // For editing existing expense
@@ -73,16 +74,12 @@ class _ApplyExpenseScreenState extends State<ApplyExpenseScreen> {
           setState(() {
             _receiptUrls.addAll(uploadedUrls);
           });
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('${uploadedUrls.length} receipt(s) uploaded successfully')),
-          );
+          Toast.success(context, '${uploadedUrls.length} receipt(s) uploaded successfully');
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to upload receipt: $e')),
-        );
+        Toast.error(context, 'Failed to upload receipt: $e');
       }
     }
   }
@@ -97,16 +94,12 @@ class _ApplyExpenseScreenState extends State<ApplyExpenseScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     if (_expenseDate == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select expense date')),
-      );
+      Toast.warning(context, 'Please select expense date');
       return;
     }
 
     if (_selectedCategory == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select expense category')),
-      );
+      Toast.warning(context, 'Please select expense category');
       return;
     }
 
@@ -133,18 +126,12 @@ class _ApplyExpenseScreenState extends State<ApplyExpenseScreen> {
 
     if (mounted) {
       if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(widget.existingExpense != null 
-              ? 'Expense updated successfully' 
-              : 'Expense application submitted successfully'),
-          ),
-        );
+        Toast.success(context, widget.existingExpense != null 
+          ? 'Expense updated successfully' 
+          : 'Expense application submitted successfully');
         Navigator.pop(context, true);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(expenseProvider.error ?? 'Failed to submit expense')),
-        );
+        Toast.error(context, expenseProvider.error ?? 'Failed to submit expense');
       }
     }
   }

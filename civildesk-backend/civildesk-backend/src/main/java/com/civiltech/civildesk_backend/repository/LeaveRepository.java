@@ -37,7 +37,15 @@ public interface LeaveRepository extends JpaRepository<Leave, Long> {
     Optional<Leave> findById(@NonNull Long id);
 
     // Find leaves where employee is assigned responsibilities
-    @Query("SELECT l FROM Leave l WHERE l.handoverEmployeeIds LIKE %:employeeId% AND l.deleted = false")
+    // Check if employeeId appears in the comma-separated handoverEmployeeIds string
+    @EntityGraph(attributePaths = {"employee", "reviewedBy"})
+    @Query("SELECT l FROM Leave l WHERE l.deleted = false " +
+           "AND l.handoverEmployeeIds IS NOT NULL " +
+           "AND l.handoverEmployeeIds != '' " +
+           "AND (l.handoverEmployeeIds = :employeeId " +
+           "OR l.handoverEmployeeIds LIKE CONCAT(:employeeId, ',%') " +
+           "OR l.handoverEmployeeIds LIKE CONCAT('%,', :employeeId, ',%') " +
+           "OR l.handoverEmployeeIds LIKE CONCAT('%,', :employeeId))")
     List<Leave> findLeavesWithHandoverResponsibility(@Param("employeeId") String employeeId);
 
     // Find leaves by date range

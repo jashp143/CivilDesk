@@ -17,6 +17,7 @@ import '../../models/overtime.dart';
 import '../../models/expense.dart';
 import '../../widgets/employee_layout.dart';
 import '../../widgets/cached_profile_image.dart';
+import '../../widgets/notification_bell.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -114,7 +115,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     if (attendance.lunchOutTime != null) completed++;
     if (attendance.lunchInTime != null) completed++;
     if (attendance.checkOutTime != null) completed++;
-    return completed / 4.0;
+    // Each punch is 25% (1/4 = 0.25)
+    return completed * 0.25;
   }
 
   int _getCompletedSteps(dynamic attendance) {
@@ -179,6 +181,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return EmployeeLayout(
       currentRoute: AppRoutes.home,
       title: const Text('CivilDesk Employee'),
+      actions: [
+        const NotificationBell(),
+      ],
       child: RefreshIndicator(
         onRefresh: _loadData,
         child:
@@ -450,25 +455,153 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                     );
                                   },
                                 ),
-                                // Designation below name
-                                if (displayDesignation.isNotEmpty) ...[
+                                // Designation and Department side by side
+                                if (displayDesignation.isNotEmpty ||
+                                    (personalInfo != null &&
+                                        personalInfo.department.isNotEmpty &&
+                                        personalInfo.department !=
+                                            displayDesignation) ||
+                                    (department.isNotEmpty &&
+                                        department != displayDesignation)) ...[
                                   const SizedBox(height: 6),
                                   AnimatedBuilder(
                                     animation: _fadeAnimation,
                                     builder: (context, child) {
                                       return Opacity(
                                         opacity: _fadeAnimation.value * 0.9,
-                                        child: Text(
-                                          displayDesignation,
-                                          style: theme.textTheme.bodyLarge
-                                              ?.copyWith(
-                                                color: Colors.white.withValues(
-                                                  alpha: 0.9,
-                                                ),
-                                                fontSize: 15,
-                                                fontWeight: FontWeight.w500,
-                                                letterSpacing: 0.2,
+                                        child: Row(
+                                          children: [
+                                            // Designation
+                                            if (displayDesignation.isNotEmpty)
+                                              Text(
+                                                displayDesignation,
+                                                style: theme.textTheme.bodyLarge
+                                                    ?.copyWith(
+                                                      color: Colors.white
+                                                          .withValues(
+                                                        alpha: 0.9,
+                                                      ),
+                                                      fontSize: 15,
+                                                      fontWeight:
+                                                          FontWeight.w500,
+                                                      letterSpacing: 0.2,
+                                                    ),
                                               ),
+                                            // Department badge
+                                            if (personalInfo != null &&
+                                                personalInfo.department
+                                                    .isNotEmpty &&
+                                                personalInfo.department !=
+                                                    displayDesignation) ...[
+                                              if (displayDesignation.isNotEmpty)
+                                                const SizedBox(width: 8),
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                  horizontal: 12,
+                                                  vertical: 6,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.white
+                                                      .withValues(alpha: 0.15),
+                                                  borderRadius:
+                                                      BorderRadius.circular(20),
+                                                ),
+                                                child: Row(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    Icon(
+                                                      Icons.business_center,
+                                                      size: 14,
+                                                      color: Colors.white
+                                                          .withValues(
+                                                        alpha: 0.9,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 6),
+                                                    Flexible(
+                                                      child: Text(
+                                                        personalInfo.department,
+                                                        style: theme
+                                                            .textTheme
+                                                            .bodySmall
+                                                            ?.copyWith(
+                                                              color: Colors
+                                                                  .white
+                                                                  .withValues(
+                                                                alpha: 0.9,
+                                                              ),
+                                                              fontSize: 12,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w500,
+                                                            ),
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ] else if (department.isNotEmpty &&
+                                                department !=
+                                                    displayDesignation) ...[
+                                              if (displayDesignation.isNotEmpty)
+                                                const SizedBox(width: 8),
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                  horizontal: 12,
+                                                  vertical: 6,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.white
+                                                      .withValues(alpha: 0.15),
+                                                  borderRadius:
+                                                      BorderRadius.circular(20),
+                                                ),
+                                                child: Row(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    Icon(
+                                                      Icons.business_center,
+                                                      size: 14,
+                                                      color: Colors.white
+                                                          .withValues(
+                                                        alpha: 0.9,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 6),
+                                                    Flexible(
+                                                      child: Text(
+                                                        department,
+                                                        style: theme
+                                                            .textTheme
+                                                            .bodySmall
+                                                            ?.copyWith(
+                                                              color: Colors
+                                                                  .white
+                                                                  .withValues(
+                                                                alpha: 0.9,
+                                                              ),
+                                                              fontSize: 12,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w500,
+                                                            ),
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          ],
                                         ),
                                       );
                                     },
@@ -547,106 +680,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 16),
-                      // Department (if available and different from designation)
-                      if (personalInfo != null) ...[
-                        if (personalInfo.department.isNotEmpty &&
-                            personalInfo.department != displayDesignation)
-                          AnimatedBuilder(
-                            animation: _fadeAnimation,
-                            builder: (context, child) {
-                              return Opacity(
-                                opacity: _fadeAnimation.value,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 6,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.15),
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        Icons.business_center,
-                                        size: 14,
-                                        color: Colors.white.withValues(
-                                          alpha: 0.9,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Flexible(
-                                        child: Text(
-                                          personalInfo.department,
-                                          style: theme.textTheme.bodySmall
-                                              ?.copyWith(
-                                                color: Colors.white.withValues(
-                                                  alpha: 0.9,
-                                                ),
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                      ] else if (department.isNotEmpty &&
-                          department != displayDesignation) ...[
-                        AnimatedBuilder(
-                          animation: _fadeAnimation,
-                          builder: (context, child) {
-                            return Opacity(
-                              opacity: _fadeAnimation.value,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.business_center,
-                                      size: 14,
-                                      color: Colors.white.withValues(
-                                        alpha: 0.9,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Flexible(
-                                      child: Text(
-                                        department,
-                                        style: theme.textTheme.bodySmall
-                                            ?.copyWith(
-                                              color: Colors.white.withValues(
-                                                alpha: 0.9,
-                                              ),
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ],
                       const SizedBox(height: 12),
                       // Date with icon
                       AnimatedBuilder(
@@ -700,14 +733,30 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final progress = _calculateAttendanceProgress(todayAttendance);
     final completedSteps = _getCompletedSteps(todayAttendance);
 
+    // Ensure progress is clamped between 0.0 and 1.0
+    final clampedProgress = progress.clamp(0.0, 1.0);
+
+    // Initialize progress controller with current progress value if not set
+    if (_previousProgress < 0) {
+      _previousProgress = clampedProgress;
+      _progressController.value = clampedProgress;
+    }
+
     // Update progress animation when progress value changes
-    if ((progress - _previousProgress).abs() > 0.001) {
-      _previousProgress = progress;
+    if ((clampedProgress - _previousProgress).abs() > 0.001) {
+      _previousProgress = clampedProgress;
+      // Set the value immediately to ensure visual sync
+      _progressController.value = clampedProgress;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_progressController.value != progress) {
-          _progressController.animateTo(progress);
+        if (mounted && (_progressController.value - clampedProgress).abs() > 0.01) {
+          _progressController.animateTo(clampedProgress);
         }
       });
+    } else {
+      // Ensure controller is always in sync even if value hasn't changed
+      if ((_progressController.value - clampedProgress).abs() > 0.01) {
+        _progressController.value = clampedProgress;
+      }
     }
 
     final gradientColors = _getGradientColors(
@@ -786,6 +835,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     AnimatedBuilder(
                       animation: _progressAnimation,
                       builder: (context, child) {
+                        // Use the calculated progress value directly to ensure accuracy
+                        final currentProgress = _calculateAttendanceProgress(todayAttendance);
+                        final currentClampedProgress = currentProgress.clamp(0.0, 1.0);
+                        final displayPercentage = (currentClampedProgress * 100).round();
+                        
+                        // Use the calculated progress for the visual indicator to ensure it matches the percentage
                         return SizedBox(
                           width: 60,
                           height: 60,
@@ -796,7 +851,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 width: 60,
                                 height: 60,
                                 child: CircularProgressIndicator(
-                                  value: _progressAnimation.value,
+                                  value: currentClampedProgress,
                                   strokeWidth: 6,
                                   backgroundColor: Colors.grey.shade200,
                                   valueColor: AlwaysStoppedAnimation<Color>(
@@ -805,7 +860,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 ),
                               ),
                               Text(
-                                '${(_progressAnimation.value * 100).toInt()}%',
+                                '$displayPercentage%',
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   fontWeight: FontWeight.bold,
                                   color: gradientColors[0],
@@ -1184,6 +1239,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         'icon': Icons.schedule_rounded,
         'route': AppRoutes.overtime,
         'color': const Color(0xFF6366F1), // Indigo
+      },
+      {
+        'title': 'Broadcasts',
+        'icon': Icons.campaign_rounded,
+        'route': AppRoutes.broadcasts,
+        'color': const Color(0xFFEF4444), // Red
       },
       {
         'title': 'Settings',

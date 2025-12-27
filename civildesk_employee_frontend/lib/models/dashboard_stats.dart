@@ -15,13 +15,14 @@ class EmployeeDashboardStats {
 
   factory EmployeeDashboardStats.fromJson(Map<String, dynamic> json) {
     return EmployeeDashboardStats(
-      personalInfo: PersonalInfo.fromJson(json['personalInfo'] as Map<String, dynamic>),
-      attendanceSummary: AttendanceSummary.fromJson(json['attendanceSummary'] as Map<String, dynamic>),
-      leaveSummary: LeaveSummary.fromJson(json['leaveSummary'] as Map<String, dynamic>),
-      monthlyAttendance: (json['monthlyAttendance'] as List<dynamic>)
-          .map((e) => MonthlyAttendance.fromJson(e as Map<String, dynamic>))
-          .toList(),
-      upcomingEvents: UpcomingEvents.fromJson(json['upcomingEvents'] as Map<String, dynamic>),
+      personalInfo: PersonalInfo.fromJson(json['personalInfo'] as Map<String, dynamic>? ?? {}),
+      attendanceSummary: AttendanceSummary.fromJson(json['attendanceSummary'] as Map<String, dynamic>? ?? {}),
+      leaveSummary: LeaveSummary.fromJson(json['leaveSummary'] as Map<String, dynamic>? ?? {}),
+      monthlyAttendance: (json['monthlyAttendance'] as List<dynamic>?)
+              ?.map((e) => MonthlyAttendance.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [],
+      upcomingEvents: UpcomingEvents.fromJson(json['upcomingEvents'] as Map<String, dynamic>? ?? {}),
     );
   }
 }

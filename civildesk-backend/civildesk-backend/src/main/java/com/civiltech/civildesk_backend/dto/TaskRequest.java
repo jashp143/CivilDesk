@@ -33,4 +33,9 @@ public class TaskRequest {
 
     @NotBlank(message = "Mode of travel is required")
     private String modeOfTravel;
+
+    // Optional Site Information
+    private String siteName;
+    private String siteContactPersonName;
+    private String siteContactPhone;
 }

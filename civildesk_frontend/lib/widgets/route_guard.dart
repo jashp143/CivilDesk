@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../core/constants/app_routes.dart';
 import '../core/constants/app_constants.dart';
 import '../core/providers/auth_provider.dart';
+import 'toast.dart';
 
 /// Route guard widget that checks authentication and role requirements
 class RouteGuard extends StatelessWidget {
@@ -39,12 +40,7 @@ class RouteGuard extends StatelessWidget {
           if (userRole == null || !allowedRoles!.contains(userRole)) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               Navigator.of(context).pushReplacementNamed(AppRoutes.login);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('You do not have permission to access this page.'),
-                  backgroundColor: Colors.red,
-                ),
-              );
+              Toast.error(context, 'You do not have permission to access this page.');
             });
             return const Scaffold(
               body: Center(

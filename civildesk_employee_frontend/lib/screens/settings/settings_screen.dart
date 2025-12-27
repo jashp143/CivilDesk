@@ -6,9 +6,12 @@ import '../../core/constants/app_routes.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/providers/theme_provider.dart';
 import '../../core/providers/dashboard_provider.dart';
+import '../../core/providers/notification_provider.dart';
 import '../../core/services/employee_service.dart';
+import '../../core/utils/validators.dart';
 import '../../widgets/cached_profile_image.dart';
 import '../../widgets/employee_layout.dart';
+import '../../widgets/toast.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -30,7 +33,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void initState() {
     super.initState();
     _loadAppInfo();
-    _loadProfile();
+    // Defer dashboard stats fetch to avoid calling setState during build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadProfile();
+    });
     _loadEmployeeDetails();
   }
 
@@ -488,6 +494,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const SizedBox(height: 24),
             ],
 
+            // Password Change Section
+            _buildSectionHeader(
+              theme,
+              colorScheme,
+              'Security',
+              Icons.lock_rounded,
+            ),
+            const SizedBox(height: 8),
+            Card(
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(
+                  color: colorScheme.outline.withValues(alpha: 0.12),
+                  width: 1,
+                ),
+              ),
+              child: ListTile(
+                leading: Icon(Icons.lock_outline_rounded, color: colorScheme.primary),
+                title: const Text('Change Password'),
+                subtitle: const Text('Update your account password'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  _showChangePasswordDialog(context, theme, colorScheme);
+                },
+              ),
+            ),
+            const SizedBox(height: 24),
+
             // Theme Mode Section
             _buildSectionHeader(
               theme,
@@ -601,6 +636,53 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const SizedBox(height: 24),
 
+            // Notification Settings Section
+            _buildSectionHeader(
+              theme,
+              colorScheme,
+              'Notifications',
+              Icons.notifications_rounded,
+            ),
+            const SizedBox(height: 8),
+            Card(
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(
+                  color: colorScheme.outline.withValues(alpha: 0.12),
+                  width: 1,
+                ),
+              ),
+              child: Consumer<NotificationProvider>(
+                builder: (context, notificationProvider, _) {
+                  return SwitchListTile(
+                    title: const Text('Push Notifications'),
+                    subtitle: const Text('Receive push notifications for important updates'),
+                    secondary: Icon(
+                      Icons.notifications,
+                      color: notificationProvider.notificationsEnabled
+                          ? colorScheme.primary
+                          : colorScheme.onSurfaceVariant,
+                    ),
+                    value: notificationProvider.notificationsEnabled,
+                    onChanged: (value) async {
+                      await notificationProvider.toggleNotifications(value);
+                      if (mounted) {
+                        Toast.show(
+                          context,
+                          message: value
+                              ? 'Notifications enabled'
+                              : 'Notifications disabled',
+                          type: value ? ToastType.success : ToastType.info,
+                        );
+                      }
+                    },
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 24),
+
             // App Info Section
             _buildSectionHeader(
               theme,
@@ -648,11 +730,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     title: const Text('Privacy Policy'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Privacy Policy coming soon'),
-                        ),
-                      );
+                      Toast.info(context, 'Privacy Policy coming soon');
                     },
                   ),
                   const Divider(height: 1),
@@ -661,11 +739,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     title: const Text('Terms & Conditions'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Terms & Conditions coming soon'),
-                        ),
-                      );
+                      Toast.info(context, 'Terms & Conditions coming soon');
                     },
                   ),
                 ],
@@ -838,6 +912,188 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         );
       }).toList(),
+    );
+  }
+
+  void _showChangePasswordDialog(BuildContext context, ThemeData theme, ColorScheme colorScheme) {
+    final _currentPasswordController = TextEditingController();
+    final _newPasswordController = TextEditingController();
+    final _confirmPasswordController = TextEditingController();
+    final _formKey = GlobalKey<FormState>();
+    bool _obscureCurrentPassword = true;
+    bool _obscureNewPassword = true;
+    bool _obscureConfirmPassword = true;
+    bool _isLoading = false;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Change Password'),
+          content: SizedBox(
+            width: MediaQuery.of(context).size.width * 0.8,
+            child: Form(
+              key: _formKey,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      controller: _currentPasswordController,
+                      obscureText: _obscureCurrentPassword,
+                      decoration: InputDecoration(
+                        labelText: 'Current Password',
+                        prefixIcon: const Icon(Icons.lock_outline),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscureCurrentPassword
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscureCurrentPassword = !_obscureCurrentPassword;
+                            });
+                          },
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Current password is required';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _newPasswordController,
+                      obscureText: _obscureNewPassword,
+                      decoration: InputDecoration(
+                        labelText: 'New Password',
+                        prefixIcon: const Icon(Icons.lock_outline),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscureNewPassword
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscureNewPassword = !_obscureNewPassword;
+                            });
+                          },
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        helperText: 'Password must be at least 8 characters',
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'New password is required';
+                        }
+                        if (value.length < 8) {
+                          return 'Password must be at least 8 characters';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _confirmPasswordController,
+                      obscureText: _obscureConfirmPassword,
+                      decoration: InputDecoration(
+                        labelText: 'Confirm Password',
+                        prefixIcon: const Icon(Icons.lock_outline),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscureConfirmPassword
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscureConfirmPassword = !_obscureConfirmPassword;
+                            });
+                          },
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Confirm password is required';
+                        }
+                        if (value != _newPasswordController.text) {
+                          return 'Passwords do not match';
+                        }
+                        return null;
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: _isLoading
+                  ? null
+                  : () async {
+                      if (_formKey.currentState!.validate()) {
+                        setState(() {
+                          _isLoading = true;
+                        });
+
+                        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                        final success = await authProvider.changePassword(
+                          _currentPasswordController.text,
+                          _newPasswordController.text,
+                          _confirmPasswordController.text,
+                        );
+
+                        if (context.mounted) {
+                          setState(() {
+                            _isLoading = false;
+                          });
+
+                          if (success) {
+                            Navigator.of(context).pop();
+                            Toast.show(
+                              context,
+                              message: 'Password changed successfully',
+                              type: ToastType.success,
+                            );
+                          } else {
+                            final errorMessage = authProvider.lastError ?? 'Failed to change password';
+                            Toast.show(
+                              context,
+                              message: errorMessage,
+                              type: ToastType.error,
+                            );
+                          }
+                        }
+                      }
+                    },
+              child: _isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Change Password'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

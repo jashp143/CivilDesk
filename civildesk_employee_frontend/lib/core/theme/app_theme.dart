@@ -248,14 +248,6 @@ class AppTheme {
           borderRadius: BorderRadius.circular(8.0),
         ),
       ),
-      snackBarTheme: SnackBarThemeData(
-        backgroundColor: palette == ColorPalette.palette2 ? Color(0xFFFFFFFF) : lightSurface,
-        contentTextStyle: TextStyle(color: palette == ColorPalette.palette2 ? Color(0xFF2B2B2B) : lightTextPrimary),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8.0),
-        ),
-        behavior: SnackBarBehavior.floating,
-      ),
       drawerTheme: DrawerThemeData(
         backgroundColor: palette == ColorPalette.palette2 ? Color(0xFFFFFFFF) : lightSurface,
         elevation: 0,
@@ -450,14 +442,6 @@ class AppTheme {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8.0),
         ),
-      ),
-      snackBarTheme: SnackBarThemeData(
-        backgroundColor: palette == ColorPalette.palette2 ? Color(0xFF2B2B2B) : darkSurface,
-        contentTextStyle: const TextStyle(color: darkTextPrimary),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8.0),
-        ),
-        behavior: SnackBarBehavior.floating,
       ),
       drawerTheme: DrawerThemeData(
         backgroundColor: palette == ColorPalette.palette2 ? Color(0xFF2B2B2B) : darkSurface,

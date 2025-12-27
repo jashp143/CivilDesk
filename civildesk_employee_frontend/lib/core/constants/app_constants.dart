@@ -14,7 +14,7 @@ class AppConstants {
   static const String _devFaceServiceUrl = 'http://192.168.0.193:8000';
   
   // Set to true for production, false for local development
-  static const bool _isProduction = true; // TODO: Set to false for local development
+  static const bool _isProduction = false; // TODO: Set to false for local development
   
   static String get baseUrl {
     if (_isProduction) {
@@ -45,11 +45,15 @@ class AppConstants {
   static const String userKey = 'user_data';
   static const String themeModeKey = 'theme_mode';
   static const String colorPaletteKey = 'color_palette';
+  static const String notificationsEnabledKey = 'notifications_enabled';
 
   // API Endpoints
   static const String loginEndpoint = '/auth/login/employee';
   static const String logoutEndpoint = '/auth/logout';
   static const String refreshTokenEndpoint = '/auth/refresh';
+  static const String changePasswordEndpoint = '/auth/change-password';
+  static const String forgotPasswordEndpoint = '/auth/forgot-password';
+  static const String resetPasswordEndpoint = '/auth/reset-password';
   static const String employeesEndpoint = '/employees';
   static const String attendanceEndpoint = '/attendance';
   static const String leaveEndpoint = '/leave';

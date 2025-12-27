@@ -12,14 +12,26 @@ import 'core/providers/leave_provider.dart';
 import 'core/providers/overtime_provider.dart';
 import 'core/providers/expense_provider.dart';
 import 'core/providers/task_provider.dart';
+import 'core/providers/notification_provider.dart';
+import 'core/providers/broadcast_provider.dart';
+import 'core/services/fcm_service.dart';
 import 'core/constants/app_routes.dart';
 import 'routes/app_router.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   // Load environment variables
   await dotenv.load(fileName: ".env");
+  
+  // Initialize Firebase
+  try {
+    await Firebase.initializeApp();
+    // Initialize FCM service (will be initialized after login)
+  } catch (e) {
+    debugPrint('Firebase initialization error: $e');
+  }
   
   runApp(const CivildeskApp());
 }
@@ -41,6 +53,8 @@ class CivildeskApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => OvertimeProvider()),
         ChangeNotifierProvider(create: (_) => ExpenseProvider()),
         ChangeNotifierProvider(create: (_) => TaskProvider()),
+        ChangeNotifierProvider(create: (_) => NotificationProvider()),
+        ChangeNotifierProvider(create: (_) => BroadcastProvider()),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, _) {

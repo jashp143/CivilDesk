@@ -6,14 +6,18 @@ import '../screens/home/home_screen.dart';
 import '../screens/attendance/my_attendance_screen.dart';
 import '../screens/salary/my_salary_slips_screen.dart';
 import '../screens/leaves/leaves_screen.dart';
+import '../screens/leaves/responsibilities_screen.dart';
+import '../screens/leaves/responsibility_detail_screen.dart';
+import '../models/leave.dart';
 import '../screens/overtime/overtime_screen.dart';
 import '../screens/expenses/expenses_screen.dart';
 import '../screens/tasks/tasks_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/attendance/attendance_history_screen.dart';
 import '../screens/attendance/gps_attendance_screen.dart';
-import '../screens/leave/leave_screen.dart';
 import '../screens/settings/settings_screen.dart';
+import '../screens/notifications/notifications_screen.dart';
+import '../screens/broadcasts/broadcasts_screen.dart';
 
 class AppRouter {
   static Route<dynamic> generateRoute(RouteSettings settings) {
@@ -59,6 +63,17 @@ class AppRouter {
           builder: (_) => const LeavesScreen(),
         );
 
+      case AppRoutes.responsibilities:
+        return MaterialPageRoute(
+          builder: (_) => const ResponsibilitiesScreen(),
+        );
+
+      case AppRoutes.responsibilityDetail:
+        final leave = settings.arguments as Leave;
+        return MaterialPageRoute(
+          builder: (_) => ResponsibilityDetailScreen(leave: leave),
+        );
+
       case AppRoutes.overtime:
         return MaterialPageRoute(
           builder: (_) => const OvertimeScreen(),
@@ -84,14 +99,24 @@ class AppRouter {
           builder: (_) => const AttendanceHistoryScreen(),
         );
 
-      case AppRoutes.leave:
+/*      case AppRoutes.leave:
         return MaterialPageRoute(
           builder: (_) => const LeaveScreen(),
-        );
+        );*/
 
       case AppRoutes.settings:
         return MaterialPageRoute(
           builder: (_) => const SettingsScreen(),
+        );
+
+      case AppRoutes.notifications:
+        return MaterialPageRoute(
+          builder: (_) => const NotificationsScreen(),
+        );
+
+      case AppRoutes.broadcasts:
+        return MaterialPageRoute(
+          builder: (_) => const BroadcastsScreen(),
         );
 
       default:

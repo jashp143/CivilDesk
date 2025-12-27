@@ -124,9 +124,27 @@ class TaskProvider with ChangeNotifier {
 
     try {
       await _taskService.reviewTask(taskId, status, reviewNote);
-      await refreshTasks(); // Refresh tasks list
+      
+      // Fetch the updated task from server and update it in the local list
+      final updatedTask = await _taskService.getTaskById(taskId);
+      if (updatedTask != null) {
+        final taskIndex = _tasks.indexWhere((task) => task.id == taskId);
+        if (taskIndex != -1) {
+          _tasks[taskIndex] = updatedTask;
+        }
+      }
+      
       _isLoading = false;
       notifyListeners();
+      
+      // Refresh the full list in the background without blocking UI
+      // This ensures we get the latest data but doesn't block navigation
+      Future.microtask(() {
+        refreshTasks().catchError((e) {
+          // Silently handle refresh errors, local update already done
+        });
+      });
+      
       return true;
     } catch (e) {
       _error = e.toString().replaceAll('Exception: ', '');

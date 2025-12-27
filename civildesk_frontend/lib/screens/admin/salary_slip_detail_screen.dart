@@ -42,7 +42,33 @@ class SalarySlipDetailScreen extends StatelessWidget {
         }
       } catch (e) {
         if (context.mounted) {
-          Toast.error(context, 'Failed to finalize: ${e.toString()}');
+          // Extract user-friendly error message
+          String errorMessage = e.toString();
+          // Remove common exception prefixes
+          errorMessage = errorMessage.replaceAll('Exception: ', '');
+          errorMessage = errorMessage.replaceAll('Failed to finalize salary slip: ', '');
+          
+          // Show specific error messages for common scenarios
+          if (errorMessage.toLowerCase().contains('finalized') && 
+              errorMessage.toLowerCase().contains('already exists')) {
+            Toast.error(
+              context, 
+              'A finalized salary slip already exists for this employee and period. Only one finalized slip is allowed per month.',
+              duration: const Duration(seconds: 5),
+            );
+          } else if (errorMessage.toLowerCase().contains('already finalized')) {
+            Toast.error(
+              context, 
+              'This salary slip is already finalized.',
+              duration: const Duration(seconds: 4),
+            );
+          } else {
+            Toast.error(
+              context, 
+              errorMessage.isNotEmpty ? errorMessage : 'Failed to finalize salary slip. Please try again.',
+              duration: const Duration(seconds: 5),
+            );
+          }
         }
       }
     }

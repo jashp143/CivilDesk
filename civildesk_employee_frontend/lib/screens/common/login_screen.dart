@@ -1,10 +1,15 @@
 import 'dart:ui';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_routes.dart';
 import '../../core/providers/auth_provider.dart';
+import '../../core/providers/notification_provider.dart';
+import '../../core/services/fcm_service.dart';
 import '../../core/utils/validators.dart';
+import '../../widgets/toast.dart';
+import 'forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -93,15 +98,24 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     );
 
     if (success && mounted) {
+      // Initialize FCM and notifications after successful login
+      try {
+        final notificationProvider = Provider.of<NotificationProvider>(context, listen: false);
+        final fcmService = FCMService();
+        await fcmService.initialize();
+        // Set navigator key for notification navigation
+        final navigatorKey = GlobalKey<NavigatorState>();
+        fcmService.setNavigatorKey(navigatorKey);
+        // Initialize notification provider
+        await notificationProvider.initialize();
+      } catch (e) {
+        debugPrint('Error initializing FCM: $e');
+      }
+
       Navigator.of(context).pushReplacementNamed(AppRoutes.home);
     } else if (mounted) {
       final errorMessage = authProvider.lastError ?? 'Login failed. Please check your credentials.';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(errorMessage),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
+      Toast.error(context, errorMessage);
     }
   }
 
@@ -462,7 +476,36 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                       fieldName: 'Password',
                     ),
                   ),
-                  SizedBox(height: isTablet ? 16 : 20),
+                  SizedBox(height: isTablet ? 12 : 16),
+                  // Forgot Password link
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => const ForgotPasswordScreen(),
+                            ),
+                          );
+                        },
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isTablet ? 8 : 12,
+                            vertical: 4,
+                          ),
+                        ),
+                        child: Text(
+                          'Forgot Password?',
+                          style: TextStyle(
+                            color: colorScheme.primary,
+                            fontSize: isTablet ? 14 : 15,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: isTablet ? 8 : 12),
                   // Remember Me checkbox
                   Row(
                     children: [
@@ -726,7 +769,36 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                     fieldName: 'Password',
                   ),
                 ),
-                SizedBox(height: isMobile ? 16 : 20),
+                SizedBox(height: isMobile ? 12 : 16),
+                // Forgot Password link
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => const ForgotPasswordScreen(),
+                          ),
+                        );
+                      },
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isMobile ? 8 : 12,
+                          vertical: 4,
+                        ),
+                      ),
+                      child: Text(
+                        'Forgot Password?',
+                        style: TextStyle(
+                          color: colorScheme.primary,
+                          fontSize: isMobile ? 14 : 15,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: isMobile ? 6 : 10),
                 // Remember Me checkbox
                 Row(
                   children: [

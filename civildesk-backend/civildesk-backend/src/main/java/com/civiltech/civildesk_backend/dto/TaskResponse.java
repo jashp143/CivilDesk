@@ -21,6 +21,9 @@ public class TaskResponse {
     private String description;
     private String modeOfTravel;
     private String modeOfTravelDisplay;
+    private String siteName;
+    private String siteContactPersonName;
+    private String siteContactPhone;
     private Task.TaskStatus status;
     private String statusDisplay;
     private AssignedByInfo assignedBy;

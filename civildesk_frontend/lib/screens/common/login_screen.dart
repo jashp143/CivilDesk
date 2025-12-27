@@ -1,8 +1,11 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_routes.dart';
 import '../../core/providers/auth_provider.dart';
+import '../../core/providers/notification_provider.dart';
+import '../../core/services/fcm_service.dart';
 import '../../core/utils/validators.dart';
 import '../../widgets/toast.dart';
 
@@ -57,6 +60,20 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     );
 
     if (success && mounted) {
+      // Initialize FCM and notifications after successful login
+      try {
+        final notificationProvider = Provider.of<NotificationProvider>(context, listen: false);
+        final fcmService = FCMService();
+        await fcmService.initialize();
+        // Set navigator key for notification navigation
+        final navigatorKey = GlobalKey<NavigatorState>();
+        fcmService.setNavigatorKey(navigatorKey);
+        // Initialize notification provider
+        await notificationProvider.initialize();
+      } catch (e) {
+        debugPrint('Error initializing FCM: $e');
+      }
+
       final role = authProvider.userRole;
       String route;
       

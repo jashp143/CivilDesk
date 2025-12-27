@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../models/overtime.dart';
 import '../../core/providers/overtime_provider.dart';
+import '../../widgets/toast.dart';
 
 class ApplyOvertimeScreen extends StatefulWidget {
   final Overtime? existingOvertime; // For editing existing overtime
@@ -129,22 +130,12 @@ class _ApplyOvertimeScreenState extends State<ApplyOvertimeScreen> {
     if (!mounted) return;
 
     if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(widget.existingOvertime != null
-              ? 'Overtime updated successfully'
-              : 'Overtime application submitted successfully'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      Toast.success(context, widget.existingOvertime != null
+          ? 'Overtime updated successfully'
+          : 'Overtime application submitted successfully');
       Navigator.pop(context, true);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(overtimeProvider.error ?? 'Failed to submit overtime'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      Toast.error(context, overtimeProvider.error ?? 'Failed to submit overtime');
     }
   }
 
@@ -292,24 +283,14 @@ class _ApplyOvertimeScreenState extends State<ApplyOvertimeScreen> {
                         if (_selectedDate == null ||
                             _startTime == null ||
                             _endTime == null) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Please fill all required fields'),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
+                          Toast.warning(context, 'Please fill all required fields');
                           return;
                         }
 
                         if (_endTime!.hour < _startTime!.hour ||
                             (_endTime!.hour == _startTime!.hour &&
                                 _endTime!.minute <= _startTime!.minute)) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('End time must be after start time'),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
+                          Toast.warning(context, 'End time must be after start time');
                           return;
                         }
 

@@ -9,6 +9,8 @@ import com.civiltech.civildesk_backend.repository.UserRepository;
 import com.civiltech.civildesk_backend.security.JwtTokenProvider;
 import com.civiltech.civildesk_backend.service.EmailService;
 import com.civiltech.civildesk_backend.service.OtpService;
+import com.civiltech.civildesk_backend.service.RateLimitService;
+import com.civiltech.civildesk_backend.security.SecurityUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -54,6 +56,9 @@ public class AuthController {
 
     @Autowired
     private RefreshTokenRepository refreshTokenRepository;
+
+    @Autowired
+    private RateLimitService rateLimitService;
 
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest loginRequest, HttpServletRequest request) {
@@ -345,6 +350,123 @@ public class AuthController {
         } catch (Exception e) {
             logger.error("Unexpected error during token refresh", e);
             throw new BadRequestException("Invalid refresh token");
+        }
+    }
+
+    @PostMapping("/change-password")
+    public ResponseEntity<ApiResponse<String>> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
+        try {
+            // Get current authenticated user
+            User currentUser = SecurityUtils.getCurrentUser();
+            if (currentUser == null) {
+                throw new BadRequestException("User not authenticated");
+            }
+
+            // Validate password match
+            if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+                throw new BadRequestException("New password and confirm password do not match");
+            }
+
+            // Verify current password
+            if (!passwordEncoder.matches(request.getCurrentPassword(), currentUser.getPassword())) {
+                throw new BadRequestException("Current password is incorrect");
+            }
+
+            // Check if new password is same as current password
+            if (passwordEncoder.matches(request.getNewPassword(), currentUser.getPassword())) {
+                throw new BadRequestException("New password must be different from current password");
+            }
+
+            // Update password
+            currentUser.setPassword(passwordEncoder.encode(request.getNewPassword()));
+            userRepository.save(currentUser);
+
+            logger.info("Password changed successfully for user: {}", currentUser.getEmail());
+            return ResponseEntity.ok(ApiResponse.success("Password changed successfully", null));
+        } catch (BadRequestException e) {
+            throw e;
+        } catch (Exception e) {
+            logger.error("Unexpected error during password change", e);
+            throw new BadRequestException("Failed to change password. Please try again.");
+        }
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ApiResponse<String>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request, HttpServletRequest httpRequest) {
+        try {
+            // Check rate limiting
+            String identifier = request.getEmail();
+            
+            // Use email for rate limiting
+            if (rateLimitService.isRateLimited(identifier)) {
+                throw new BadRequestException("Too many password reset requests. Please try again after 15 minutes.");
+            }
+
+            // Find user by email
+            User user = userRepository.findByEmailAndDeletedFalse(request.getEmail())
+                    .orElseThrow(() -> new BadRequestException("User not found with this email"));
+
+            // Only allow employees to reset password via forgot password
+            if (user.getRole() != User.Role.EMPLOYEE) {
+                throw new BadRequestException("Password reset is only available for employees. Please contact your administrator.");
+            }
+
+            // Generate OTP
+            String otp = otpService.generateOtp();
+            user.setOtp(otp);
+            user.setOtpExpiry(otpService.calculateOtpExpiry());
+            userRepository.save(user);
+
+            // Send OTP email
+            emailService.sendPasswordResetOtpEmail(user.getEmail(), user.getFirstName(), otp);
+
+            logger.info("Password reset OTP sent to: {}", user.getEmail());
+            return ResponseEntity.ok(ApiResponse.success("Password reset OTP sent to your email", null));
+        } catch (BadRequestException e) {
+            throw e;
+        } catch (Exception e) {
+            logger.error("Unexpected error during forgot password request", e);
+            throw new BadRequestException("Failed to process password reset request. Please try again.");
+        }
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<ApiResponse<String>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        try {
+            // Validate password match
+            if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+                throw new BadRequestException("New password and confirm password do not match");
+            }
+
+            // Find user by email
+            User user = userRepository.findByEmailAndDeletedFalse(request.getEmail())
+                    .orElseThrow(() -> new BadRequestException("User not found with this email"));
+
+            // Verify OTP
+            if (!otpService.isOtpValid(user.getOtp(), request.getOtp(), user.getOtpExpiry())) {
+                if (otpService.isOtpExpired(user.getOtpExpiry())) {
+                    throw new BadRequestException("OTP has expired. Please request a new one.");
+                }
+                throw new BadRequestException("Invalid OTP");
+            }
+
+            // Update password
+            user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+            // Clear OTP after successful password reset
+            user.setOtp(null);
+            user.setOtpExpiry(null);
+            userRepository.save(user);
+
+            // Reset rate limit for this email
+            rateLimitService.resetRateLimit(request.getEmail());
+
+            logger.info("Password reset successfully for user: {}", user.getEmail());
+            return ResponseEntity.ok(ApiResponse.success("Password reset successfully. You can now login with your new password.", null));
+        } catch (BadRequestException e) {
+            throw e;
+        } catch (Exception e) {
+            logger.error("Unexpected error during password reset", e);
+            throw new BadRequestException("Failed to reset password. Please try again.");
         }
     }
 

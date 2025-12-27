@@ -86,7 +86,6 @@ public class SiteService {
 
         updateSiteFromRequest(site, request);
         // Spring Data JPA save() always returns a non-null entity
-        @SuppressWarnings("null")
         Site savedSite = siteRepository.save(site);
         return SiteResponse.fromEntity(savedSite);
     }
